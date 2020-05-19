@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 
-from __future__ import division
+
 from tools.modified.androguard.core.bytecodes import apk
 from tools.modified.androguard.core.bytecodes import dvm
 from tools.modified.androguard.core.analysis import analysis
@@ -18,7 +18,7 @@ import traceback
 import random
 import argparse
 from zipfile import BadZipfile
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import platform
 import imp
 import sys
@@ -269,7 +269,7 @@ class Writer :
 			assert isinstance(special_tag, list), "Tag [" + tag + "] : special_tag should be list"
 			dict_tmp_information["special_tag"] = special_tag    #Notice: the type of "special_tag" is "list"
 		if cve_number :
-			assert isinstance(cve_number, basestring), "Tag [" + tag + "] : special_tag should be string"
+			assert isinstance(cve_number, str), "Tag [" + tag + "] : special_tag should be string"
 			dict_tmp_information["cve_number"] = cve_number
 
 		self.__output_dict_vector_result_information[tag] = dict_tmp_information
@@ -310,7 +310,7 @@ class Writer :
 
 				prepared_search_enhanced_result = []
 
-				for tag, dict_information in self.__output_dict_vector_result_information.items() :
+				for tag, dict_information in list(self.__output_dict_vector_result_information.items()) :
 
 					search_enhanced_result = dict()
 
@@ -350,18 +350,18 @@ class Writer :
 
 	def writePlainInf(self, msg) :
 		# if DEBUG :
-		print(str(msg))
+		print((str(msg)))
 		# [Recorded here]
 		self.__file_io_information_output_list.append(str(msg))
 
 	def writeInf(self, key, value, extra_title, extra_print_original_title=False) :
 		# if DEBUG :
 		if extra_print_original_title :
-			print(str(extra_title))
+			print((str(extra_title)))
 			# [Recorded here]
 			self.__file_io_information_output_list.append(str(extra_title))
 		else :
-			print(extra_title + ": " + str(value))
+			print((extra_title + ": " + str(value)))
 			# [Recorded here]
 			self.__file_io_information_output_list.append(extra_title + ": " + str(value))
 
@@ -469,7 +469,7 @@ class Writer :
 				for line in self.__file_io_result_output_list :
 					f.write(line + "\n")
 
-			print("<<< Analysis report is generated: " + os.path.abspath(output_file_path) + " >>>")
+			print(("<<< Analysis report is generated: " + os.path.abspath(output_file_path) + " >>>"))
 			print("")
 
 			return True
@@ -519,7 +519,7 @@ class Writer :
 
 		sorted_output_dict_result_information = collections.OrderedDict(sorted(self.__output_dict_vector_result_information.items()))	#Sort the dictionary by key
 
-		for tag, dict_information in sorted(sorted_output_dict_result_information.items(), key=self.__sort_by_level, reverse=True) :	#Output the sorted dictionary by level
+		for tag, dict_information in sorted(list(sorted_output_dict_result_information.items()), key=self.__sort_by_level, reverse=True) :	#Output the sorted dictionary by level
 			extra_field = ""
 			if self.is_dict_information_has_special_tag(dict_information) :
 				for i in dict_information["special_tag"] :
@@ -718,7 +718,7 @@ class FilteringEngine :
 	def is_all_of_key_class_in_dict_not_in_exclusion(self, dict_result) :
 		if self.__enable_exclude_classes :
 			isAllMatchExclusion = True
-			for class_name, method_list in dict_result.items() :
+			for class_name, method_list in list(dict_result.items()) :
 				if not self.__regexp_excluded_classes.match(class_name) :	#any match
 					isAllMatchExclusion = False
 			
@@ -1234,7 +1234,7 @@ def __analyze(writer, args) :
 
 			try :
 				if dict_class_to_method_mapping :  #Found the corresponding url in the code
-					for _ , result_method_list in dict_class_to_method_mapping.items() :
+					for _ , result_method_list in list(dict_class_to_method_mapping.items()) :
 						for result_method in result_method_list :  #strip duplicated item
 							if filteringEngine.is_class_name_not_in_exclusion(result_method.get_class_name()) :
 								source_classes_and_functions = (result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
@@ -1551,7 +1551,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
 	#Base64 String decoding:
 
 	organized_list_base64_success_decoded_string_to_original_mapping = []
-	for decoded_string, original_string in list_base64_success_decoded_string_to_original_mapping.items():
+	for decoded_string, original_string in list(list_base64_success_decoded_string_to_original_mapping.items()):
 		dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(original_string)
 		if filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping) :	
 			"""
@@ -1573,7 +1573,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
 			writer.write("    ->Original Encoding String: " + original_string)
 			
 			if dict_class_to_method_mapping :
-				for class_name, result_method_list in dict_class_to_method_mapping.items() :
+				for class_name, result_method_list in list(dict_class_to_method_mapping.items()) :
 					for result_method in result_method_list :
 						source_classes_and_functions = (result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
 						writer.write("    ->From class: " + source_classes_and_functions)
@@ -1585,7 +1585,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
 
 			writer.startWriter("HACKER_BASE64_URL_DECODE", LEVEL_CRITICAL, "Base64 String Encryption", "Base64 encoding \"HTTP URLs without SSL\" from all the Strings (Total: " + str(len(list_base64_decoded_urls)) + ")", ["SSL_Security", "Hacker"])
 
-			for decoded_string, original_string in list_base64_decoded_urls.items():
+			for decoded_string, original_string in list(list_base64_decoded_urls.items()):
 
 				dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(original_string)
 
@@ -1596,7 +1596,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
 				writer.write("    ->Original Encoding String: " + original_string)
 
 				if dict_class_to_method_mapping :
-					for class_name, result_method_list in dict_class_to_method_mapping.items() :
+					for class_name, result_method_list in list(dict_class_to_method_mapping.items()) :
 						for result_method in result_method_list :
 							source_classes_and_functions = (result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
 							writer.write("    ->From class: " + source_classes_and_functions)
@@ -1794,7 +1794,7 @@ Please modify the below code:"""
 	for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_code_for_preventing_screen_capture):
 		if (i.getResult()[1] is None) or (i.getResult()[2] is None):
 			continue
-		if (not isinstance(i.getResult()[1], (int, long))) or (not isinstance(i.getResult()[2], (int, long))):
+		if (not isinstance(i.getResult()[1], int)) or (not isinstance(i.getResult()[2], int)):
 			continue
 		if (i.getResult()[1] & 0x2000) and (i.getResult()[2] & 0x2000):
 			list_code_for_preventing_screen_capture.append(i.getPath())
@@ -2354,7 +2354,7 @@ Please check the reference:
 
 			writer.startWriter("NATIVE_METHODS", LEVEL_NOTICE, "Native Methods Checking", "Native methods found:")
 
-			for class_name, method_names in dic_native_methods_sorted.items():
+			for class_name, method_names in list(dic_native_methods_sorted.items()):
 				if class_name in dic_NDK_library_classname_to_ndkso_mapping:
 					writer.write("Class: %s (Loaded NDK files: %s)" % (class_name, dic_NDK_library_classname_to_ndkso_mapping[class_name]))
 				else:
@@ -2536,7 +2536,7 @@ Please check:
 	PermissionName_to_ProtectionLevel = a.get_PermissionName_to_ProtectionLevel_mapping()
 
 	dangerous_custom_permissions = []
-	for name, protectionLevel in PermissionName_to_ProtectionLevel.items():
+	for name, protectionLevel in list(PermissionName_to_ProtectionLevel.items()):
 		if protectionLevel == PROTECTION_DANGEROUS :	# 1:"dangerous"
 			dangerous_custom_permissions.append(name)
 
@@ -2555,7 +2555,7 @@ Please change these permissions:""")
 			who_use_this_permission = get_all_components_by_permission(a.get_AndroidManifest(), class_name)
 			who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
 			if who_use_this_permission :
-				for key, valuelist in who_use_this_permission.items() :
+				for key, valuelist in list(who_use_this_permission.items()) :
 					for list_item in valuelist:
 						writer.write("    -> used by (" + key + ") " + a.format_value(list_item))
 	else :
@@ -2567,7 +2567,7 @@ Please change these permissions:""")
 	#Find all "normal" or default permission
 
 	normal_or_default_custom_permissions = []
-	for name, protectionLevel in PermissionName_to_ProtectionLevel.items():
+	for name, protectionLevel in list(PermissionName_to_ProtectionLevel.items()):
 		if protectionLevel == PROTECTION_NORMAL :	# 0:"normal" or not set
 			normal_or_default_custom_permissions.append(name)
 
@@ -2582,7 +2582,7 @@ Please make sure these permission are all really need to be exported or otherwis
 			who_use_this_permission = get_all_components_by_permission(a.get_AndroidManifest(), class_name)
 			who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
 			if who_use_this_permission :
-				for key, valuelist in who_use_this_permission.items() :
+				for key, valuelist in list(who_use_this_permission.items()) :
 					for list_item in valuelist:
 						writer.write("    -> used by (" + key + ") " + a.format_value(list_item))
 	else :
@@ -3281,7 +3281,7 @@ Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
 	path_setAllowFileAccess_vulnerable_ready_to_test = []
 	path_setAllowFileAccess_confirm_vulnerable_src_class_func = []
 
-	for class_fun_descriptor, value in dict_WebSettings_ClassMethod_to_Path.items() :
+	for class_fun_descriptor, value in list(dict_WebSettings_ClassMethod_to_Path.items()) :
 		has_Settings = False
 		for func_name_descriptor, path in value :
 			if func_name_descriptor == "setAllowFileAccess(Z)V" :
@@ -3352,7 +3352,7 @@ Reference: http://developer.android.com/guide/topics/manifest/application-elemen
 	list_X509Certificate_Critical_class = []
 	list_X509Certificate_Warning_class = []
 
-	for class_name, method_list in methods_X509TrustManager_list.items() :
+	for class_name, method_list in list(methods_X509TrustManager_list.items()) :
 		ins_count = 0
 
 		for method in method_list :
@@ -3460,7 +3460,7 @@ def __persist_db(writer, args) :
 		db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
 	if not os.path.isfile(db_config_file) :
-		print("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file)
+		print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
 		traceback.print_exc()
 
 	configParser = SafeConfigParser()

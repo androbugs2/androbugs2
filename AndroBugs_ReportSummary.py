@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import argparse
 import sys
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import platform
 import os
 
@@ -20,7 +20,7 @@ def parseArgument():
 args = parseArgument()
 
 print("## AndroBugs Framework: Android APK Vulnerability Summary Reporter ##")
-print
+print()
 
 if platform.system().lower() == "windows" :
 	import sys
@@ -30,7 +30,7 @@ else :
 	db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
 if not os.path.isfile(db_config_file) :
-	print("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file)
+	print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
 	traceback.print_exc()
 
 configParser = SafeConfigParser()
@@ -79,7 +79,7 @@ for report in collection_AppInfo.find(query_condition) :
 
 	if "details" in report :
 		details = report["details"]
-		for key, value in details.items() :
+		for key, value in list(details.items()) :
 			if key not in vector_to_level_count_list :
 				vector_to_level_count_list[key] = { "Critical":0, "Warning":0, "Notice":0, "Info":0 }
 			level_tag = value["level"]
@@ -88,40 +88,40 @@ for report in collection_AppInfo.find(query_condition) :
 
 total_count = count_success + count_fail
 
-print("%50s   %9s %9s %9s %9s %9s %17s %14s %14s %14s %17s" % ("Vector Name",
+print(("%50s   %9s %9s %9s %9s %9s %17s %14s %14s %14s %17s" % ("Vector Name",
  	"Critical", "Warning", "Notice", "Info", "Total", 
-	"% of Critical", "% of Warning", "% of Notice", "% of Info", "% of Non-Info"))
-print('-' * 190)
+	"% of Critical", "% of Warning", "% of Notice", "% of Info", "% of Non-Info")))
+print(('-' * 190))
 
 if total_count == 0 :
 	print("No Data.")
 else :
 	for key, level_count_list in sorted(vector_to_level_count_list.items()) :
 		if count_success == 0 :
-			print("%50s : %9s %9s %9s %9s %9s %16.2f%% %13.2f%% %13.2f%% %13.2f%% %16.2f%%" % (
+			print(("%50s : %9s %9s %9s %9s %9s %16.2f%% %13.2f%% %13.2f%% %13.2f%% %16.2f%%" % (
 				key, 
 				level_count_list["Critical"], level_count_list["Warning"], level_count_list["Notice"], level_count_list["Info"], 
 				count_success,
 				0, 0, 0, 0, 0
-				))
+				)))
 		else :
-			print("%50s : %9s %9s %9s %9s %9s %16.2f%% %13.2f%% %13.2f%% %13.2f%% %16.2f%%" % (
+			print(("%50s : %9s %9s %9s %9s %9s %16.2f%% %13.2f%% %13.2f%% %13.2f%% %16.2f%%" % (
 				key, 
 				level_count_list["Critical"], level_count_list["Warning"], level_count_list["Notice"], level_count_list["Info"], 
 				count_success,
 				(level_count_list["Critical"]/float(count_success)*100), (level_count_list["Warning"]/float(count_success)*100), 
 				(level_count_list["Notice"]/float(count_success)*100), (level_count_list["Info"]/float(count_success)*100),
 				((1-(level_count_list["Info"]/float(count_success)))*100)
-				))
-print('-' * 190)
+				)))
+print(('-' * 190))
 
 # ------------------------------------------------------------------------------------	
 
 count_total = count_success + count_fail
 
 if (count_total > 0) :
-	print("Total(Success + Fail to analyze) APKs: %d;  Success to analyze APKs: %d (%.2f%%);  Fail to analyze APKs: %d (%.2f%%)" % (
+	print(("Total(Success + Fail to analyze) APKs: %d;  Success to analyze APKs: %d (%.2f%%);  Fail to analyze APKs: %d (%.2f%%)" % (
 			count_total, count_success, ((count_success / float(count_total)) * 100 ), count_fail, ((count_fail / float(count_total)) * 100 )
-		 ))
+		 )))
 
-print
+print()

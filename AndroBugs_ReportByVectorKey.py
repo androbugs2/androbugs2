@@ -2,7 +2,7 @@ from pymongo import MongoClient
 import argparse
 import sys
 from datetime import datetime
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import platform
 import os
 
@@ -53,7 +53,7 @@ def __sort_by_level(data):
 args = parseArgument()
 
 print("## AndroBugs Framework: Android APK Vulnerability Reporter by Vector Name ##")
-print
+print()
 
 if platform.system().lower() == "windows" :
 	import sys
@@ -62,7 +62,7 @@ else :
 	db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
 if not os.path.isfile(db_config_file) :
-	print("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file)
+	print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
 	traceback.print_exc()
 
 configParser = SafeConfigParser()
@@ -107,9 +107,9 @@ if args.log_level not in vector_container :
 	sys.exit()
 
 
-print("Vector: %s" % (args.vector))
+print(("Vector: %s" % (args.vector)))
 
-print('-' * 80)
+print(('-' * 80))
 
 time_start = datetime.now()
 
@@ -155,41 +155,41 @@ else :
 
 value_list = vector_container[args.log_level]
 
-print(args.log_level + " (Total: " + str(len(value_list)) + "):")
+print((args.log_level + " (Total: " + str(len(value_list)) + "):"))
 
 if value_list :
 	for package_name, package_version_code in value_list :
 		if package_version_code is not None :
-			print("     %-45s (version code: %d)" % (package_name, package_version_code))
+			print(("     %-45s (version code: %d)" % (package_name, package_version_code)))
 		else :
-			print("     %-45s" % package_name)
+			print(("     %-45s" % package_name))
 else :
 	print("     Not found.")	
-print
+print()
 
 if args.ALL :
-	for log_level, value_list in sorted(vector_container.items(), key=__sort_by_level, reverse=True) :
+	for log_level, value_list in sorted(list(vector_container.items()), key=__sort_by_level, reverse=True) :
 		if log_level != args.log_level : #prevent from printing duplicated ones
-			print(log_level + " (Total: " + str(len(value_list)) + "):")
+			print((log_level + " (Total: " + str(len(value_list)) + "):"))
 		
 			if value_list :
 				for package_name, package_version_code in value_list :
 					if package_version_code is not None :
-						print("     %-45s (version code: %d)" % (package_name, package_version_code))
+						print(("     %-45s (version code: %d)" % (package_name, package_version_code)))
 					else :
-						print("     %-45s" % package_name)
+						print(("     %-45s" % package_name))
 			else :
 				print("     Not found.")	
 
-			print
+			print()
 
-print('-' * 80)
+print(('-' * 80))
 
 # ------------------------------------------------------------------------------------	
 
 time_execution = time_end - time_start
 
-print("Query result count: %d" % (total_count))
-print("Execution time: %f secs" % (time_execution.total_seconds()))
-print
+print(("Query result count: %d" % (total_count)))
+print(("Execution time: %f secs" % (time_execution.total_seconds())))
+print()
 

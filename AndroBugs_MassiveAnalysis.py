@@ -18,16 +18,16 @@ def main() :
 
 	args = parseArgument()
 
-	print
+	print()
 	print("## AndroBugs Framework: Android APK Vulnerability Scanner - Massive Tool ##")
-	print
+	print()
 
 	ANALYZE_MODE_MASSIVE = "massive"
 
 	if args.ignore_duplicated_scanning :
 
 		from pymongo import MongoClient
-		from ConfigParser import SafeConfigParser
+		from configparser import SafeConfigParser
 
 		if platform.system().lower() == "windows" :
 			import sys
@@ -36,7 +36,7 @@ def main() :
 			db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
 		if not os.path.isfile(db_config_file) :
-			print("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file)
+			print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
 			traceback.print_exc()
 
 		configParser = SafeConfigParser()
@@ -53,7 +53,7 @@ def main() :
 		collection_AppInfo = db[Collection_Analyze_Result]		# Name is case-sensitive
 
 		print("[Notice] APK with the same \"package_name\", \"analyze_engine_build\" and \"analyze_tag\" will not be analyzed again.")
-		print
+		print()
 
 	input_dir = os.path.realpath(args.input_apk_dir)
 	output_dir = os.path.realpath(args.report_output_dir)
@@ -72,7 +72,7 @@ def main() :
 
 			package_name = filename[:-4]
 
-			print("Analyzing APK(" + str(current_file) + "/" + str(total_dir) + "): " + filename)
+			print(("Analyzing APK(" + str(current_file) + "/" + str(total_dir) + "): " + filename))
 
 			if args.ignore_duplicated_scanning :  #check if already scanned
 
@@ -90,7 +90,7 @@ def main() :
 					break
 
 				if boolHasResult :
-					print(" ->Package name [" + package_name + "] has already in DB. Ignore analyzing it.")
+					print((" ->Package name [" + package_name + "] has already in DB. Ignore analyzing it."))
 					continue
 			
 			try:
