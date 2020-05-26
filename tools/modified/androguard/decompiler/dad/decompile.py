@@ -14,41 +14,37 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import sys
-sys.path.append('./')
-
 import logging
 import struct
+import sys
 from collections import defaultdict
-import tools.modified.androguard.core.androconf as androconf
-import tools.modified.androguard.decompiler.dad.util as util
-from tools.modified.androguard.core.analysis import analysis
-from tools.modified.androguard.core.bytecodes import apk, dvm
-from tools.modified.androguard.decompiler.dad.ast import (JSONWriter, parse_descriptor,
-    literal_string, literal_null, literal_int, literal_long, literal_float,
-    literal_double, literal_bool, literal_hex_int, dummy)
-from tools.modified.androguard.decompiler.dad.control_flow import identify_structures
-from tools.modified.androguard.decompiler.dad.dataflow import (build_def_use,
-                                                place_declarations,
-                                                dead_code_elimination,
-                                                register_propagation,
-                                                split_variables)
-from tools.modified.androguard.decompiler.dad.graph import construct, simplify, split_if_nodes
-from tools.modified.androguard.decompiler.dad.instruction import Param, ThisParam
-from tools.modified.androguard.decompiler.dad.writer import Writer
-from tools.modified.androguard.util import read
 
+import androguard.core.androconf as androconf
+import androguard.decompiler.dad.util as util
+from androguard.core.analysis import analysis
+from androguard.core.bytecodes import apk, dvm
+from androguard.decompiler.dad.control_flow import identify_structures
+from androguard.decompiler.dad.dast import (
+    JSONWriter,
+    parse_descriptor,
+    literal_string,
+    literal_hex_int,
+    dummy
+)
+from androguard.decompiler.dad.dataflow import (
+    build_def_use,
+    place_declarations,
+    dead_code_elimination,
+    register_propagation,
+    split_variables
+)
+from androguard.decompiler.dad.graph import construct, simplify, split_if_nodes
+from androguard.decompiler.dad.instruction import Param, ThisParam
+from androguard.decompiler.dad.writer import Writer
+from androguard.util import read
 
-def auto_vm(filename):
-    ret = androconf.is_android(filename)
-    if ret == 'APK':
-        return dvm.DalvikVMFormat(apk.APK(filename).get_dex())
-    elif ret == 'DEX':
-        return dvm.DalvikVMFormat(read(filename))
-    elif ret == 'DEY':
-        return dvm.DalvikOdexVMFormat(read(filename))
-    return None
+logger = logging.getLogger('dad')
+
 
 # No seperate DvField class currently
 def get_field_ast(field):
@@ -63,7 +59,7 @@ def get_field_ast(field):
             if field.get_descriptor() == 'Ljava/lang/String;':
                 expr = literal_string(val)
             elif field.proto == 'B':
-                expr = literal_hex_int(struct.unpack('<b', val)[0])
+                expr = literal_hex_int(struct.unpack('<b', struct.pack("B", val))[0])
 
     return {
         'triple': triple,
@@ -72,7 +68,14 @@ def get_field_ast(field):
         'expr': expr,
     }
 
-class DvMethod(object):
+
+class DvMethod:
+    """
+    This is a wrapper around :class:`~androguard.core.analysis.analysis.MethodAnalysis` and
+    :class:`~androguard.core.bytecodes.dvm.EncodedMethod` inside the decompiler.
+
+    :param androguard.core.analysis.analysis.MethodAnalysis methanalysis:
+    """
     def __init__(self, methanalysis):
         method = methanalysis.get_method()
         self.method = method
@@ -109,12 +112,26 @@ class DvMethod(object):
                 self.lparams.append(param)
                 self.var_to_name[param] = Param(param, ptype)
                 num_param += util.get_type_size(ptype)
+
         if not __debug__:
-            from tools.modified.androguard.core import bytecode
-            bytecode.method2png('/tmp/dad/graphs/%s#%s.png' % \
-                (self.cls_name.split('/')[-1][:-1], self.name), methanalysis)
+            from androguard.core import bytecode
+            # TODO: use tempfile to create a correct tempfile (cross platform compatible)
+            bytecode.method2png('/tmp/dad/graphs/{}#{}.png'.format(self.cls_name.split('/')[-1][:-1], self.name), methanalysis)
 
     def process(self, doAST=False):
+        """
+        Processes the method and decompile the code.
+
+        There are two modes of operation:
+
+        1) Normal Decompilation to Java Code
+        2) Decompilation into an abstract syntax tree (AST)
+
+        The Decompilation is done twice. First, a rough decompilation is created,
+        which is then optimized. Second, the optimized version is used to create the final version.
+
+        :param doAST: generate AST instead of Java Code
+        """
         logger.debug('METHOD : %s', self.name)
 
         # Native methods... no blocks.
@@ -127,16 +144,24 @@ class DvMethod(object):
                 self.writer.write_method()
             return
 
+        # Construct the CFG
         graph = construct(self.start_block, self.var_to_name, self.exceptions)
         self.graph = graph
 
         if not __debug__:
+            # TODO: use tempfile to create a correct tempfile (cross platform compatible)
             util.create_png(self.cls_name, self.name, graph, '/tmp/dad/blocks')
 
         use_defs, def_uses = build_def_use(graph, self.lparams)
         split_variables(graph, self.var_to_name, def_uses, use_defs)
         dead_code_elimination(graph, def_uses, use_defs)
         register_propagation(graph, def_uses, use_defs)
+
+        # FIXME var_to_name need to contain the created tmp variables.
+        # This seems to be a workaround, we add them into the list manually
+        for var, i in def_uses:
+            if not isinstance(var, int):
+                self.var_to_name[var] = var.upper()
 
         place_declarations(graph, self.var_to_name, def_uses, use_defs)
         del def_uses, use_defs
@@ -152,14 +177,14 @@ class DvMethod(object):
         graph.compute_rpo()
 
         if not __debug__:
-            util.create_png(self.cls_name, self.name, graph,
-                                                    '/tmp/dad/pre-structured')
+            # TODO: use tempfile to create a correct tempfile (cross platform compatible)
+            util.create_png(self.cls_name, self.name, graph, '/tmp/dad/pre-structured')
 
         identify_structures(graph, graph.immediate_dominators())
 
         if not __debug__:
-            util.create_png(self.cls_name, self.name, graph,
-                                                    '/tmp/dad/structured')
+            # TODO: use tempfile to create a correct tempfile (cross platform compatible)
+            util.create_png(self.cls_name, self.name, graph, '/tmp/dad/structured')
 
         if doAST:
             self.ast = JSONWriter(graph, self).get_ast()
@@ -168,14 +193,30 @@ class DvMethod(object):
             self.writer.write_method()
 
     def get_ast(self):
+        """
+        Returns the AST, if previously was generated by calling :meth:`process` with argument :code:`doAST=True`.
+
+        The AST is a :class:`dict` with the following keys:
+
+        * triple
+        * flags
+        * ret
+        * params
+        * comments
+        * body
+
+        The actual AST for the method is in the :code:`body`.
+
+        :return: dict
+        """
         return self.ast
 
     def show_source(self):
-        print self.get_source()
+        print(self.get_source())
 
     def get_source(self):
         if self.writer:
-            return '%s' % self.writer
+            return str(self.writer)
         return ''
 
     def get_source_ext(self):
@@ -184,11 +225,20 @@ class DvMethod(object):
         return []
 
     def __repr__(self):
-        #return 'Method %s' % self.name
-        return 'class DvMethod(object): %s' % self.name
+        # return 'Method %s' % self.name
+        return '<class DvMethod(object): %s>' % self.name
 
 
-class DvClass(object):
+class DvClass:
+    """
+    This is a wrapper for :class:`~androguard.core.bytecodes.dvm.ClassDefItem` inside the decompiler.
+
+    At first, :py:attr:`methods` contains a list of :class:`~androguard.core.bytecodes.dvm.EncodedMethods`,
+    which are successively replaced by :class:`DvMethod` in the process of decompilation.
+
+    :param androguard.core.bytecodes.dvm.ClassDefItem dvclass: the class item
+    :param androguard.core.analysis.analysis.Analysis vma: an Analysis object
+    """
     def __init__(self, dvclass, vma):
         name = dvclass.get_name()
         if name.find('/') > 0:
@@ -201,7 +251,6 @@ class DvClass(object):
         self.vma = vma
         self.methods = dvclass.get_methods()
         self.fields = dvclass.get_fields()
-        self.subclasses = {}
         self.code = []
         self.inner = False
 
@@ -221,15 +270,11 @@ class DvClass(object):
         self.superclass = dvclass.get_superclassname()
         self.thisclass = dvclass.get_name()
 
-        logger.info('Class : %s', self.name)
-        logger.info('Methods added :')
+        logger.debug('Class : %s', self.name)
+        logger.debug('Methods added :')
         for meth in self.methods:
-            logger.info('%s (%s, %s)', meth.get_method_idx(), self.name, meth.name)
-        logger.info('')
-
-    def add_subclass(self, innername, dvclass):
-        self.subclasses[innername] = dvclass
-        dvclass.inner = True
+            logger.debug('%s (%s, %s)', meth.get_method_idx(), self.name, meth.name)
+        logger.debug('')
 
     def get_methods(self):
         return self.methods
@@ -237,26 +282,25 @@ class DvClass(object):
     def process_method(self, num, doAST=False):
         method = self.methods[num]
         if not isinstance(method, DvMethod):
-            method.set_instructions([i for i in method.get_instructions()])
             self.methods[num] = DvMethod(self.vma.get_method(method))
             self.methods[num].process(doAST=doAST)
-            method.set_instructions([])
         else:
             method.process(doAST=doAST)
 
     def process(self, doAST=False):
-        for klass in self.subclasses.values():
-            klass.process(doAST=doAST)
         for i in range(len(self.methods)):
             try:
                 self.process_method(i, doAST=doAST)
             except Exception as e:
-                logger.debug(
-                    'Error decompiling method %s: %s', self.methods[i], e)
+                # FIXME: too broad exception?
+                logger.warning('Error decompiling method %s: %s', self.methods[i], e)
 
     def get_ast(self):
         fields = [get_field_ast(f) for f in self.fields]
-        methods = [m.get_ast() for m in self.methods if m.ast is not None]
+        methods = []
+        for m in self.methods:
+            if isinstance(m, DvMethod) and m.ast:
+                methods.append(m.get_ast())
         isInterface = 'interface' in self.access
         return {
             'rawname': self.thisclass[1:-1],
@@ -264,7 +308,7 @@ class DvClass(object):
             'super': parse_descriptor(self.superclass),
             'flags': self.access,
             'isInterface': isInterface,
-            'interfaces': map(parse_descriptor, self.interfaces),
+            'interfaces': list(map(parse_descriptor, self.interfaces)),
             'fields': fields,
             'methods': methods,
         }
@@ -281,7 +325,7 @@ class DvClass(object):
 
         if len(self.interfaces) > 0:
             prototype += ' implements %s' % ', '.join(
-                        [n[1:-1].replace('/', '.') for n in self.interfaces])
+                [str(n[1:-1].replace('/', '.')) for n in self.interfaces])
 
         source.append('%s {\n' % prototype)
         for field in self.fields:
@@ -292,22 +336,28 @@ class DvClass(object):
             if access:
                 source.append(' '.join(access))
                 source.append(' ')
-            if field.init_value:
-                value = field.init_value.value
+            init_value = field.get_init_value()
+            if init_value:
+                value = init_value.value
                 if f_type == 'String':
-                    value = '"%s"' % value
+                    if value:
+                        value = '"%s"' % str(value).encode("unicode-escape").decode("ascii")
+                    else:
+                        # FIXME we can not check if this value here is null or ""
+                        # In both cases we end up here...
+                        value = '""'
                 elif field.proto == 'B':
-                    value = '0x%x' % struct.unpack('b', value)[0]
-                source.append('%s %s = %s;\n' % (f_type, name, value))
+                    # byte value: convert from unsiged int to signed and print as hex
+                    # as bytes are signed in Java
+                    value = hex(struct.unpack("b", struct.pack("B", value))[0])
+                source.append('{} {} = {};\n'.format(f_type, name, value))
             else:
-                source.append('%s %s;\n' % (f_type, name))
-
-        for klass in self.subclasses.values():
-            source.append(klass.get_source())
+                source.append('{} {};\n'.format(f_type, name))
 
         for method in self.methods:
             if isinstance(method, DvMethod):
                 source.append(method.get_source())
+
         source.append('}\n')
         return ''.join(source)
 
@@ -315,13 +365,11 @@ class DvClass(object):
         source = []
         if not self.inner and self.package:
             source.append(
-            ('PACKAGE', [('PACKAGE_START', 'package '),
-                         ('NAME_PACKAGE', '%s' % self.package),
-                         ('PACKAGE_END', ';\n')]))
-        list_proto = []
-        list_proto.append(
-            ('PROTOTYPE_ACCESS', '%s class ' % ' '.join(self.access)))
-        list_proto.append(('NAME_PROTOTYPE', '%s' % self.name, self.package))
+                ('PACKAGE', [('PACKAGE_START', 'package '), (
+                    'NAME_PACKAGE', '%s' % self.package), ('PACKAGE_END', ';\n')
+                             ]))
+        list_proto = [('PROTOTYPE_ACCESS', '%s class ' % ' '.join(self.access)),
+                      ('NAME_PROTOTYPE', '%s' % self.name, self.package)]
         superclass = self.superclass
         if superclass is not None and superclass != 'Ljava/lang/Object;':
             superclass = superclass[1:-1].replace('/', '.')
@@ -340,24 +388,44 @@ class DvClass(object):
 
         for field in self.fields:
             field_access_flags = field.get_access_flags()
-            access = [util.ACCESS_FLAGS_FIELDS[flag] for flag in
-                        util.ACCESS_FLAGS_FIELDS if flag & field_access_flags]
+            access = [util.ACCESS_FLAGS_FIELDS[flag]
+                      for flag in util.ACCESS_FLAGS_FIELDS
+                      if flag & field_access_flags]
             f_type = util.get_type(field.get_descriptor())
             name = field.get_name()
             if access:
                 access_str = '    %s ' % ' '.join(access)
             else:
                 access_str = '    '
-            source.append(
-                ('FIELD', [('FIELD_ACCESS', access_str),
-                           ('FIELD_TYPE', '%s' % f_type),
-                           ('SPACE', ' '),
-                           ('NAME_FIELD', '%s' % name, f_type, field),
-                           ('FIELD_END', ';\n')]))
 
-        #TODO: call get_source_ext for each subclass?
-        for klass in self.subclasses.values():
-            source.append((klass, klass.get_source()))
+            value = None
+            init_value = field.get_init_value()
+            if init_value:
+                value = init_value.value
+                if f_type == 'String':
+                    if value:
+                        value = ' = "%s"' % value.encode("unicode-escape").decode("ascii")
+                    else:
+                        # FIXME we can not check if this value here is null or ""
+                        # In both cases we end up here...
+                        value = ' = ""'
+                elif field.proto == 'B':
+                    # a byte
+                    value = ' = %s' % hex(struct.unpack("b", struct.pack("B", value))[0])
+                else:
+                    value = ' = %s' % str(value)
+            if value:
+                source.append(
+                    ('FIELD', [('FIELD_ACCESS', access_str), (
+                        'FIELD_TYPE', '%s' % f_type), ('SPACE', ' '), (
+                                   'NAME_FIELD', '%s' % name, f_type, field), ('FIELD_VALUE', value), ('FIELD_END',
+                                                                                                       ';\n')]))
+            else:
+                source.append(
+                    ('FIELD', [('FIELD_ACCESS', access_str), (
+                        'FIELD_TYPE', '%s' % f_type), ('SPACE', ' '), (
+                                   'NAME_FIELD', '%s' % name, f_type, field), ('FIELD_END',
+                                                                               ';\n')]))
 
         for method in self.methods:
             if isinstance(method, DvMethod):
@@ -366,29 +434,68 @@ class DvClass(object):
         return source
 
     def show_source(self):
-        print self.get_source()
+        print(self.get_source())
 
     def __repr__(self):
-        if not self.subclasses:
-            return 'Class(%s)' % self.name
-        return 'Class(%s) -- Subclasses(%s)' % (self.name, self.subclasses)
+        return '<Class(%s)>' % self.name
 
 
-class DvMachine(object):
+class DvMachine:
+    """
+    Wrapper class for a Dalvik Object, like a DEX or ODEX file.
+
+    The wrapper allows to take a Dalvik file and get a list of Classes out of it.
+    The :class:`~androguard.decompiler.dad.decompile.DvMachine` can take either an APK file directly,
+    where all DEX files from the multidex are used, or a single DEX or ODEX file as an argument.
+
+    At first, :py:attr:`classes` contains only :class:`~androguard.core.bytecodes.dvm.ClassDefItem` as values.
+    Then these objects are replaced by :class:`DvClass` items successively.
+    """
     def __init__(self, name):
-        vm = auto_vm(name)
-        if vm is None:
-            raise ValueError('Format not recognised: %s' % name)
-        self.vma = analysis.uVMAnalysis(vm)
-        self.classes = dict((dvclass.get_name(), dvclass)
-                            for dvclass in vm.get_classes())
-        #util.merge_inner(self.classes)
+        """
+
+        :param name: filename to load
+        """
+        self.vma = analysis.Analysis()
+
+        # Proper detection which supports multidex inside APK
+        ftype = androconf.is_android(name)
+        if ftype == 'APK':
+            for d in apk.APK(name).get_all_dex():
+                self.vma.add(dvm.DalvikVMFormat(d))
+        elif ftype == 'DEX':
+            self.vma.add(dvm.DalvikVMFormat(read(name)))
+        elif ftype == 'DEY':
+            self.vma.add(dvm.DalvikOdexVMFormat(read(name)))
+        else:
+            raise ValueError("Format not recognised for filename '%s'" % name)
+
+        self.classes = {dvclass.orig_class.get_name(): dvclass.orig_class for dvclass in self.vma.get_classes()}
+        # TODO why not?
+        # util.merge_inner(self.classes)
 
     def get_classes(self):
-        return self.classes.keys()
+        """
+        Return a list of classnames contained in this machine.
+        The format of each name is Lxxx;
+
+        :return: list of class names
+        """
+        return list(self.classes.keys())
 
     def get_class(self, class_name):
-        for name, klass in self.classes.iteritems():
+        """
+        Return the :class:`DvClass` with the given name
+
+        The name is partially matched against the known class names and the first result is returned.
+        For example, the input `foobar` will match on Lfoobar/bla/foo;
+
+        :param str class_name:
+        :return: the class matching on the name
+        :rtype: DvClass
+        """
+        for name, klass in self.classes.items():
+            # TODO why use the name partially?
             if class_name in name:
                 if isinstance(klass, DvClass):
                     return klass
@@ -396,8 +503,13 @@ class DvMachine(object):
                 return dvclass
 
     def process(self):
-        for name, klass in self.classes.iteritems():
-            logger.info('Processing class: %s', name)
+        """
+        Process all classes inside the machine.
+
+        This calls :meth:`~androgaurd.decompiler.dad.decompile.DvClass.process` on each :class:`DvClass`.
+        """
+        for name, klass in self.classes.items():
+            logger.debug('Processing class: %s', name)
             if isinstance(klass, DvClass):
                 klass.process()
             else:
@@ -405,19 +517,44 @@ class DvMachine(object):
                 dvclass.process()
 
     def show_source(self):
+        """
+        Calls `show_source` on all classes inside the machine.
+        This prints the source to stdout.
+
+        This calls :meth:`~androgaurd.decompiler.dad.decompile.DvClass.show_source` on each :class:`DvClass`.
+        """
         for klass in self.classes.values():
             klass.show_source()
 
     def process_and_show(self):
-        for name, klass in sorted(self.classes.iteritems()):
-            logger.info('Processing class: %s', name)
+        """
+        Run :meth:`process` and :meth:`show_source` after each other.
+        """
+        for name, klass in sorted(self.classes.items()):
+            logger.debug('Processing class: %s', name)
             if not isinstance(klass, DvClass):
                 klass = DvClass(klass, self.vma)
             klass.process()
             klass.show_source()
 
+    def get_ast(self):
+        """
+        Processes each class with AST enabled and returns a dictionary with all single ASTs
+        Classnames as keys.
 
-logger = logging.getLogger('dad')
+        :return: an dictionary for all classes
+        :rtype: dict
+        """
+        ret = dict()
+        for name, cls in sorted(self.classes.items()):
+            logger.debug('Processing class: %s', name)
+            if not isinstance(cls, DvClass):
+                cls = DvClass(cls, self.vma)
+            cls.process(doAST=True)
+            ret[name] = cls.get_ast()
+        return ret
+
+
 sys.setrecursionlimit(5000)
 
 
@@ -441,7 +578,7 @@ def main():
         logger.info(' %s', class_name)
     logger.info('========================')
 
-    cls_name = raw_input('Choose a class: ')
+    cls_name = input('Choose a class (* for all classes): ')
     if cls_name == '*':
         machine.process_and_show()
     else:
@@ -453,7 +590,7 @@ def main():
             for i, method in enumerate(cls.get_methods()):
                 logger.info('%d: %s', i, method.name)
             logger.info('======================')
-            meth = raw_input('Method: ')
+            meth = input('Method (* for all methods): ')
             if meth == '*':
                 logger.info('CLASS = %s', cls)
                 cls.process()
@@ -462,6 +599,7 @@ def main():
             logger.info('Source:')
             logger.info('===========================')
             cls.show_source()
+
 
 if __name__ == '__main__':
     main()
