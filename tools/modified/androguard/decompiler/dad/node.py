@@ -18,51 +18,54 @@
 
 class MakeProperties(type):
     def __init__(cls, name, bases, dct):
+
         def _wrap_set(names, name):
+
             def fun(self, value):
                 for field in names:
                     self.__dict__[field] = (name == field) and value
+
             return fun
 
         def _wrap_get(name):
+
             def fun(self):
                 return self.__dict__[name]
+
             return fun
 
-        super(MakeProperties, cls).__init__(name, bases, dct)
+        super().__init__(name, bases, dct)
         attrs = []
         prefixes = ('_get_', '_set_')
-        for key in dct.keys():
+        for key in list(dct.keys()):
             for prefix in prefixes:
                 if key.startswith(prefix):
                     attrs.append(key[4:])
                     delattr(cls, key)
         for attr in attrs:
             setattr(cls, attr[1:],
-                        property(_wrap_get(attr), _wrap_set(attrs, attr)))
+                    property(_wrap_get(attr), _wrap_set(attrs, attr)))
         cls._attrs = attrs
 
     def __call__(cls, *args, **kwds):
-        obj = super(MakeProperties, cls).__call__(*args, **kwds)
+        obj = super().__call__(*args, **kwds)
         for attr in cls._attrs:
             obj.__dict__[attr] = False
         return obj
 
 
-class LoopType(object):
-    __metaclass__ = MakeProperties
+class LoopType(metaclass=MakeProperties):
     _set_is_pretest = _set_is_posttest = _set_is_endless = None
     _get_is_pretest = _get_is_posttest = _get_is_endless = None
 
     def copy(self):
         res = LoopType()
-        for key, value in self.__dict__.iteritems():
+        for key, value in self.__dict__.items():
             setattr(res, key, value)
         return res
 
 
-class NodeType(object):
-    __metaclass__ = MakeProperties
+class NodeType(metaclass=MakeProperties):
     _set_is_cond = _set_is_switch = _set_is_stmt = None
     _get_is_cond = _get_is_switch = _get_is_stmt = None
     _set_is_return = _set_is_throw = None
@@ -70,12 +73,12 @@ class NodeType(object):
 
     def copy(self):
         res = NodeType()
-        for key, value in self.__dict__.iteritems():
+        for key, value in self.__dict__.items():
             setattr(res, key, value)
         return res
 
 
-class Node(object):
+class Node:
     def __init__(self, name):
         self.name = name
         self.num = 0
@@ -101,9 +104,9 @@ class Node(object):
 
     def update_attribute_with(self, n_map):
         self.latch = n_map.get(self.latch, self.latch)
-        for follow_type, value in self.follow.iteritems():
+        for follow_type, value in self.follow.items():
             self.follow[follow_type] = n_map.get(value, value)
-        self.loop_nodes = list(set(n_map.get(n, n) for n in self.loop_nodes))
+        self.loop_nodes = list({n_map.get(n, n) for n in self.loop_nodes})
 
     def get_head(self):
         return self
@@ -115,10 +118,10 @@ class Node(object):
         return '%s' % self
 
 
-class Interval(object):
+class Interval:
     def __init__(self, head):
         self.name = 'Interval-%s' % head.name
-        self.content = set([head])
+        self.content = {head}
         self.end = None
         self.head = head
         self.in_catch = head.in_catch
@@ -130,7 +133,7 @@ class Interval(object):
             return True
         # If the interval contains intervals, we need to check them
         return any(item in node for node in self.content
-                                if isinstance(node, Interval))
+                   if isinstance(node, Interval))
 
     def add_node(self, node):
         if node in self.content:
@@ -155,4 +158,4 @@ class Interval(object):
         return len(self.content)
 
     def __repr__(self):
-        return '%s(%s)' % (self.name, self.content)
+        return '{}({})'.format(self.name, self.content)

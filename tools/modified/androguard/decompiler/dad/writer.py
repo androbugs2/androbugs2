@@ -17,21 +17,21 @@
 
 import logging
 from struct import unpack
-from tools.modified.androguard.decompiler.dad.util import get_type
-from tools.modified.androguard.decompiler.dad.opcode_ins import Op
-from tools.modified.androguard.decompiler.dad.instruction import (Constant, ThisParam,
-                                                   BinaryExpression,
-                                                   BaseClass,
-                                                   InstanceExpression,
-                                                   NewInstance,
-                                                   Variable,
-                                                   BinaryCompExpression)
-
+from androguard.core import mutf8
+from androguard.decompiler.dad.util import get_type
+from androguard.decompiler.dad.opcode_ins import Op
+from androguard.decompiler.dad.instruction import (
+    Constant, ThisParam, BinaryExpression, BaseClass, InstanceExpression,
+    NewInstance, Variable, BinaryCompExpression)
 
 logger = logging.getLogger('dad.writer')
 
 
-class Writer(object):
+class Writer:
+    """
+    Transforms a method into Java code.
+
+    """
     def __init__(self, graph, method):
         self.graph = graph
         self.method = method
@@ -49,7 +49,7 @@ class Writer(object):
         self.need_break = True
 
     def __str__(self):
-        return ''.join(self.buffer)
+        return ''.join([str(i) for i in self.buffer])
 
     def str_ext(self):
         return self.buffer2
@@ -84,7 +84,7 @@ class Writer(object):
     # (TYPE_STR, MY_STR) such as ('THIS', 'this')
     # where the 2nd field is the actual generated source code
     # We can have more fields, for example:
-    # ('METHOD', 'sendToServer', 'this -> sendToServer', <tools.modified.androguard.decompiler.dad.instruction.ThisParam>)
+    # ('METHOD', 'sendToServer', 'this -> sendToServer', <androguard.decompiler.dad.instruction.ThisParam>)
     def write_ext(self, t):
         if not isinstance(t, tuple):
             raise "Error in write_ext: %s not a tuple" % str(t)
@@ -103,10 +103,16 @@ class Writer(object):
             rhs.visit(self)
         self.end_ins()
 
-    #TODO: prefer this class as write_ind_visit_end that should be deprecated
+    # TODO: prefer this class as write_ind_visit_end that should be deprecated
     # at the end
-    def write_ind_visit_end_ext(self, lhs, before, s, after, rhs=None,
-                                data=None, subsection='UNKNOWN_SUBSECTION'):
+    def write_ind_visit_end_ext(self,
+                                lhs,
+                                before,
+                                s,
+                                after,
+                                rhs=None,
+                                data=None,
+                                subsection='UNKNOWN_SUBSECTION'):
         self.write_ind()
         lhs.visit(self)
         self.write(before + s + after)
@@ -120,11 +126,14 @@ class Writer(object):
     def write_inplace_if_possible(self, lhs, rhs):
         if isinstance(rhs, BinaryExpression) and lhs == rhs.var_map[rhs.arg1]:
             exp_rhs = rhs.var_map[rhs.arg2]
-            if rhs.op in '+-' and isinstance(exp_rhs, Constant) and\
-                                  exp_rhs.get_int_value() == 1:
+            if rhs.op in '+-' and isinstance(exp_rhs, Constant) and \
+                            exp_rhs.get_int_value() == 1:
                 return self.write_ind_visit_end(lhs, rhs.op * 2, data=rhs)
             return self.write_ind_visit_end(
-                lhs, ' %s= ' % rhs.op, exp_rhs, data=rhs)
+                lhs,
+                ' %s= ' % rhs.op,
+                exp_rhs,
+                data=rhs)
         return self.write_ind_visit_end(lhs, ' = ', rhs, data=rhs)
 
     def visit_ins(self, ins):
@@ -149,22 +158,20 @@ class Writer(object):
             self.write(name)
             self.write_ext(('NAME_METHOD_PROTOTYPE', '%s' % name, self.method))
         else:
-            self.write(
-                '%s %s' % (get_type(self.method.type), self.method.name))
+            self.write('{} {}'.format(get_type(self.method.type), self.method.name))
             self.write_ext(
                 ('PROTOTYPE_TYPE', '%s' % get_type(self.method.type)))
             self.write_ext(('SPACE', ' '))
             self.write_ext(
-                ('NAME_METHOD_PROTOTYPE',
-                '%s' % self.method.name, self.method))
+                ('NAME_METHOD_PROTOTYPE', '%s' % self.method.name, self.method))
         params = self.method.lparams
         if 'static' not in access:
             params = params[1:]
         proto = ''
         self.write_ext(('PARENTHESIS_START', '('))
         if self.method.params_type:
-            proto = ', '.join(['%s p%s' % (get_type(p_type), param) for
-                        p_type, param in zip(self.method.params_type, params)])
+            proto = ', '.join(['{} p{}'.format(get_type(p_type), param) for p_type,
+                                                                        param in zip(self.method.params_type, params)])
             first = True
             for p_type, param in zip(self.method.params_type, params):
                 if not first:
@@ -173,8 +180,7 @@ class Writer(object):
                     first = False
                 self.write_ext(('ARG_TYPE', '%s' % get_type(p_type)))
                 self.write_ext(('SPACE', ' '))
-                self.write_ext(
-                    ('NAME_ARG', 'p%s' % param, p_type, self.method))
+                self.write_ext(('NAME_ARG', 'p%s' % param, p_type, self.method))
         self.write_ext(('PARENTHESIS_END', ')'))
         self.write('(%s)' % proto)
         if self.graph is None:
@@ -281,9 +287,9 @@ class Writer(object):
             self.write('%s}\n' % self.space(), data="IF_END_2")
             self.visit_node(cond.false)
         elif follow is not None:
-            if cond.true in (follow, self.next_case) or\
-                                                cond.num > cond.true.num:
-                             # or cond.true.num > cond.false.num:
+            if cond.true in (follow, self.next_case) or \
+                            cond.num > cond.true.num:
+                # or cond.true.num > cond.false.num:
                 cond.neg()
                 cond.true, cond.false = cond.false, cond.true
             self.if_follow.append(follow)
@@ -343,7 +349,8 @@ class Writer(object):
             self.inc_ind()
             for case in switch.node_to_case[node]:
                 self.write(
-                    '%scase %d:\n' % (self.space(), case), data="CASE_XX")
+                    '%scase %d:\n' % (self.space(), case),
+                    data="CASE_XX")
             if i + 1 < len(cases):
                 self.next_case = cases[i + 1]
             else:
@@ -413,15 +420,16 @@ class Writer(object):
     def visit_decl(self, var):
         if not var.declared:
             var_type = var.get_type() or 'unknownType'
-            self.write('%s%s v%s' % (
-                self.space(), get_type(var_type),
-                var.name), data="DECLARATION")
+            self.write('{}{} v{}'.format(
+                self.space(), get_type(var_type), var.name),
+                       data="DECLARATION")
             self.end_ins()
 
     def visit_constant(self, cst):
-        if isinstance(cst, basestring):
+        if isinstance(cst, str):
             return self.write(string(cst), data="CONSTANT_STRING")
-        self.write('%r' % cst, data="CONSTANT_INTEGER")  # INTEGER or also others?
+        self.write('%r' % cst,
+                   data="CONSTANT_INTEGER")  # INTEGER or also others?
 
     def visit_base_class(self, cls, data=None):
         self.write(cls)
@@ -444,6 +452,9 @@ class Writer(object):
 
     def visit_this(self):
         self.write('this', data="THIS")
+
+    def visit_super(self):
+        self.write('super')
 
     def visit_assign(self, lhs, rhs):
         if lhs is not None:
@@ -471,14 +482,19 @@ class Writer(object):
 
     def visit_put_static(self, cls, name, rhs):
         self.write_ind()
-        self.write('%s.%s = ' % (cls, name), data="STATIC_PUT")
+        self.write('{}.{} = '.format(cls, name), data="STATIC_PUT")
         rhs.visit(self)
         self.end_ins()
 
     def visit_put_instance(self, lhs, name, rhs, data=None):
         self.write_ind_visit_end_ext(
-            lhs, '.', '%s' % name, ' = ', rhs,
-            data=data, subsection='NAME_CLASS_ASSIGNMENT')
+            lhs,
+            '.',
+            '%s' % name,
+            ' = ',
+            rhs,
+            data=data,
+            subsection='NAME_CLASS_ASSIGNMENT')
 
     def visit_new(self, atype, data=None):
         self.write('new %s' % get_type(atype))
@@ -486,26 +502,29 @@ class Writer(object):
         self.write_ext(
             ('NAME_CLASS_NEW', '%s' % get_type(atype), data.type, data))
 
-    def visit_invoke(self, name, base, ptype, rtype, args, invokeInstr=None):
+    def visit_invoke(self, name, base, ptype, rtype, args, invokeInstr):
         if isinstance(base, ThisParam):
-            if name == '<init>' and self.constructor and len(args) == 0:
-                self.skip = True
-                return
+            if name == '<init>':
+                if self.constructor and len(args) == 0:
+                    self.skip = True
+                    return
+                if invokeInstr and base.type[1:-1].replace('/', '.') != invokeInstr.cls:
+                    base.super = True
         base.visit(self)
         if name != '<init>':
             if isinstance(base, BaseClass):
-                call_name = "%s -> %s" % (base.cls, name)
+                call_name = "{} -> {}".format(base.cls, name)
             elif isinstance(base, InstanceExpression):
-                call_name = "%s -> %s" % (base.ftype, name)
+                call_name = "{} -> {}".format(base.ftype, name)
             elif hasattr(base, "base") and hasattr(base, "var_map"):
                 base2base = base
                 while True:
                     base2base = base2base.var_map[base2base.base]
                     if isinstance(base2base, NewInstance):
-                        call_name = "%s -> %s" % (base2base.type, name)
+                        call_name = "{} -> {}".format(base2base.type, name)
                         break
                     elif (hasattr(base2base, "base") and
-                          hasattr(base2base, "var_map")):
+                              hasattr(base2base, "var_map")):
                         continue
                     else:
                         call_name = "UNKNOWN_TODO"
@@ -513,14 +532,14 @@ class Writer(object):
             elif isinstance(base, ThisParam):
                 call_name = "this -> %s" % name
             elif isinstance(base, Variable):
-                call_name = "%s -> %s" % (base.type, name)
+                call_name = "{} -> {}".format(base.type, name)
             else:
                 call_name = "UNKNOWN_TODO2"
             self.write('.%s' % name)
             self.write_ext(('INVOKE', '.'))
             self.write_ext(
-                ('NAME_METHOD_INVOKE',
-                 '%s' % name, call_name, ptype, rtype, base, invokeInstr))
+                ('NAME_METHOD_INVOKE', '%s' % name, call_name, ptype, rtype,
+                 base, invokeInstr))
         self.write('(', data="PARAM_START")
         comma = False
         for arg in args:
@@ -582,12 +601,20 @@ class Writer(object):
         data = value.get_data()
         tab = []
         elem_size = value.element_width
-        if elem_size == 4:
-            for i in range(0, value.size * 4, 4):
-                tab.append('%s' % unpack('i', data[i:i + 4])[0])
-        else:  # FIXME: other cases
-            for i in range(value.size):
-                tab.append('%s' % unpack('b', data[i])[0])
+
+        # Set type depending on size of elements
+        data_types = {1: 'b', 2: 'h', 4: 'i', 8: 'd'}
+
+        if elem_size in data_types:
+            elem_id = data_types[elem_size]
+        else:
+            # FIXME for other types we just assume bytes...
+            logger.warning("Unknown element size {} for array. Assume bytes.".format(elem_size))
+            elem_id = 'b'
+            elem_size = 1
+
+        for i in range(0, value.size*elem_size, elem_size):
+            tab.append('%s' % unpack(elem_id, data[i:i+elem_size])[0])
         self.write(', '.join(tab), data="COMMA")
         self.write('}', data="ARRAY_FILLED_END")
         self.end_ins()
@@ -595,9 +622,8 @@ class Writer(object):
     def visit_move_exception(self, var, data=None):
         var.declared = True
         var_type = var.get_type() or 'unknownType'
-        self.write('%s v%s' % (get_type(var_type), var.name))
-        self.write_ext(
-            ('EXCEPTION_TYPE', '%s' % get_type(var_type), data.type))
+        self.write('{} v{}'.format(get_type(var_type), var.name))
+        self.write_ext(('EXCEPTION_TYPE', '%s' % get_type(var_type), data.type))
         self.write_ext(('SPACE', ' '))
         self.write_ext(
             ('NAME_CLASS_EXCEPTION', 'v%s' % var.value(), data.type, data))
@@ -646,13 +672,17 @@ class Writer(object):
         if isinstance(arg, BinaryCompExpression):
             arg.op = op
             return arg.visit(self)
-        atype = arg.get_type()
+        atype = str(arg.get_type())
         if atype == 'Z':
             if op == Op.EQUAL:
                 self.write('!', data="NEGATE")
             arg.visit(self)
         else:
             arg.visit(self)
+            try:
+                atype = atype.string
+            except AttributeError:
+                pass
             if atype in 'VBSCIJFD':
                 self.write(' %s 0' % op, data="TODO64")
             else:
@@ -665,20 +695,26 @@ class Writer(object):
         self.write_ext(('NAME_CLASS_INSTANCE', '%s' % name, data))
 
     def visit_get_static(self, cls, name):
-        self.write('%s.%s' % (cls, name), data="GET_STATIC")
+        self.write('{}.{}'.format(cls, name), data="GET_STATIC")
 
 
 def string(s):
+    """
+    Convert a string to a escaped ASCII representation including quotation marks
+    :param s: a string
+    :return: ASCII escaped string
+    """
     ret = ['"']
-    for c in s.decode('utf8'):
-        if c >= ' ' and c < '\x7f':
+    for c in s:
+        if ' ' <= c < '\x7f':
             if c == "'" or c == '"' or c == '\\':
                 ret.append('\\')
             ret.append(c)
             continue
         elif c <= '\x7f':
             if c in ('\r', '\n', '\t'):
-                ret.append(c.encode('unicode-escape'))
+                # unicode-escape produces bytes
+                ret.append(c.encode('unicode-escape').decode("ascii"))
                 continue
         i = ord(c)
         ret.append('\\u')
@@ -687,4 +723,4 @@ def string(s):
         ret.append('%x' % ((i >> 4) & 0x0f))
         ret.append('%x' % (i & 0x0f))
     ret.append('"')
-    return ''.join(ret).encode('utf8')
+    return ''.join(ret)

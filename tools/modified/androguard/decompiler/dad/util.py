@@ -32,56 +32,51 @@ TYPE_DESCRIPTOR = {
 }
 
 ACCESS_FLAGS_CLASSES = {
-    0x1:    'public',
-    0x2:    'private',
-    0x4:    'protected',
-    0x8:    'static',
-    0x10:   'final',
-    0x200:  'interface',
-    0x400:  'abstract',
+    0x1: 'public',
+    0x2: 'private',
+    0x4: 'protected',
+    0x8: 'static',
+    0x10: 'final',
+    0x200: 'interface',
+    0x400: 'abstract',
     0x1000: 'synthetic',
     0x2000: 'annotation',
     0x4000: 'enum',
 }
 
 ACCESS_FLAGS_FIELDS = {
-    0x1:    'public',
-    0x2:    'private',
-    0x4:    'protected',
-    0x8:    'static',
-    0x10:   'final',
-    0x40:   'volatile',
-    0x80:   'transient',
+    0x1: 'public',
+    0x2: 'private',
+    0x4: 'protected',
+    0x8: 'static',
+    0x10: 'final',
+    0x40: 'volatile',
+    0x80: 'transient',
     0x1000: 'synthetic',
     0x4000: 'enum',
 }
 
 ACCESS_FLAGS_METHODS = {
-    0x1:     'public',
-    0x2:     'private',
-    0x4:     'protected',
-    0x8:     'static',
-    0x10:    'final',
-    0x20:    'synchronized',
-    0x40:    'bridge',
-    0x80:    'varargs',
-    0x100:   'native',
-    0x400:   'abstract',
-    0x800:   'strictfp',
-    0x1000:  'synthetic',
+    0x1: 'public',
+    0x2: 'private',
+    0x4: 'protected',
+    0x8: 'static',
+    0x10: 'final',
+    0x20: 'synchronized',
+    0x40: 'bridge',
+    0x80: 'varargs',
+    0x100: 'native',
+    0x400: 'abstract',
+    0x800: 'strictfp',
+    0x1000: 'synthetic',
     0x10000: 'constructor',
     0x20000: 'declared_synchronized',
 }
 
-ACCESS_ORDER = [0x1, 0x4, 0x2, 0x400, 0x8, 0x10,
-                0x80, 0x40, 0x20, 0x100, 0x800,
-                0x200, 0x1000, 0x2000, 0x4000,
-                0x10000, 0x20000]
+ACCESS_ORDER = [0x1, 0x4, 0x2, 0x400, 0x8, 0x10, 0x80, 0x40, 0x20, 0x100, 0x800,
+                0x200, 0x1000, 0x2000, 0x4000, 0x10000, 0x20000]
 
-TYPE_LEN = {
-    'J': 2,
-    'D': 2,
-}
+TYPE_LEN = {'J': 2, 'D': 2, }
 
 
 def get_access_class(access):
@@ -103,12 +98,12 @@ def get_access_field(access):
 
 
 def build_path(graph, node1, node2, path=None):
-    '''
+    """
     Build the path from node1 to node2.
     The path is composed of all the nodes between node1 and node2,
     node1 excluded. Although if there is a loop starting from node1, it will be
     included in the path.
-    '''
+    """
     if path is None:
         path = []
     if node1 is node2:
@@ -133,16 +128,16 @@ def common_dom(idom, cur, pred):
 
 
 def merge_inner(clsdict):
-    '''
+    """
     Merge the inner class(es) of a class:
     e.g class A { ... } class A$foo{ ... } class A$bar{ ... }
-       ==> class A { class foo{...} class bar{...} ... }
-    '''
+    ==> class A { class foo{...} class bar{...} ... }
+    """
     samelist = False
     done = {}
     while not samelist:
         samelist = True
-        classlist = clsdict.keys()
+        classlist = list(clsdict.keys())
         for classname in classlist:
             parts_name = classname.rsplit('$', 1)
             if len(parts_name) > 1:
@@ -166,16 +161,16 @@ def merge_inner(clsdict):
 
 
 def get_type_size(param):
-    '''
+    """
     Return the number of register needed by the type @param
-    '''
+    """
     return TYPE_LEN.get(param, 1)
 
 
 def get_type(atype, size=None):
-    '''
+    """
     Retrieve the java type of a descriptor (e.g : I)
-    '''
+    """
     res = TYPE_DESCRIPTOR.get(atype)
     if res is None:
         if atype[0] == 'L':
@@ -187,7 +182,7 @@ def get_type(atype, size=None):
             if size is None:
                 res = '%s[]' % get_type(atype[1:])
             else:
-                res = '%s[%s]' % (get_type(atype[1:]), size)
+                res = '{}[{}]'.format(get_type(atype[1:]), size)
         else:
             res = atype
             logger.debug('Unknown descriptor: "%s".', atype)
@@ -195,9 +190,9 @@ def get_type(atype, size=None):
 
 
 def get_params_type(descriptor):
-    '''
+    """
     Return the parameters type of a descriptor (e.g (IC)V)
-    '''
+    """
     params = descriptor.split(')')[0][1:].split()
     if params:
         return [param for param in params]
@@ -205,6 +200,14 @@ def get_params_type(descriptor):
 
 
 def create_png(cls_name, meth_name, graph, dir_name='graphs2'):
+    """
+    Creates a PNG from a given :class:`~androguard.decompiler.dad.graph.Graph`.
+
+    :param str cls_name: name of the class
+    :param str meth_name: name of the method
+    :param androguard.decompiler.dad.graph.Graph graph:
+    :param str dir_name: output directory
+    """
     m_name = ''.join(x for x in meth_name if x.isalnum())
     name = ''.join((cls_name.split('/')[-1][:-1], '#', m_name))
     graph.draw(name, dir_name)
