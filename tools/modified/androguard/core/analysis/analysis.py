@@ -1,50 +1,450 @@
-import re
-import collections
-from operator import itemgetter
-import time
-from androguard.core.androconf import is_ascii_problem, load_api_specific_resource_module
-from androguard.core.bytecodes import dvm
-import logging
-from androguard.core import bytecode, mutf8
-import networkx as nx
-from enum import IntEnum
+# This file is part of Androguard.
+#
+# Copyright (C) 2012, Anthony Desnos <desnos at t0t0.fr>
+# All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-log = logging.getLogger("androguard.analysis")
+import re, random, cPickle, collections
 
-BasicOPCODES = set()
-for i in dvm.BRANCH_DVM_OPCODES:
-    p = re.compile(i)
-    for op, items in dvm.DALVIK_OPCODES_FORMAT.items():
-        if p.match(items[1][0]):
-            BasicOPCODES.add(op)
+from tools.modified.androguard.core.androconf import error, warning, debug, is_ascii_problem,\
+    load_api_specific_resource_module
+from tools.modified.androguard.core.bytecodes import dvm
+from tools.modified.androguard.core.bytecodes.api_permissions import DVM_PERMISSIONS_BY_PERMISSION, DVM_PERMISSIONS_BY_ELEMENT
 
+#Added by AndroBugs (in androguard-2.0)
+class Stack :
+    def __init__(self) :
+        self.__elems = []
 
-class REF_TYPE(IntEnum):
+    def __len__(self):
+        return len(self.__elems)
+
+    def gets(self) :
+        return self.__elems
+
+    #Added by AndroBugs (for accessing instruction)
+    def get_op_code_by_idx(self, idx):
+        return self.__elems[idx][0]
+
+    #Added by AndroBugs (for accessing instruction)
+    def get_op_value_by_idx(self, idx):
+        return self.__elems[idx][1]
+
+    def push(self, elem) :
+        self.__elems.append( elem )
+
+    def get(self) :
+        return self.__elems[-1]
+
+    def pop(self) :
+        return self.__elems.pop(-1)
+
+    def nil(self) :
+        return len(self.__elems) == 0
+
+    def insert_stack(self, idx, elems) :
+        if elems != self.__elems :
+            for i in elems :
+                self.__elems.insert(idx, i)
+                idx += 1
+
+    def show(self) :
+        nb = 0
+
+        if len(self.__elems) == 0 :
+            print "\t--> nil"
+
+        for i in self.__elems :
+            print "\t-->", nb, ": ", i
+            nb += 1
+
+class ContextField(object):
+    def __init__(self, mode):
+        self.mode = mode
+        self.details = []
+
+    def set_details(self, details):
+        for i in details:
+            self.details.append( i )
+
+class ContextMethod(object):
+    def __init__(self):
+        self.details = []
+
+    def set_details(self, details):
+        for i in details:
+            self.details.append( i )
+
+class ExternalFM(object):
+    def __init__(self, class_name, name, descriptor):
+        self.class_name = class_name
+        self.name = name
+        self.descriptor = descriptor
+
+    def get_class_name(self):
+        return self.class_name
+
+    def get_name(self):
+        return self.name
+
+    def get_descriptor(self):
+        return self.descriptor
+
+class ToString(object):
+    def __init__(self, tab):
+        self.__tab = tab
+        self.__re_tab = {}
+
+        for i in self.__tab:
+            self.__re_tab[i] = []
+            for j in self.__tab[i]:
+                self.__re_tab[i].append( re.compile( j ) )
+
+        self.__string = ""
+
+    def push(self, name):
+        for i in self.__tab:
+            for j in self.__re_tab[i]:
+                if j.match(name) != None:
+                    if len(self.__string) > 0:
+                        if i == 'O' and self.__string[-1] == 'O':
+                            continue
+                    self.__string += i
+
+    def get_string(self):
+        return self.__string
+
+#Added by AndroBugs
+class RegisterAnalyzerVM_Result(object):
+    def __init__(self, path, result):
+        self.__path = path
+        self.__result = result
+
+    def getPath(self):
+        return self.__path
+
+    def getResult(self):
+        return self.__result
+
+    def is_string(self, param):
+        try :
+            if isinstance(self.__result[param], basestring) :
+                return True
+
+            return False
+        except TypeError :
+            return False
+        except KeyError :
+            return False
+
+    def is_class_container(self, param):
+        try :
+            return isinstance(self.__result[param], RegisterAnalyzerVM_ClassContainer) 
+        except TypeError :
+            return False
+        except NameError :
+            return False
+        except KeyError :
+            return False
+
+#Added by AndroBugs
+class RegisterAnalyzerVM_ClassContainer(object):
+
+    def __init__(self, class_name, class_idx):
+        self._register = {}
+        self.__ins_stack = Stack()
+
+        self.__class_name = class_name
+        self.__class_idx = class_idx
+
+        self.__invoked_method_list = []  #Only save "invoke-virtual"
+
+    def add_invoke_method(self, method_name_string):
+        self.__invoked_method_list.append(method_name_string)
+
+    def get_invoked_method_list(self) :
+        return self.__invoked_method_list
+
+    def get_class_name(self):
+        return self.__class_name
+
+    def get_class_idx(self):
+        return self.__class_idx
+
+    def add_an_instruction(self, ins):
+        pass
+
+#Added by AndroBugs
+class RegisterAnalyzerVM_ImmediateValue(object) : # Static DVM Engine (StaticDVM_Engine, StaticDVMEngine, Static_DVM_Engine)
+
+    def __init__(self, ins = None, max_trace=-1, trace_extra_offset_ins=0) :
+        self._register = {}
+        self.__ins_stack = Stack()
+
+        if ins is not None:
+            self.load_instructions(ins, max_trace, trace_extra_offset_ins)    # Initialize With load registers
+
     """
-    Stores the opcodes for the type of usage in an XREF.
+        See reference: http://source.android.com/devices/tech/dalvik/dalvik-bytecode.html
 
-    Used in :class:`ClassAnalysis` to store the type of reference to the class.
+        Consider this situation:
+        --> 0 :  [(0, 3), (1, 0)]  => const/4 v3, 0
+        --> 1 :  [(0, 2), (1, 2)]
+        --> 2 :  [(0, 4), (256, 5061, 'Lcom/example/androidurlaccesstesting1/MainActivity;->getApplicationContext()Landroid/content/Context;')]
+        --> 3 :  [(0, 0)]
+        --> 4 :  [(0, 1), (257, 5823, "'test.db'")]  => const-string v1, 'test.db'
     """
-    REF_NEW_INSTANCE = 0x22
-    REF_CLASS_USAGE = 0x1c
-    INVOKE_VIRTUAL = 0x6e
-    INVOKE_SUPER = 0x6f
-    INVOKE_DIRECT = 0x70
-    INVOKE_STATIC = 0x71
-    INVOKE_INTERFACE = 0x72
-    INVOKE_VIRTUAL_RANGE = 0x74
-    INVOKE_SUPER_RANGE = 0x75
-    INVOKE_DIRECT_RANGE = 0x76
-    INVOKE_STATIC_RANGE = 0x77
-    INVOKE_INTERFACE_RANGE = 0x78
+
+    def __add(self, ins, reg_list) :
+        if (reg_list is not None):
+            self.__ins_stack.push([ins, reg_list]) #Only register number and value, no instruction. Format: [ins, [(0, 3), (1, 0)]]
+
+            if 0x12 <= ins <= 0x1c:  #[const] or [const/xx] or [const-string]
+                dst_register_pair = reg_list[0]
+                src_register_pair = reg_list[1]
+                if dst_register_pair[0] == dvm.OPERAND_REGISTER:
+                    dst_register_number = dst_register_pair[1]
+
+                    if src_register_pair[0] & dvm.OPERAND_KIND: #has three  dvm.OPERAND_KIND=0x100
+                        src_operand = src_register_pair[0] & (~dvm.OPERAND_KIND) # Clear "OPERAND_KIND" bit, equal to src_operand = src_register_pair[0]- 0x100
+                        immediate_value = src_register_pair[2]
+                        self._register[dst_register_number] = self.strip_string(immediate_value)
+                        # print("### register[" + str(dst_register_number) + "] = " + str(src_register_pair[2]) + " ###")  
+                    else:
+                        if src_register_pair[0] == dvm.OPERAND_LITERAL:  # should always be "dvm.OPERAND_LITERAL"
+                            immediate_value = src_register_pair[1]
+                            self._register[dst_register_number] = self.strip_string(immediate_value)  
+                            # print("### register[" + str(dst_register_number) + "] = " + str(src_register_pair[1]) + " ###")                
+
+            elif 0x0a <= ins <= 0x0d: #[move-result vAA] or [move-result-wide vAA] or [move-result-object vAA] or [move-exception vAA]
+                # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
+                register_number = reg_list[0][1]
+                self._register[register_number] = None
+
+            elif (0x44 <= ins <= 0x4A) or (0x52 <= ins <= 0x58) or (0x60 <= ins <= 0x66):   # [aget] or [aget-xxxx] or [iget] or [iget-xxxx] or [sget] or [sget-xxxx]
+                # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
+                register_number = reg_list[0][1]
+                self._register[register_number] = None
+
+            elif ins == 0x22:   # [new-instance vA, Lclass/name;]
+                # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
+                register_number = reg_list[0][1]
+                new_instance_class_idx = reg_list[1][1]
+                new_instance_class_name = reg_list[1][2]
+                self._register[register_number] = RegisterAnalyzerVM_ClassContainer(new_instance_class_name, new_instance_class_idx)
+                # print("### New instance => register number: " + str(self._register[register_number]) + " ###")
+
+            elif ins == 0x6e:   # [invoke-virtual]
+                register_number = reg_list[0][1]
+                operands = reg_list[-1]
+                if (operands[0] == dvm.OPERAND_KIND) and (register_number in self._register) :
+                    clz_invoked = self._register[register_number]
+                    if self.is_class_container(clz_invoked) :
+                        clz_invoked.add_invoke_method(operands[-1])
+
+    def load_instructions(self, ins, max_trace=-1, trace_extra_offset_ins=0):
+        if max_trace == -1:  #Load all instructions
+            for i in ins:   # method.get_instructions(): Instruction
+                self.__add(i.get_op_value(), i.get_operands())
+                # print "\t", i.get_name(), i.get_output(), ", kind: ", hex(i.get_op_value())
+        else: 
+            idx = 0
+            for i in ins:   # method.get_instructions(): Instruction
+                self.__add(i.get_op_value(), i.get_operands())
+                idx += i.get_length()
+                if idx > max_trace:
+                    if trace_extra_offset_ins <= 0:     #No extra instructions need to trace
+                        break
+                    else:
+                        trace_extra_offset_ins = trace_extra_offset_ins - 1
+                # print "\t", "%x" % idx, i.get_name(), i.get_output(), ", kind: ", hex(i.get_op_value())
+
+    def strip_string(self, value):
+        """
+            When checking if an object is a string, keep in mind that it might be a unicode string too! 
+            In Python 2, str and unicode have a common base class, basestring, so you can do: if isinstance(value, basestring)
+            Note that in Python 3, unicode and basestring no longer exist (there is only str) and 
+            a bytes object is no longer a kind of string (it is a sequence of integers instead)
+        """
+        if isinstance(value, basestring):
+            return value[1:-1]  #strip the left and right ' 
+        return value
+
+    def has_if_or_switch_instructions(self):
+        try:
+            for ins in self.__ins_stack.gets():
+                if (0x32 <= ins[0] <= 0x3D) or (0x2B <= ins[0] <= 0x2C):   #if or switch
+                    return True
+            return False
+        except:
+            return None
+
+    def get_ins_return_boolean_value(self):
+        try:
+            if len(self.__ins_stack) == 2:
+                full_ins_first = self.__ins_stack.gets()[-2]
+                full_ins_last = self.__ins_stack.gets()[-1]
+
+                # 0x12 => const/4 vx,lit4
+                # 0x0F => return vx
+                if (full_ins_first[0] == 0x12) and (full_ins_last[0] == 0x0F):     #check the instruction
+                    ins_first_register_number_value = full_ins_first[1]
+
+                    if ins_first_register_number_value[1][1] == 1:
+                        return True
+                    else:
+                        return False
+
+        except IndexError:
+            return None
+
+    def is_class_container(self, value): #value is the parameter index
+        if not value :
+            return False
+        return isinstance(value, RegisterAnalyzerVM_ClassContainer)
+
+    def show(self):
+        self.__ins_stack.show()
+
+    def get_stack(self):
+        return self.__ins_stack
+
+    def get_register_table(self):
+        return self._register
+
+    def get_register_number_to_register_value_mapping(self):
+        if (self._register is None) or (self.__ins_stack is None):
+            return None
+
+        l = []
+        try:
+            last_ins = self.__ins_stack.get()[1]
+            for ins in last_ins:
+                if ins[0] == dvm.OPERAND_REGISTER:
+                    l.append(self.get_register_value(ins[1]))  # ins[1] is the register number
+                else:
+                    l.append(None)
+
+            return l
+        except IndexError:
+            return None
+
+    def get_register_value_by_param_in_last_ins(self, param):
+
+        if (self._register is None) or (self.__ins_stack is None):
+            return None
+
+        """
+            Example code:
+            invoke-virtual v2, v3, v6, v4, v5, Landroid/content/Context;->openOrCreateDatabase(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;
+            [(0, 2), (0, 3), (0, 6), (0, 4), (0, 5), (256, 147, 'Landroid/content/Context;->openOrCreateDatabase(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;')]
+        """
+
+        try:
+            last_ins = self.__ins_stack.get()
+            last_ins_register_pair = last_ins[param]
+            if last_ins_register_pair is not None:
+                return self.get_register_value(last_ins_register_pair[1])
+            return None
+        except IndexError:
+            return None
+
+    def get_register_value(self, register):
+        try:
+            if register in self._register:
+                return self._register[register]
+            else:
+                return None
+        except KeyError:
+            return None
+
+class BreakBlock(object):
+    def __init__(self, _vm, idx):
+        self._vm = _vm
+        self._start = idx
+        self._end = self._start
+
+        self._ins = []
+
+        self._ops = []
+
+        self._fields = {}
+        self._methods = {}
 
 
-class DVMBasicBlock:
+    def get_ops(self):
+        return self._ops
+
+    def get_fields(self):
+        return self._fields
+
+    def get_methods(self):
+        return self._methods
+
+    def push(self, ins):
+        self._ins.append(ins)
+        self._end += ins.get_length()
+
+    def get_start(self):
+        return self._start
+
+    def get_end(self):
+        return self._end
+
+    def show(self):
+        for i in self._ins:
+            print "\t\t",
+            i.show(0)
+
+DVM_FIELDS_ACCESS = {
+      "iget" : "R",
+      "iget-wide" : "R",
+      "iget-object" : "R",
+      "iget-boolean" : "R",
+      "iget-byte" : "R",
+      "iget-char" : "R",
+      "iget-short" : "R",
+
+      "iput" : "W",
+      "iput-wide" : "W",
+      "iput-object" : "W",
+      "iput-boolean" : "W",
+      "iput-byte" : "W",
+      "iput-char" : "W",
+      "iput-short" : "W",
+
+      "sget" : "R",
+      "sget-wide" : "R",
+      "sget-object" : "R",
+      "sget-boolean" : "R",
+      "sget-byte" : "R",
+      "sget-char" : "R",
+      "sget-short" : "R",
+
+      "sput" : "W",
+      "sput-wide" : "W",
+      "sput-object" : "W",
+      "sput-boolean" : "W",
+      "sput-byte" : "W",
+      "sput-char" : "W",
+      "sput-short" : "W",
+   }
+
+
+class DVMBasicBlock(object):
     """
-    A simple basic block of a dalvik method.
-
-    A basic block consists of a series of :class:`~androguard.core.bytecodes.dvm.Instruction`
-    which are not interrupted by branch or jump instructions such as `goto`, `if`, `throw`, `return`, `switch` etc.
+        A simple basic block of a dalvik method
     """
     def __init__(self, start, vm, method, context):
         self.__vm = vm
@@ -62,12 +462,13 @@ class DVMBasicBlock:
 
         self.special_ins = {}
 
-        self.name = mutf8.MUTF8String.join([self.method.get_name(), b'-BB@', hex(self.start).encode()])
+        self.name = "%s-BB@0x%x" % (self.method.get_name(), self.start)
         self.exception_analysis = None
 
-        self.notes = []
+        self.tainted_variables = self.context.get_tainted_variables()
+        self.tainted_packages = self.context.get_tainted_packages()
 
-        self.__cached_instructions = None
+        self.notes = []
 
     def get_notes(self):
         return self.notes
@@ -82,73 +483,51 @@ class DVMBasicBlock:
         self.notes = []
 
     def get_instructions(self):
-        """
+      """
         Get all instructions from a basic block.
 
-        :returns: Return all instructions in the current basic block
-        """
-        idx = 0
-        for i in self.method.get_instructions():
-            if self.start <= idx < self.end:
-                yield i
-            idx += i.get_length()
+        :rtype: Return all instructions in the current basic block
+      """
+      tmp_ins = []
+      idx = 0
+      for i in self.method.get_instructions():
+        if idx >= self.start and idx < self.end:
+          tmp_ins.append(i)
+
+        idx += i.get_length()
+      return tmp_ins
 
     def get_nb_instructions(self):
         return self.nb_instructions
 
     def get_method(self):
-        """
-        Returns the originiating method
-
-        :return: the method
-        :rtype: androguard.core.bytecodes.dvm.EncodedMethod
-        """
         return self.method
 
     def get_name(self):
-        return self.name
+        return "%s-BB@0x%x" % (self.method.get_name(), self.start)
 
     def get_start(self):
-        """
-        Get the starting offset of this basic block
-
-        :return: starting offset
-        :rtype: int
-        """
         return self.start
 
     def get_end(self):
-        """
-        Get the end offset of this basic block
-
-        :return: end offset
-        :rtype: int
-        """
         return self.end
 
     def get_last(self):
-        """
-        Get the last instruction in the basic block
-
-        :return: androguard.core.bytecodes.dvm.Instruction
-        """
-        return list(self.get_instructions())[-1]
+        return self.get_instructions()[-1]
 
     def get_next(self):
         """
-        Get next basic blocks
+            Get next basic blocks
 
-        :returns: a list of the next basic blocks
-        :rtype: DVMBasicBlock
+            :rtype: a list of the next basic blocks
         """
         return self.childs
 
     def get_prev(self):
         """
-        Get previous basic blocks
+            Get previous basic blocks
 
-        :returns: a list of the previous basic blocks
-        :rtype: DVMBasicBlock
+            :rtype: a list of the previous basic blocks
         """
         return self.fathers
 
@@ -156,50 +535,77 @@ class DVMBasicBlock:
         self.fathers.append(f)
 
     def get_last_length(self):
-        return self.last_length
+      return self.last_length
 
     def set_childs(self, values):
-        # print self, self.start, self.end, values
-        if not values:
-            next_block = self.context.get_basic_block(self.end + 1)
-            if next_block is not None:
-                self.childs.append((self.end - self.get_last_length(), self.end,
-                                    next_block))
+        #print self, self.start, self.end, values
+        if values == []:
+            next_block = self.context.get_basic_block( self.end + 1 )
+            if next_block != None:
+                self.childs.append( ( self.end - self.get_last_length(), self.end, next_block ) )
         else:
             for i in values:
                 if i != -1:
-                    next_block = self.context.get_basic_block(i)
-                    if next_block is not None:
-                        self.childs.append((self.end - self.get_last_length(),
-                                            i, next_block))
+                    next_block = self.context.get_basic_block( i )
+                    if next_block != None:
+                        self.childs.append( ( self.end - self.get_last_length(), i, next_block) )
 
         for c in self.childs:
-            if c[2] is not None:
-                c[2].set_fathers((c[1], c[0], self))
+            if c[2] != None:
+                c[2].set_fathers( ( c[1], c[0], self ) )
 
     def push(self, i):
-        self.nb_instructions += 1
-        idx = self.end
-        self.last_length = i.get_length()
-        self.end += self.last_length
+      try:
+            self.nb_instructions += 1
+            idx = self.end
+            self.last_length = i.get_length()
+            self.end += self.last_length
 
-        op_value = i.get_op_value()
+            op_value = i.get_op_value()
 
-        if op_value == 0x26 or (0x2b <= op_value <= 0x2c):
-            code = self.method.get_code().get_bc()
-            self.special_ins[idx] = code.get_ins_off(idx + i.get_ref_off() * 2)
+            # field access
+            if (op_value >= 0x52 and op_value <= 0x6d):
+                desc = self.__vm.get_cm_field(i.get_ref_kind())
+                if self.tainted_variables != None:
+                    self.tainted_variables.push_info(TAINTED_FIELD, desc, DVM_FIELDS_ACCESS[i.get_name()][0], idx, self.method)
+
+            # invoke
+            elif (op_value >= 0x6e and op_value <= 0x72) or (op_value >= 0x74 and op_value <= 0x78):
+                idx_meth = i.get_ref_kind()
+                method_info = self.__vm.get_cm_method(idx_meth)
+                if self.tainted_packages != None:
+                    self.tainted_packages.push_info(method_info[0], TAINTED_PACKAGE_CALL, idx, self.method, idx_meth)
+
+            # new_instance
+            elif op_value == 0x22:
+                idx_type = i.get_ref_kind()
+                type_info = self.__vm.get_cm_type(idx_type)
+                if self.tainted_packages != None:
+                    self.tainted_packages.push_info(type_info, TAINTED_PACKAGE_CREATE, idx, self.method, None)
+
+            # const-string
+            elif (op_value >= 0x1a and op_value <= 0x1b):
+                string_name = self.__vm.get_cm_string(i.get_ref_kind())
+                if self.tainted_variables != None:
+                    self.tainted_variables.push_info(TAINTED_STRING, string_name, "R", idx, self.method)
+
+            elif op_value == 0x26 or (op_value >= 0x2b and op_value <= 0x2c):
+                code = self.method.get_code().get_bc()
+                self.special_ins[idx] = code.get_ins_off(idx + i.get_ref_off() * 2)
+      except:
+        pass
 
     def get_special_ins(self, idx):
         """
-        Return the associated instruction to a specific instruction (for example a packed/sparse switch)
+            Return the associated instruction to a specific instruction (for example a packed/sparse switch)
 
-        :param idx: the index of the instruction
+            :param idx: the index of the instruction
 
-        :rtype: None or an Instruction
+            :rtype: None or an Instruction
         """
-        if idx in self.special_ins:
+        try:
             return self.special_ins[idx]
-        else:
+        except:
             return None
 
     def get_exception_analysis(self):
@@ -208,28 +614,1278 @@ class DVMBasicBlock:
     def set_exception_analysis(self, exception_analysis):
         self.exception_analysis = exception_analysis
 
+TAINTED_LOCAL_VARIABLE = 0
+TAINTED_FIELD = 1
+TAINTED_STRING = 2
+
+class PathVar(object):
+  def __init__(self, access, idx, dst_idx, info_obj):
+    self.access_flag = access
+    self.idx = idx
+    self.dst_idx = dst_idx
+    self.info_obj = info_obj
+
+  def get_var_info(self):
+    return self.info_obj.get_info()
+
+  def get_access_flag(self):
+    return self.access_flag
+
+  def get_src(self, cm):
+    method = cm.get_method_ref( self.idx )
+    return method.get_class_name(), method.get_name(), method.get_descriptor()
+
+  def get_dst(self, cm):
+    method = cm.get_method_ref( self.dst_idx )
+    return method.get_class_name(), method.get_name(), method.get_descriptor()
+
+  def get_idx(self):
+    return self.idx
+
+class TaintedVariable(object):
+    def __init__(self, var, _type):
+        self.var = var
+        self.type = _type
+
+        self.paths = {}
+        self.__cache = []
+
+    def get_type(self):
+        return self.type
+
+    def get_info(self):
+        if self.type == TAINTED_FIELD:
+            return [ self.var[0], self.var[2], self.var[1] ]
+        return self.var
+
+    def push(self, access, idx, ref):
+        m_idx = ref.get_method_idx()
+
+        if m_idx not in self.paths:
+          self.paths[ m_idx ] = []
+
+        self.paths[ m_idx ].append( (access, idx) )
+
+    def get_paths_access(self, mode):
+        for i in self.paths:
+          for j in self.paths[ i ]:
+            for k, v in self.paths[ i ][ j ]:
+              if k in mode:
+                yield i, j, k, v
+
+    def get_paths(self):
+        if self.__cache != []:
+            return self.__cache
+
+        for i in self.paths:
+          for j in self.paths[ i ]:
+              self.__cache.append( [j, i] )
+              #yield j, i
+        return self.__cache
+
+    def get_paths_length(self):
+        return len(self.paths)
+
+    def show_paths(self, vm):
+        show_PathVariable( vm, self.get_paths() )
+
+	#Added by AndroBugs
+    def get_paths_and_stacks(self, vm, excluded_src_classes_regexp=None):
+        cm = vm.get_class_manager()
+        paths = self.get_paths()
+
+        for path in paths:
+            access, idx = path[0]
+            m_idx = path[1]
+            method = vm.get_cm_method(m_idx)
+            
+            if (excluded_src_classes_regexp is not None) and (excluded_src_classes_regexp.search(method[0])) :
+                continue
+
+            inner_method = vm.get_specific_class_method_descriptor(method[0], method[1], method[2][0] + method[2][1])
+            if inner_method is not None:
+                register_analyzer = RegisterAnalyzerVM_ImmediateValue(inner_method.get_instructions(), idx, 1)
+                yield path, register_analyzer.get_stack()
+
+class TaintedVariables(object):
+    def __init__(self, _vm):
+        self.__vm = _vm
+        self.__vars = {
+           TAINTED_LOCAL_VARIABLE : {},
+           TAINTED_FIELD : {},
+           TAINTED_STRING : {},
+        }
+
+        self.__cache_field_by_method = {}
+        self.__cache_string_by_method = {}
+
+        self.AOSP_PERMISSIONS_MODULE = load_api_specific_resource_module("aosp_permissions", self.__vm.get_api_version())
+        self.API_PERMISSION_MAPPINGS_MODULE = load_api_specific_resource_module("api_permission_mappings", self.__vm.get_api_version())
+
+    # functions to get particulars elements
+    def get_string(self, s):
+        try:
+            return self.__vars[ TAINTED_STRING ][ s ]
+        except KeyError:
+            return None
+
+    def get_field(self, class_name, name, descriptor):
+        key = class_name + descriptor + name
+
+        try:
+            return self.__vars[ TAINTED_FIELD ] [ key ]
+        except KeyError:
+            return None
+
+    def toPathVariable(self, obj):
+      z = []
+      for i in obj.get_paths():
+        access, idx = i[0]
+        m_idx = i[1]
+
+        z.append( PathVar(access, idx, m_idx, obj ) )
+      return z
+
+    # permission functions
+    def get_permissions_method(self, method):
+        permissions = set()
+
+        for f, f1 in self.get_fields():
+            data = "%s-%s-%s" % (f.var[0], f.var[2], f.var[1])
+            if data in self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_FIELDS"].keys():
+                for path in f.get_paths():
+                    #access, idx = path[0]
+                    m_idx = path[1]
+                    if m_idx == method.get_idx():
+                        permissions.update(self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_FIELDS"][data])
+
+        return permissions
+
+    def get_permissions(self, permissions_needed):
+        """
+            @param permissions_needed : a list of restricted permissions to get ([] returns all permissions)
+
+            @rtype : a dictionnary of permissions' paths
+        """
+        permissions = {}
+
+        pn = set(permissions_needed)
+        if permissions_needed == []:
+            pn = set(self.AOSP_PERMISSIONS_MODULE["AOSP_PERMISSIONS"].keys())
+
+        for f, _ in self.get_fields():
+            data = "%s-%s-%s" % (f.var[0], f.var[2], f.var[1])
+            if data in self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_FIELDS"].keys():
+                perm_intersection = pn.intersection(self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_FIELDS"][data])
+                for p in perm_intersection:
+                    try:
+                        permissions[p].extend(self.toPathVariable(f))
+                    except KeyError:
+                        permissions[p] = []
+                        permissions[p].extend(self.toPathVariable(f))
+
+        return permissions
+
+    # global functions
+    def get_strings(self):
+        for i in self.__vars[ TAINTED_STRING ]:
+            yield self.__vars[ TAINTED_STRING ][ i ], i
+
+    def get_fields(self):
+        for i in self.__vars[ TAINTED_FIELD ]:
+            yield self.__vars[ TAINTED_FIELD ][ i ], i
+
+    # specifics functions
+    def get_strings_by_method(self, method):
+        z = {}
+
+        try:
+            for i in self.__cache_string_by_method[ method.get_method_idx() ]:
+                z[ i ] = []
+                for j in i.get_paths():
+                    if method.get_method_idx() == j[1]:
+                        z[i].append( j[0] )
+
+            return z
+        except:
+            return z
+
+
+    def get_fields_by_method(self, method):
+        z = {}
+
+        try:
+            for i in self.__cache_field_by_method[ method.get_method_idx() ]:
+                z[ i ] = []
+                for j in i.get_paths():
+                    if method.get_method_idx() == j[1]:
+                        z[i].append( j[0] )
+            return z
+        except:
+            return z
+
+    def add(self, var, _type, _method=None):
+        if _type == TAINTED_FIELD:
+            key = var[0] + var[1] + var[2]
+            if key not in self.__vars[ TAINTED_FIELD ]:
+                self.__vars[ TAINTED_FIELD ][ key ] = TaintedVariable( var, _type )
+        elif _type == TAINTED_STRING:
+            if var not in self.__vars[ TAINTED_STRING ]:
+                self.__vars[ TAINTED_STRING ][ var ] = TaintedVariable( var, _type )
+        elif _type == TAINTED_LOCAL_VARIABLE:
+            if _method not in self.__vars[ TAINTED_LOCAL_VARIABLE ]:
+                self.__vars[ TAINTED_LOCAL_VARIABLE ][ _method ] = {}
+
+            if var not in self.__vars[ TAINTED_LOCAL_VARIABLE ][ _method ]:
+                self.__vars[ TAINTED_LOCAL_VARIABLE ][ _method ][ var ] = TaintedVariable( var, _type )
+
+    def push_info(self, _type, var, access, idx, ref):
+        if _type == TAINTED_FIELD:
+            self.add( var, _type )
+            key = var[0] + var[1] + var[2]
+            self.__vars[ _type ][ key ].push( access, idx, ref )
+
+            method_idx = ref.get_method_idx()
+            if method_idx not in self.__cache_field_by_method:
+                self.__cache_field_by_method[ method_idx ] = set()
+
+            self.__cache_field_by_method[ method_idx ].add( self.__vars[ TAINTED_FIELD ][ key ] )
+
+
+        elif _type == TAINTED_STRING:
+            self.add( var, _type )
+            self.__vars[ _type ][ var ].push( access, idx, ref )
+
+            method_idx = ref.get_method_idx()
+
+            if method_idx not in self.__cache_string_by_method:
+                self.__cache_string_by_method[ method_idx ] = set()
+
+            self.__cache_string_by_method[ method_idx ].add( self.__vars[ TAINTED_STRING ][ var ] )
+
+TAINTED_PACKAGE_CREATE = 0
+TAINTED_PACKAGE_CALL = 1
+
+TAINTED_PACKAGE = {
+   TAINTED_PACKAGE_CREATE : "C",
+   TAINTED_PACKAGE_CALL : "M"
+}
+
+def show_Path(vm, path):
+  cm = vm.get_class_manager()
+
+  if isinstance(path, PathVar):
+    dst_class_name, dst_method_name, dst_descriptor =  path.get_dst( cm )
+    info_var = path.get_var_info()
+    print "%s %s (0x%x) ---> %s->%s%s" % (path.get_access_flag(),
+                                          info_var,
+                                          path.get_idx(),
+                                          dst_class_name,
+                                          dst_method_name,
+                                          dst_descriptor)
+  else:
+    if path.get_access_flag() == TAINTED_PACKAGE_CALL:
+      src_class_name, src_method_name, src_descriptor =  path.get_src( cm )
+      dst_class_name, dst_method_name, dst_descriptor =  path.get_dst( cm )
+
+      print "%d %s->%s%s (0x%x) ---> %s->%s%s" % (path.get_access_flag(),
+                                                  src_class_name,
+                                                  src_method_name,
+                                                  src_descriptor,
+                                                  path.get_idx(),
+                                                  dst_class_name,
+                                                  dst_method_name,
+                                                  dst_descriptor)
+    else:
+      src_class_name, src_method_name, src_descriptor =  path.get_src( cm )
+      print "%d %s->%s%s (0x%x)" % (path.get_access_flag(),
+                                    src_class_name,
+                                    src_method_name,
+                                    src_descriptor,
+                                    path.get_idx())
+
+#Added by AndroBugs
+def find_path_by_class_name(vm, paths, class_name):
+  cm = vm.get_class_manager()
+
+  l = []
+
+  for path in paths:
+    src_class_name, src_method_name, src_descriptor =  path.get_src(cm)
+    if class_name == src_class_name :
+        l.append(path)
+
+  return l
+
+
+#Added by AndroBugs
+def get_source_Path(vm, path) :
+  cm = vm.get_class_manager()
+
+  src_class_name, src_method_name, src_descriptor =  path.get_src( cm )
+  dst_class_name, dst_method_name, dst_descriptor =  path.get_dst( cm )
+
+  x = {}
+  x["src_class_name"] = src_class_name
+  x["src_method_name"] = src_method_name
+  x["src_descriptor"] = src_descriptor
+  x["idx"] = path.get_idx()
+  x["dst_class_name"] = dst_class_name
+  x["dst_method_name"] = dst_method_name
+  x["dst_descriptor"] = dst_descriptor
+  x["path"] = path
+
+  return x
+
+#Added by AndroBugs
+def get_source_Paths(vm, paths) :
+    """
+        Show paths of packages
+        :param paths: a list of :class:`PathP` objects
+    """
+    l = []
+    for path in paths :
+        l.append(get_source_Path(vm, path))
+
+    return l
+
+#Added by AndroBugs
+def trace_Register_value_by_Param_in_source_Paths(vm, paths) :
+    datas = get_source_Paths(vm, paths) #transform 'PathP' to name and descriptor of 'src' and 'dst' dictionary
+
+    if datas is None :
+        return None
+
+    l = []
+
+    for data in datas :
+
+        src_class_name = data["src_class_name"]
+        src_method_name = data["src_method_name"]
+        src_descriptor = data["src_descriptor"]
+        max_trace = data["idx"]
+        path = data["path"]
+
+        if (src_class_name is None) or (src_method_name is None) or (src_descriptor is None) or (max_trace is None) :
+            continue
+            
+        # Get all instructions for the specific method inside the current Path
+        method = vm.get_specific_class_method_descriptor(src_class_name, src_method_name, src_descriptor)  
+
+        if method is None :  #do not find method
+            continue
+
+        register_analyzer = RegisterAnalyzerVM_ImmediateValue()
+        register_analyzer.load_instructions(method.get_instructions(), max_trace)
+        result = RegisterAnalyzerVM_Result(path, register_analyzer.get_register_number_to_register_value_mapping())
+        l.append(result)
+
+    return l
+
+def get_Path(vm, path):
+  x = {}
+  cm = vm.get_class_manager()
+
+  if isinstance(path, PathVar):
+    dst_class_name, dst_method_name, dst_descriptor =  path.get_dst( cm )
+    info_var = path.get_var_info()
+    x["src"] = "%s" % info_var
+    x["dst"] = "%s %s %s" % (dst_class_name, dst_method_name, dst_descriptor)
+    x["idx"] = path.get_idx()
+
+  else:
+    if path.get_access_flag() == TAINTED_PACKAGE_CALL:
+      src_class_name, src_method_name, src_descriptor =  path.get_src( cm )
+      dst_class_name, dst_method_name, dst_descriptor =  path.get_dst( cm )
+
+      x["src"] = "%s %s %s" % (src_class_name, src_method_name, src_descriptor)
+      x["dst"] = "%s %s %s" % (dst_class_name, dst_method_name, dst_descriptor)
+    else:
+      src_class_name, src_method_name, src_descriptor =  path.get_src( cm )
+      x["src"] = "%s %s %s" % (src_class_name, src_method_name, src_descriptor)
+
+    x["idx"] = path.get_idx()
+
+  return x
+
+
+def show_Paths(vm, paths):
+    """
+        Show paths of packages
+        :param vm: the object which represents the dex file
+        :param paths: a list of :class:`PathP` objects
+    """
+    for path in paths:
+        show_Path( vm, path )
+
+
+def get_Paths(vm, paths):
+    """
+        Return paths of packages
+        :param vm: the object which represents the dex file
+        :param paths: a list of :class:`PathP` objects
+    """
+    full_paths = []
+    for path in paths:
+        full_paths.append(get_Path( vm, path ))
+    return full_paths
+
+
+def show_PathVariable(vm, paths):
+    for path in paths:
+      access, idx = path[0]
+      m_idx = path[1]
+      method = vm.get_cm_method(m_idx)
+      print "%s %x %s->%s %s" % (access, idx, method[0], method[1], method[2][0] + method[2][1])
+
+
+class PathP(object):
+  def __init__(self, access, idx, src_idx, dst_idx):
+    self.access_flag = access
+    self.idx = idx
+    self.src_idx = src_idx
+    self.dst_idx = dst_idx
+
+  def get_access_flag(self):
+    return self.access_flag
+
+  def get_dst(self, cm):
+    method = cm.get_method_ref(self.dst_idx)
+    return method.get_class_name(), method.get_name(), method.get_descriptor()
+
+  def get_src(self, cm):
+    method = cm.get_method_ref(self.src_idx)
+    return method.get_class_name(), method.get_name(), method.get_descriptor()
+
+  def get_idx(self):
+    return self.idx
+
+  def get_src_idx(self):
+    return self.src_idx
+
+  def get_dst_idx(self):
+    return self.dst_idx
+
+
+class TaintedPackage(object):
+    def __init__(self, vm, name):
+        self.vm = vm
+        self.name = name
+        self.paths = {TAINTED_PACKAGE_CREATE : [], TAINTED_PACKAGE_CALL : []}
+
+    def get_name(self):
+        return self.name
+
+    def gets(self):
+        return self.paths
+
+    def push(self, access, idx, src_idx, dst_idx):
+        p = PathP( access, idx, src_idx, dst_idx )
+        self.paths[ access ].append( p )
+        return p
+
+    def get_objects_paths(self):
+        return self.paths[ TAINTED_PACKAGE_CREATE ]
+
+    def search_method(self, name, descriptor):
+        """
+            @param name : a regexp for the name of the method
+            @param descriptor : a regexp for the descriptor of the method
+
+            @rtype : a list of called paths
+        """
+        l = []
+        m_name = re.compile(name)
+        m_descriptor = re.compile(descriptor)
+
+        for path in self.paths[ TAINTED_PACKAGE_CALL ]:
+            _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+
+            if m_name.match( dst_name ) != None and m_descriptor.match( dst_descriptor ) != None:
+                l.append( path )
+        return l
+
+    def get_method(self, name, descriptor):
+        l = []
+        for path in self.paths[ TAINTED_PACKAGE_CALL ]:
+            if path.get_name() == name and path.get_descriptor() == descriptor:
+                l.append( path )
+        return l
+
+    #Added by AndroBugs
+    def search_android_databases(self, interruptOnFound=False, exclusion_regexp=None) :
+        l = []
+
+        if exclusion_regexp is None :
+
+            for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+                _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+                if dst_descriptor == "()Landroid/database/sqlite/SQLiteDatabase;" :   # "()Landroid/database/sqlite/SQLiteDatabase;"
+                    l.append( path )
+                    if interruptOnFound :
+                        return l
+
+        else :
+
+            for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+                cm = self.vm.get_class_manager()
+                _, dst_name, dst_descriptor = path.get_dst( cm )
+                src_class_name, _, _ =  path.get_src( cm )
+                if dst_descriptor == "()Landroid/database/sqlite/SQLiteDatabase;" :   # "()Landroid/database/sqlite/SQLiteDatabase;"
+                    if not exclusion_regexp.match(src_class_name) :
+                        l.append( path )
+                        if interruptOnFound :
+                            return l
+            
+        return l
+
+    #Added by AndroBugs
+    def is_calling_sqlcipher_databases(self) :
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if (dst_descriptor == "()Linfo/guardianproject/database/sqlcipher/SQLiteDatabase;") or (dst_descriptor == "()Lnet/sqlcipher/database/SQLiteDatabase;") :   # "()Landroid/database/sqlite/SQLiteDatabase;"
+                return True
+        return False
+
+    #Added by AndroBugs
+    def search_sqlcipher_databases(self) :
+        l = []
+
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if (dst_descriptor == "()Linfo/guardianproject/database/sqlcipher/SQLiteDatabase;") : 
+                l.append( (path, 1) )
+            if (dst_descriptor == "()Lnet/sqlcipher/database/SQLiteDatabase;") : 
+                l.append( (path, 2) )
+        return l
+
+    #Added by AndroBugs
+    def search_SEE_databases(self) :
+        l = []
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if (dst_descriptor == "()Lorg/sqlite/database/sqlite/SQLiteDatabase;") : 
+                l.append( path )
+        return l
+
+    #Added by AndroBugs
+    def search_method_exact_match(self, name, descriptor) :
+        l = []
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if name == dst_name and descriptor == dst_descriptor :
+                l.append( path )
+        return l
+
+    #Added by AndroBugs
+    def search_fixed_method_and_descriptorlist_exact_match(self, fixed_method, descriptor_list) :
+        l = []
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if dst_name == fixed_method :
+                if dst_descriptor in descriptor_list :
+                    l.append( path )                        
+        return l
+
+    #Added by AndroBugs
+    def search_class_methodlist_exact_match(self, class_name, method_name_and_descriptor_list) :
+        l = []
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            dst_class_name, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if class_name == dst_class_name :
+                for method_name, descriptor in method_name_and_descriptor_list :
+                    if (method_name == dst_name) and (descriptor == dst_descriptor) :
+                        l.append( path )
+        return l
+
+    #Added by AndroBugs
+    def search_class_method_exact_match(self, class_name, name, descriptor) :
+        l = []
+        for path in self.paths[ TAINTED_PACKAGE_CALL ] :
+            dst_class_name, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
+            if (class_name == dst_class_name) and (name == dst_name) and (descriptor == dst_descriptor) :
+                l.append( path )
+        return l
+
+    def get_paths(self):
+        for i in self.paths:
+            for j in self.paths[ i ]:
+                yield j
+
+    def get_paths_length(self):
+        x = 0
+        for i in self.paths:
+            x += len(self.paths[ i ])
+        return x
+
+    def get_methods(self):
+        return [path for path in self.paths[TAINTED_PACKAGE_CALL]]
+
+    def get_new(self):
+        return [path for path in self.paths[TAINTED_PACKAGE_CREATE]]
+
     def show(self):
-        print("{}: {:04x} - {:04x}".format(self.get_name(), self.get_start(), self.get_end()))
-        for note in self.get_notes():
-            print(note)
-        print('=' * 20)
+        cm = self.vm.get_class_manager()
+        print self.get_name()
+        for _type in self.paths:
+            print "\t -->", _type
+            if _type == TAINTED_PACKAGE_CALL:
+                for path in self.paths[_type]:
+                    print "\t\t => %s <-- %x in %s" % (path.get_dst(cm), path.get_idx(), path.get_src(cm))
+            else:
+                for path in self.paths[_type]:
+                    print "\t\t => %x in %s" % (path.get_idx(), path.get_src(cm))
 
-
-class BasicBlocks:
+def show_Permissions(dx):
     """
-    This class represents all basic blocks of a method.
-
-    It is a collection of many :class:`DVMBasicBlock`.
+        Show where permissions are used in a specific application
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
     """
-    def __init__(self):
+    p = dx.get_permissions( [] )
+
+    for i in p:
+        print i, ":"
+        for j in p[i]:
+            show_Path( dx.get_vm(), j )
+
+def show_DynCode(dx):
+    """
+        Show where dynamic code is used
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+    """
+    paths = []
+    paths.extend(dx.get_tainted_packages().search_methods("Ldalvik/system/BaseDexClassLoader;",
+                                                "<init>",
+                                                "."))
+
+    paths.extend(dx.get_tainted_packages().search_methods("Ldalvik/system/PathClassLoader;",
+                                                "<init>",
+                                                "."))
+
+    paths.extend(dx.get_tainted_packages().search_methods("Ldalvik/system/DexClassLoader;",
+                                                "<init>",
+                                                "."))
+
+    paths.extend(dx.get_tainted_packages().search_methods("Ldalvik/system/DexFile;",
+                                                "<init>",
+                                                "."))
+
+    paths.extend(dx.get_tainted_packages().search_methods("Ldalvik/system/DexFile;",
+                                                "loadDex",
+                                                "."))
+    show_Paths( dx.get_vm(), paths )
+
+
+def show_NativeMethods(dx):
+    """
+        Show the native methods
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+    """
+    print get_NativeMethods(dx)
+
+
+def show_ReflectionCode(dx):
+    """
+        Show the reflection code
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+    """
+    paths = dx.get_tainted_packages().search_methods("Ljava/lang/reflect/Method;", ".", ".")
+    show_Paths(dx.get_vm(), paths)
+
+
+def get_NativeMethods(dx):
+    """
+        Return the native methods
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+        :rtype: [tuple]
+    """
+    d = dx.get_vm()
+    native_methods = []
+    for i in d.get_methods():
+        if i.get_access_flags() & 0x100:
+            native_methods.append(
+                (i.get_class_name(), i.get_name(), i.get_descriptor()))
+    return native_methods
+
+
+def get_ReflectionCode(dx):
+    """
+        Return the reflection code
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+        :rtype: [dict]
+    """
+    paths = dx.get_tainted_packages().search_methods(
+        "Ljava/lang/reflect/Method;", ".", ".")
+    return get_Paths(dx.get_vm(), paths)
+
+
+def is_crypto_code(dx):
+    """
+        Crypto code is present ?
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+        :rtype: boolean
+    """
+    if dx.get_tainted_packages().search_methods("Ljavax/crypto/.",
+                                                ".",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ljava/security/spec/.",
+                                                ".",
+                                                "."):
+        return True
+
+    return False
+
+
+def is_dyn_code(dx):
+    """
+        Dalvik Dynamic code loading is present ?
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+        :rtype: boolean
+    """
+    if dx.get_tainted_packages().search_methods("Ldalvik/system/BaseDexClassLoader;",
+                                                "<init>",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ldalvik/system/PathClassLoader;",
+                                                "<init>",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ldalvik/system/DexClassLoader;",
+                                                "<init>",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ldalvik/system/DexFile;",
+                                                "<init>",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ldalvik/system/DexFile;",
+                                                "loadDex",
+                                                "."):
+        return True
+
+    return False
+
+
+def is_reflection_code(dx):
+    """
+        Reflection is present ?
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+        :rtype: boolean
+    """
+    if dx.get_tainted_packages().search_methods("Ljava/lang/reflect/Method;",
+                                                ".",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ljava/lang/reflect/Field;",
+                                                ".",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ljava/lang/Class;",
+                                                "forName",
+                                                "."):
+        return True
+
+    return False
+
+
+def is_native_code(dx):
+    """
+        Native code is present ?
+        :param dx : the analysis virtual machine
+        :type dx: a :class:`VMAnalysis` object
+        :rtype: boolean
+    """
+    if dx.get_tainted_packages().search_methods("Ljava/lang/System;",
+                                                "load.",
+                                                "."):
+        return True
+
+    if dx.get_tainted_packages().search_methods("Ljava/lang/Runtime;",
+                                                "load.",
+                                                "."):
+        return True
+
+    return False
+
+
+class TaintedPackages(object):
+    def __init__(self, _vm):
+        self.__vm = _vm
+        self.__packages = {}
+        self.__methods = {}
+
+        self.AOSP_PERMISSIONS_MODULE = load_api_specific_resource_module("aosp_permissions", self.__vm.get_api_version())
+        self.API_PERMISSION_MAPPINGS_MODULE = load_api_specific_resource_module("api_permission_mappings", self.__vm.get_api_version())
+
+    def _add_pkg(self, name):
+        if name not in self.__packages:
+            self.__packages[ name ] = TaintedPackage( self.__vm, name )
+
+    #self.context.get_tainted_packages().push_info( method_info[0], TAINTED_PACKAGE_CALL, idx, self, self.method, method_info[1], method_info[2][0] + method_info[2][1] )
+    def push_info(self, class_name, access, idx, method, idx_method):
+        self._add_pkg( class_name )
+        p = self.__packages[ class_name ].push( access, idx, method.get_method_idx(), idx_method )
+
+        try:
+            self.__methods[ method ][ class_name ].append( p )
+        except:
+            try:
+                self.__methods[ method ][ class_name ] = []
+            except:
+                self.__methods[ method ] = {}
+                self.__methods[ method ][ class_name ] = []
+
+            self.__methods[ method ][ class_name ].append( p )
+
+    def get_packages_by_method(self, method):
+        try:
+            return self.__methods[method]
+        except KeyError:
+            return {}
+
+    def get_package(self, name):
+        return self.__packages[name]
+
+    def get_packages_by_bb(self, bb):
+        """
+            :rtype: return a list of packaged used in a basic block
+        """
+        l = []
+        for i in self.__packages:
+            paths = self.__packages[i].gets()
+            for j in paths:
+                for k in paths[j]:
+                    if k.get_bb() == bb:
+                        l.append( (i, k.get_access_flag(), k.get_idx(), k.get_method()) )
+
+        return l
+
+    def get_packages(self):
+        for i in self.__packages:
+            yield self.__packages[i], i
+
+    def get_internal_packages_from_package(self, package):
+        classes = self.__vm.get_classes_names()
+        l = []
+        for m, _ in self.get_packages():
+            paths = m.get_methods()
+            for j in paths:
+                src_class_name, _, _ = j.get_src(self.__vm.get_class_manager())
+                dst_class_name, _, _ = j.get_dst(self.__vm.get_class_manager())
+
+                if src_class_name == package and dst_class_name in classes:
+                    l.append(j)
+        return l
+
+    def get_internal_packages(self):
+        """
+            :rtype: return a list of the internal packages called in the application
+        """
+        classes = self.__vm.get_classes_names()
+        l = []
+        for m, _ in self.get_packages():
+            paths = m.get_methods()
+            for j in paths:
+                if j.get_access_flag() == TAINTED_PACKAGE_CALL:
+                  dst_class_name, _, _ = j.get_dst(self.__vm.get_class_manager())
+                  if dst_class_name in classes and m.get_name() in classes:
+                    l.append(j)
+        return l
+
+    def get_internal_new_packages(self):
+        """
+            :rtype: return a list of the internal packages created in the application
+        """
+        classes = self.__vm.get_classes_names()
+        l = {}
+        for m, _ in self.get_packages():
+            paths = m.get_new()
+            for j in paths:
+                src_class_name, _, _ = j.get_src(self.__vm.get_class_manager())
+                if src_class_name in classes and m.get_name() in classes:
+                    if j.get_access_flag() == TAINTED_PACKAGE_CREATE:
+                        try:
+                            l[m.get_name()].append(j)
+                        except:
+                            l[m.get_name()] = []
+                            l[m.get_name()].append(j)
+        return l
+
+    def get_external_packages(self):
+        """
+            :rtype: return a list of the external packages called in the application
+        """
+        classes = self.__vm.get_classes_names()
+        l = []
+        for m, _ in self.get_packages():
+            paths = m.get_methods()
+            for j in paths:
+                src_class_name, _, _ = j.get_src(self.__vm.get_class_manager())
+                dst_class_name, _, _ = j.get_dst(self.__vm.get_class_manager())
+                if src_class_name in classes and dst_class_name not in classes:
+                    if j.get_access_flag() == TAINTED_PACKAGE_CALL:
+                        l.append(j)
+        return l
+
+    def search_packages(self, package_name):
+        """
+            :param package_name: a regexp for the name of the package
+
+            :rtype: a list of called packages' paths
+        """
+        ex = re.compile(package_name)
+
+        l = []
+        for m, _ in self.get_packages():
+            if ex.search(m.get_name()) != None:
+                l.extend(m.get_methods())
+        return l
+
+    def search_unique_packages(self, package_name):
+        """
+            :param package_name: a regexp for the name of the package
+        """
+        ex = re.compile( package_name )
+
+        l = []
+        d = {}
+        for m, _ in self.get_packages():
+            if ex.match( m.get_info() ) != None:
+                for path in m.get_methods():
+                    try:
+                        d[ path.get_class_name() + path.get_name() + path.get_descriptor() ] += 1
+                    except KeyError:
+                        d[ path.get_class_name() + path.get_name() + path.get_descriptor() ] = 0
+                        l.append( [ path.get_class_name(), path.get_name(), path.get_descriptor() ] )
+        return l, d
+
+    def search_methods(self, class_name, name, descriptor, re_expr=True):
+        """
+            @param class_name : a regexp for the class name of the method (the package)
+            @param name : a regexp for the name of the method
+            @param descriptor : a regexp for the descriptor of the method
+
+            @rtype : a list of called methods' paths
+        """
+        l = []
+        if re_expr == True:
+            ex = re.compile( class_name )
+
+            for m, _ in self.get_packages():
+                if ex.search( m.get_name() ) != None:
+                    l.extend( m.search_method( name, descriptor ) )
+
+        return l
+
+    #Added by AndroBugs
+    def has_android_databases(self, excluded_classes_regexp) :
+        l = []
+
+        for m, _ in self.get_packages() :
+            if m.search_android_databases(True, excluded_classes_regexp) :
+                return True
+
+        return False
+
+    #Added by AndroBugs
+    def search_sqlcipher_databases(self) :
+        l = []
+
+        for m, _ in self.get_packages() :
+            l.extend( m.search_sqlcipher_databases() )
+
+        return l
+
+    #Added by AndroBugs
+    def search_SEE_databases(self) :  # SQLite Encryption Extension (SEE) on Android
+        l = []
+
+        for m, _ in self.get_packages() :
+            l.extend( m.search_SEE_databases() )
+
+        return l
+
+    #Added by AndroBugs
+    def search_fixed_method_and_descriptorlist_exact_match(self, fixed_method, descriptor_list, has_excluded_dst_class=False, excluded_dst_classes=".") :
+        l = []
+
+        if has_excluded_dst_class:
+            ex = re.compile( excluded_dst_classes, re.I )
+            for m, _ in self.get_packages() :
+                if not ex.search( m.get_name() ) :
+                    l.extend( m.search_fixed_method_and_descriptorlist_exact_match( fixed_method, descriptor_list ) )
+        else:
+            for m, _ in self.get_packages() :
+                l.extend( m.search_fixed_method_and_descriptorlist_exact_match( fixed_method, descriptor_list ) )
+
+        return l
+
+    #Added by AndroBugs
+    def search_methods_exact_match(self, name, descriptor, has_excluded_dst_class=False, excluded_dst_classes=".") :
+        l = []
+
+        if has_excluded_dst_class:
+            ex = re.compile( excluded_dst_classes, re.I )
+            for m, _ in self.get_packages() :
+                if not ex.search( m.get_name() ) :
+                    l.extend( m.search_method_exact_match( name, descriptor ) )
+        else:
+            for m, _ in self.get_packages() :
+                l.extend( m.search_method_exact_match( name, descriptor ) )
+
+        return l
+
+    #Added by AndroBugs
+    def search_class_methodlist_exact_match(self, class_name, method_name_and_descriptor, has_excluded_dst_class=False, excluded_dst_classes=".") :
+        l = []
+
+        if has_excluded_dst_class:
+            ex = re.compile( excluded_dst_classes, re.I )
+            for m, _ in self.get_packages() :
+                if not ex.search( m.get_name() ) :
+                    l.extend( m.search_class_methodlist_exact_match( class_name, method_name_and_descriptor ) )
+        else:
+            for m, _ in self.get_packages() :
+                l.extend( m.search_class_methodlist_exact_match( class_name, method_name_and_descriptor ) )
+
+        return l
+
+    #Added by AndroBugs
+    def search_class_methods_exact_match(self, class_name, name, descriptor, has_excluded_dst_class=False, excluded_dst_classes=".") :
+        l = []
+
+        if has_excluded_dst_class:
+            ex = re.compile( excluded_dst_classes, re.I )
+            for m, _ in self.get_packages() :
+                if not ex.search( m.get_name() ) :
+                    l.extend( m.search_class_method_exact_match( class_name, name, descriptor ) )
+        else:
+            for m, _ in self.get_packages() :
+                l.extend( m.search_class_method_exact_match( class_name, name, descriptor ) )
+
+        return l
+
+    def search_objects(self, class_name):
+        """
+            @param class_name : a regexp for the class name
+
+            @rtype : a list of created objects' paths
+        """
+        ex = re.compile( class_name )
+        l = []
+
+        for m, _ in self.get_packages():
+            if ex.search( m.get_name() ) != None:
+                l.extend( m.get_objects_paths() )
+
+        return l
+
+    def search_crypto_packages(self):
+        """
+            @rtype : a list of called crypto packages
+        """
+        return self.search_packages( "Ljavax/crypto/" )
+
+    def search_telephony_packages(self):
+        """
+            @rtype : a list of called telephony packages
+        """
+        return self.search_packages( "Landroid/telephony/" )
+
+    def search_net_packages(self):
+        """
+            @rtype : a list of called net packages
+        """
+        return self.search_packages( "Landroid/net/" )
+
+    #Added by AndroBugs
+    def get_methods(self):
+        return self.__methods;
+
+    def get_method(self, class_name, name, descriptor):
+        try:
+            return self.__packages[ class_name ].get_method( name, descriptor )
+        except KeyError:
+            return []
+
+    def get_permissions_method(self, method):
+        permissions = set()
+        for m, _ in self.get_packages():
+            paths = m.get_methods()
+            for j in paths:
+                if j.get_method() == method:
+                    if j.get_access_flag() == TAINTED_PACKAGE_CALL:
+                        dst_class_name, dst_method_name, dst_descriptor = j.get_dst( self.__vm.get_class_manager() )
+                        data = "%s-%s-%s" % (dst_class_name, dst_method_name, dst_descriptor)
+                        if data in self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_METHODS"].keys():
+                            permissions.update(self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_METHODS"][data])
+
+        return permissions
+
+    def get_permissions(self, permissions_needed):
+        """
+            @param permissions_needed : a list of restricted permissions to get ([] returns all permissions)
+            @rtype : a dictionnary of permissions' paths
+        """
+        permissions = {}
+
+        pn = set(permissions_needed)
+        if permissions_needed == []:
+            pn = set(self.AOSP_PERMISSIONS_MODULE["AOSP_PERMISSIONS"].keys())
+
+        classes = self.__vm.get_classes_names()
+
+        for m, _ in self.get_packages():
+            paths = m.get_methods()
+            for j in paths:
+                src_class_name, src_method_name, src_descriptor = j.get_src( self.__vm.get_class_manager() )
+                dst_class_name, dst_method_name, dst_descriptor = j.get_dst( self.__vm.get_class_manager() )
+                if (src_class_name in classes) and (dst_class_name not in classes):
+                    if j.get_access_flag() == TAINTED_PACKAGE_CALL:
+                        data = "%s-%s-%s" % (dst_class_name, dst_method_name, dst_descriptor)
+                        if data in self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_METHODS"].keys():
+                            perm_intersection = pn.intersection(self.API_PERMISSION_MAPPINGS_MODULE["AOSP_PERMISSIONS_BY_METHODS"][data])
+                            for p in perm_intersection:
+                                try:
+                                    permissions[p].append(j)
+                                except KeyError:
+                                    permissions[p] = []
+                                    permissions[p].append(j)
+
+        return permissions
+
+class Enum(object):
+  def __init__(self, names):
+    self.names = names
+    for value, name in enumerate(self.names):
+      setattr(self, name.upper(), value)
+
+  def tuples(self):
+    return tuple(enumerate(self.names))
+
+TAG_ANDROID = Enum([ 'ANDROID', 'TELEPHONY', 'SMS', 'SMSMESSAGE', 'ACCESSIBILITYSERVICE', 'ACCOUNTS',
+    'ANIMATION', 'APP', 'BLUETOOTH', 'CONTENT', 'DATABASE', 'DEBUG', 'DRM', 'GESTURE',
+    'GRAPHICS', 'HARDWARE', 'INPUTMETHODSERVICE', 'LOCATION', 'MEDIA', 'MTP',
+    'NET', 'NFC', 'OPENGL', 'OS', 'PREFERENCE', 'PROVIDER', 'RENDERSCRIPT',
+    'SAX', 'SECURITY', 'SERVICE', 'SPEECH', 'SUPPORT', 'TEST', 'TEXT', 'UTIL',
+    'VIEW', 'WEBKIT', 'WIDGET', 'DALVIK_BYTECODE', 'DALVIK_SYSTEM', 'JAVA_REFLECTION'])
+
+TAG_REVERSE_ANDROID = dict((i[0], i[1]) for i in TAG_ANDROID.tuples())
+
+TAGS_ANDROID = { TAG_ANDROID.ANDROID :                  [ 0, "Landroid" ],
+                 TAG_ANDROID.TELEPHONY :                [ 0, "Landroid/telephony"],
+                 TAG_ANDROID.SMS :                      [ 0, "Landroid/telephony/SmsManager"],
+                 TAG_ANDROID.SMSMESSAGE :               [ 0, "Landroid/telephony/SmsMessage"],
+                 TAG_ANDROID.DEBUG :                    [ 0, "Landroid/os/Debug"],
+                 TAG_ANDROID.ACCESSIBILITYSERVICE :     [ 0, "Landroid/accessibilityservice" ],
+                 TAG_ANDROID.ACCOUNTS :                 [ 0, "Landroid/accounts" ],
+                 TAG_ANDROID.ANIMATION :                [ 0, "Landroid/animation" ],
+                 TAG_ANDROID.APP :                      [ 0, "Landroid/app" ],
+                 TAG_ANDROID.BLUETOOTH :                [ 0, "Landroid/bluetooth" ],
+                 TAG_ANDROID.CONTENT :                  [ 0, "Landroid/content" ],
+                 TAG_ANDROID.DATABASE :                 [ 0, "Landroid/database" ],
+                 TAG_ANDROID.DRM :                      [ 0, "Landroid/drm" ],
+                 TAG_ANDROID.GESTURE :                  [ 0, "Landroid/gesture" ],
+                 TAG_ANDROID.GRAPHICS :                 [ 0, "Landroid/graphics" ],
+                 TAG_ANDROID.HARDWARE :                 [ 0, "Landroid/hardware" ],
+                 TAG_ANDROID.INPUTMETHODSERVICE :       [ 0, "Landroid/inputmethodservice" ],
+                 TAG_ANDROID.LOCATION :                 [ 0, "Landroid/location" ],
+                 TAG_ANDROID.MEDIA :                    [ 0, "Landroid/media" ],
+                 TAG_ANDROID.MTP :                      [ 0, "Landroid/mtp" ],
+                 TAG_ANDROID.NET :                      [ 0, "Landroid/net" ],
+                 TAG_ANDROID.NFC :                      [ 0, "Landroid/nfc" ],
+                 TAG_ANDROID.OPENGL :                   [ 0, "Landroid/opengl" ],
+                 TAG_ANDROID.OS :                       [ 0, "Landroid/os" ],
+                 TAG_ANDROID.PREFERENCE :               [ 0, "Landroid/preference" ],
+                 TAG_ANDROID.PROVIDER :                 [ 0, "Landroid/provider" ],
+                 TAG_ANDROID.RENDERSCRIPT :             [ 0, "Landroid/renderscript" ],
+                 TAG_ANDROID.SAX :                      [ 0, "Landroid/sax" ],
+                 TAG_ANDROID.SECURITY :                 [ 0, "Landroid/security" ],
+                 TAG_ANDROID.SERVICE :                  [ 0, "Landroid/service" ],
+                 TAG_ANDROID.SPEECH :                   [ 0, "Landroid/speech" ],
+                 TAG_ANDROID.SUPPORT :                  [ 0, "Landroid/support" ],
+                 TAG_ANDROID.TEST :                     [ 0, "Landroid/test" ],
+                 TAG_ANDROID.TEXT :                     [ 0, "Landroid/text" ],
+                 TAG_ANDROID.UTIL :                     [ 0, "Landroid/util" ],
+                 TAG_ANDROID.VIEW :                     [ 0, "Landroid/view" ],
+                 TAG_ANDROID.WEBKIT :                   [ 0, "Landroid/webkit" ],
+                 TAG_ANDROID.WIDGET :                   [ 0, "Landroid/widget" ],
+                 TAG_ANDROID.DALVIK_BYTECODE :          [ 0, "Ldalvik/bytecode" ],
+                 TAG_ANDROID.DALVIK_SYSTEM :            [ 0, "Ldalvik/system" ],
+
+                 TAG_ANDROID.JAVA_REFLECTION :          [ 0, "Ljava/lang/reflect"],
+}
+
+class Tags(object):
+  """
+      Handle specific tags
+
+      :param patterns:
+      :params reverse:
+  """
+  def __init__(self, patterns=TAGS_ANDROID, reverse=TAG_REVERSE_ANDROID):
+    self.tags = set()
+
+    self.patterns = patterns
+    self.reverse = TAG_REVERSE_ANDROID
+
+    for i in self.patterns:
+      self.patterns[i][1] = re.compile(self.patterns[i][1])
+
+  def emit(self, method):
+    for i in self.patterns:
+      if self.patterns[i][0] == 0:
+        if self.patterns[i][1].search( method.get_class() ) != None:
+          self.tags.add( i )
+
+  def emit_by_classname(self, classname):
+    for i in self.patterns:
+      if self.patterns[i][0] == 0:
+        if self.patterns[i][1].search( classname ) != None:
+          self.tags.add( i )
+
+  def get_list(self):
+    return [ self.reverse[ i ] for i in self.tags ]
+
+  def __contains__(self, key):
+    return key in self.tags
+
+  def __str__(self):
+    return str([ self.reverse[ i ] for i in self.tags ])
+
+
+  def empty(self):
+    return self.tags == set()
+
+
+class BasicBlocks(object):
+    """
+        This class represents all basic blocks of a method
+    """
+    def __init__(self, _vm, tv):
+        self.__vm = _vm
+        self.tainted = tv
+
         self.bb = []
 
     def push(self, bb):
-        """
-        Adds another basic block to the collection
-
-        :param DVBMBasicBlock bb: the DVMBasicBlock to add
-        """
         self.bb.append(bb)
 
     def pop(self, idx):
@@ -237,42 +1893,46 @@ class BasicBlocks:
 
     def get_basic_block(self, idx):
         for i in self.bb:
-            if i.get_start() <= idx < i.get_end():
+            if idx >= i.get_start() and idx < i.get_end():
                 return i
         return None
 
-    def __len__(self):
-        return len(self.bb)
+    def get_tainted_integers(self):
+        try:
+          return self.tainted.get_tainted_integers()
+        except:
+          return None
 
-    def __iter__(self):
-        """
-        :returns: yields each basic block (:class:`DVMBasicBlock` object)
-        :rtype: Iterator[DVMBasicBlock]
-        """
-        yield from self.bb
+    def get_tainted_packages(self):
+        try:
+          return self.tainted.get_tainted_packages()
+        except:
+          return None
 
-    def __getitem__(self, item):
-        """
-        Get the basic block at the index
+    def get_tainted_variables(self):
+        try:
+          return self.tainted.get_tainted_variables()
+        except:
+          return None
 
-        :param item: index
-        :return: The basic block
-        :rtype: DVMBasicBlock
+    def get(self):
         """
-        return self.bb[item]
+            :rtype: return each basic block (:class:`DVMBasicBlock` object)
+        """
+        for i in self.bb:
+            yield i
 
     def gets(self):
         """
-        :returns: a list of basic blocks (:class:`DVMBasicBlock` objects)
+            :rtype: a list of basic blocks (:class:`DVMBasicBlock` objects)
         """
         return self.bb
 
-    # Alias for legacy programs
-    get = __iter__
-    get_basic_block_pos = __getitem__
+    def get_basic_block_pos(self, idx):
+        return self.bb[idx]
 
 
-class ExceptionAnalysis:
+class ExceptionAnalysis(object):
     def __init__(self, exception, bb):
         self.start = exception[0]
         self.end = exception[1]
@@ -283,13 +1943,13 @@ class ExceptionAnalysis:
             i.append(bb.get_basic_block(i[1]))
 
     def show_buff(self):
-        buff = "{:x}:{:x}\n".format(self.start, self.end)
+        buff = "%x:%x\n" % (self.start, self.end)
 
         for i in self.exceptions:
-            if i[2] is None:
-                buff += "\t({} -> {:x} {})\n".format(i[0], i[1], i[2])
+            if i[2] == None:
+                buff += "\t(%s -> %x %s)\n" % (i[0], i[1], i[2])
             else:
-                buff += "\t({} -> {:x} {})\n".format(i[0], i[1], i[2].get_name())
+                buff += "\t(%s -> %x %s)\n" % (i[0], i[1], i[2].get_name())
 
         return buff[:-1]
 
@@ -302,16 +1962,18 @@ class ExceptionAnalysis:
         return d
 
 
-class Exceptions:
-    def __init__(self):
+class Exceptions(object):
+    def __init__(self, _vm):
+        self.__vm = _vm
         self.exceptions = []
 
     def add(self, exceptions, basic_blocks):
         for i in exceptions:
-            self.exceptions.append(ExceptionAnalysis(i, basic_blocks))
+            self.exceptions.append( ExceptionAnalysis( i, basic_blocks ) )
 
     def get_exception(self, addr_start, addr_end):
         for i in self.exceptions:
+#            print hex(i.start), hex(i.end), hex(addr_start), hex(addr_end), i.start >= addr_start and i.end <= addr_end, addr_end <= i.end and addr_start >= i.start
             if i.start >= addr_start and i.end <= addr_end:
                 return i
 
@@ -327,1742 +1989,652 @@ class Exceptions:
         for i in self.exceptions:
             yield i
 
+BO = { "BasicOPCODES" : dvm.BRANCH_DVM_OPCODES, "BasicClass" : DVMBasicBlock, "Dnext" : dvm.determineNext, "Dexception" : dvm.determineException }
 
-class MethodAnalysis:
-    """
-    This class analyses in details a method of a class/dex file
-    It is a wrapper around a :class:`EncodedMethod` and enhances it
-    by using multiple :class:`DVMBasicBlock` encapsulated in a :class:`BasicBlocks` object.
+BO["BasicOPCODES_H"] = []
+for i in BO["BasicOPCODES"]:
+  BO["BasicOPCODES_H"].append( re.compile( i ) )
 
-    :type vm: a :class:`DalvikVMFormat` object
-    :type method: a :class:`EncodedMethod` object
+
+class MethodAnalysis(object):
     """
-    def __init__(self, vm, method):
+        This class analyses in details a method of a class/dex file
+
+        :param vm: the object which represent the dex file
+        :param method: the original method
+        :param tv: a virtual object to get access to tainted information
+        :type vm: a :class:`DalvikVMFormat` object
+        :type method: a :class:`EncodedMethod` object
+    """
+    def __init__(self, vm, method, tv):
         self.__vm = vm
         self.method = method
 
-        self.basic_blocks = BasicBlocks()
-        self.exceptions = Exceptions()
+        self.tainted = tv
 
-        self.xrefto = set()
-        self.xreffrom = set()
+        self.basic_blocks = BasicBlocks(self.__vm, self.tainted)
+        self.exceptions = Exceptions(self.__vm)
 
-        self.xrefread = set()
-        self.xrefwrite = set()
+        code = self.method.get_code()
+        if code == None:
+            return
 
-        self.xrefnewinstance = set()
-        self.xrefconstclass = set()
-
-        # Reserved for further use
-        self.apilist = None
-
-        if vm is None or isinstance(method, ExternalMethod):
-            # Support external methods here
-            # external methods usually dont have a VM associated
-            self.code = None
-        else:
-            self.code = self.method.get_code()
-
-        if self.code:
-            self._create_basic_block()
-
-    @property
-    def name(self):
-        """Returns the name of this method"""
-        return self.method.get_name()
-
-    @property
-    def descriptor(self):
-        """Returns the type descriptor for this method"""
-        return self.method.get_descriptor()
-
-    @property
-    def access(self):
-        """Returns the access flags to the method as a string"""
-        return self.method.get_access_flags_string()
-
-    @property
-    def class_name(self):
-        """Returns the name of the class of this method"""
-        return self.method.class_name
-
-    @property
-    def full_name(self):
-        """Returns classname + name + descriptor, separated by spaces (no access flags)"""
-        return self.method.full_name
-
-    def get_class_name(self):
-        """Return the class name of the method"""
-        return self.class_name
-
-    def get_access_flags_string(self):
-        """Returns the concatenated access flags string"""
-        return self.access
-
-    def get_descriptor(self):
-        return self.descriptor
-
-    def _create_basic_block(self):
-        """
-        Internal Method to create the basic block structure
-        Parses all instructions and exceptions.
-        """
-        current_basic = DVMBasicBlock(0, self.__vm, self.method, self.basic_blocks)
+        current_basic = BO["BasicClass"](0, self.__vm, self.method, self.basic_blocks)
         self.basic_blocks.push(current_basic)
 
+        ##########################################################
+
+        bc = code.get_bc()
         l = []
-        h = dict()
+        h = {}
+        idx = 0
 
-        log.debug("Parsing instructions for method at @0x{:08x}".format(self.method.get_code_off()))
-        for idx, ins in self.method.get_instructions_idx():
-            if ins.get_op_value() in BasicOPCODES:
-                v = dvm.determineNext(ins, idx, self.method)
-                h[idx] = v
-                l.extend(v)
+        debug("Parsing instructions")
+        instructions = [i for i in bc.get_instructions()]
+        for i in instructions:
+            for j in BO["BasicOPCODES_H"]:
+                if j.match(i.get_name()) != None:
+                    v = BO["Dnext"](i, idx, self.method)
+                    h[ idx ] = v
+                    l.extend(v)
+                    break
 
-        log.debug("Parsing exceptions")
-        excepts = dvm.determineException(self.__vm, self.method)
+            idx += i.get_length()
+
+        debug("Parsing exceptions")
+        excepts = BO["Dexception"]( self.__vm, self.method )
         for i in excepts:
-            l.extend([i[0]])
+            l.extend( [i[0]] )
             for handler in i[2:]:
-                l.append(handler[1])
+                l.append( handler[1] )
 
-        log.debug("Creating basic blocks")
-        for idx, ins in self.method.get_instructions_idx():
+        debug("Creating basic blocks in %s" % self.method)
+        idx = 0
+        for i in instructions:
             # index is a destination
             if idx in l:
                 if current_basic.get_nb_instructions() != 0:
-                    current_basic = DVMBasicBlock(current_basic.get_end(), self.__vm, self.method, self.basic_blocks)
+                    current_basic = BO["BasicClass"](current_basic.get_end(), self.__vm, self.method, self.basic_blocks)
                     self.basic_blocks.push(current_basic)
 
-            current_basic.push(ins)
+            current_basic.push(i)
 
             # index is a branch instruction
             if idx in h:
-                current_basic = DVMBasicBlock(current_basic.get_end(), self.__vm, self.method, self.basic_blocks)
-                self.basic_blocks.push(current_basic)
+                current_basic = BO["BasicClass"]( current_basic.get_end(), self.__vm, self.method, self.basic_blocks )
+                self.basic_blocks.push( current_basic )
+
+            idx += i.get_length()
 
         if current_basic.get_nb_instructions() == 0:
             self.basic_blocks.pop(-1)
 
-        log.debug("Settings basic blocks childs")
+        debug("Settings basic blocks childs")
+
         for i in self.basic_blocks.get():
             try:
-                i.set_childs(h[i.end - i.get_last_length()])
+                i.set_childs( h[ i.end - i.get_last_length() ] )
             except KeyError:
-                i.set_childs([])
+                i.set_childs( [] )
 
-        log.debug("Creating exceptions")
+        debug("Creating exceptions")
+
+        # Create exceptions
         self.exceptions.add(excepts, self.basic_blocks)
 
         for i in self.basic_blocks.get():
             # setup exception by basic block
-            i.set_exception_analysis(self.exceptions.get_exception(i.start, i.end - 1))
+            i.set_exception_analysis(self.exceptions.get_exception( i.start, i.end - 1 ))
 
-    def add_xref_read(self, classobj, fieldobj, offset):
-        """
-        :param ClassAnalysis classobj:
-        :param FieldAnalysis fieldobj:
-        :param int offset: offset in the bytecode
-        """
-        self.xrefread.add((classobj, fieldobj, offset))
-
-    def add_xref_write(self, classobj, fieldobj, offset):
-        """
-        :param ClassAnalysis classobj:
-        :param FieldAnalysis fieldobj:
-        :param int offset: offset in the bytecode
-        """
-        self.xrefwrite.add((classobj, fieldobj, offset))
-
-    def get_xref_read(self):
-        """
-        Returns a list of xrefs where a field is read by this method.
-
-        The list contains tuples of the originating class and methods,
-        where the class is represented as a :class:`ClassAnalysis`,
-        while the Field is a :class:`FieldAnalysis`.
-        """
-        return self.xrefread
-
-    def get_xref_write(self):
-        """
-        Returns a list of xrefs where a field is written to by this method.
-
-        The list contains tuples of the originating class and methods,
-        where the class is represented as a :class:`ClassAnalysis`,
-        while the Field is a :class:`FieldAnalysis`.
-        """
-        return self.xrefwrite
-
-    def add_xref_to(self, classobj, methodobj, offset):
-        """
-        Add a crossreference to another method
-        (this method calls another method)
-
-        :param classobj: :class:`~ClassAnalysis`
-        :param methodobj:  :class:`~androguard.core.bytecodes.dvm.EncodedMethod`
-        :param offset: integer where in the method the call happens
-        """
-        self.xrefto.add((classobj, methodobj, offset))
-
-    def add_xref_from(self, classobj, methodobj, offset):
-        """
-        Add a crossrefernece from another method
-        (this method is called by another method)
-
-        :param classobj: :class:`~ClassAnalysis`
-        :param methodobj:  :class:`~androguard.core.bytecodes.dvm.EncodedMethod`
-        :param offset: integer where in the method the call happens
-        """
-        self.xreffrom.add((classobj, methodobj, offset))
-
-    def get_xref_from(self):
-        """
-        Returns a list of tuples containing the class, method and offset of
-        the call, from where this object was called.
-
-        The list of tuples has the form:
-        (:class:`~ClassAnalysis`,
-        :class:`~androguard.core.bytecodes.dvm.EncodedMethod` or
-        :class:`~ExternalMethod`, :class:`int`)
-        """
-        return self.xreffrom
-
-    def get_xref_to(self):
-        """
-        Returns a list of tuples containing the class, method and offset of
-        the call, which are called by this method.
-
-        The list of tuples has the form:
-        (:class:`~ClassAnalysis`,
-        :class:`~androguard.core.bytecodes.dvm.EncodedMethod` or
-        :class:`~ExternalMethod`, :class:`int`)
-        """
-        return self.xrefto
-
-    def add_xref_new_instance(self, classobj, offset):
-        """
-        Add a crossreference to another class that is
-        instanced within this method.
-
-        :param classobj: :class:`~ClassAnalysis`
-        :param offset: integer where in the method the instantiation happens
-        """
-        self.xrefnewinstance.add((classobj, offset))
-
-    def get_xref_new_instance(self):
-        """
-        Returns a list of tuples containing the class and offset of
-        the creation of a new instance of a class by this method.
-
-        The list of tuples has the form:
-        (:class:`~ClassAnalysis`,
-        :class:`int`)
-        """
-        return self.xrefnewinstance
-
-    def add_xref_const_class(self, classobj, offset):
-        """
-        Add a crossreference to another classtype.
-
-        :param classobj: :class:`~ClassAnalysis`
-        :param offset: integer where in the method the classtype is referenced
-        """
-        self.xrefconstclass.add((classobj, offset))
-
-    def get_xref_const_class(self):
-        """
-        Returns a list of tuples containing the class and offset of
-        the references to another classtype by this method.
-
-        The list of tuples has the form:
-        (:class:`~ClassAnalysis`,
-        :class:`int`)
-        """
-        return self.xrefconstclass
-
-    def is_external(self):
-        """
-        Returns True if the underlying method is external
-
-        :rtype: boolean
-        """
-        return isinstance(self.method, ExternalMethod)
-
-    def is_android_api(self):
-        """
-        Returns True if the method seems to be an Android API method.
-
-        This method might be not very precise unless an list of known API methods
-        is given.
-
-        :return: boolean
-        """
-        if not self.is_external():
-            # Method must be external to be an API
-            return False
-
-        # Packages found at https://developer.android.com/reference/packages.html
-        api_candidates = ["Landroid/", "Lcom/android/internal/util", "Ldalvik/", "Ljava/", "Ljavax/", "Lorg/apache/",
-                          "Lorg/json/", "Lorg/w3c/dom/", "Lorg/xml/sax", "Lorg/xmlpull/v1/", "Ljunit/"]
-
-        if self.apilist:
-            # FIXME: This will not work... need to introduce a name for lookup (like EncodedMethod.__str__ but without
-            # the offset! Such a name is also needed for the lookup in permissions
-            return self.method.get_name() in self.apilist
-        else:
-            for candidate in api_candidates:
-                if self.method.get_class_name().startswith(candidate):
-                    return True
-
-        return False
+        del instructions
+        del h, l
 
     def get_basic_blocks(self):
         """
-        Returns the :class:`BasicBlocks` generated for this method.
-        The :class:`BasicBlocks` can be used to get a control flow graph (CFG) of the method.
-
-        :rtype: a :class:`BasicBlocks` object
+            :rtype: a :class:`BasicBlocks` object
         """
         return self.basic_blocks
 
     def get_length(self):
         """
-        :returns: an integer which is the length of the code
-        :rtype: int
+            :rtype: an integer which is the length of the code
         """
-        return self.code.get_length() if self.code else 0
+        return self.get_code().get_length()
 
     def get_vm(self):
-        """
-        :rtype: androguard.core.bytecodes.dvm.DalvikVMFormat
-        :return:
-        """
         return self.__vm
 
     def get_method(self):
-        """
-
-        :rtype: androguard.core.bytecodes.dvm.EncodedMethod
-        :return:
-        """
         return self.method
 
+    def get_local_variables(self):
+        return self.tainted.get_tainted_variables().get_local_variables( self.method )
+
     def show(self):
-        """
-        Prints the content of this method to stdout.
+        print "METHOD", self.method.get_class_name(), self.method.get_name(), self.method.get_descriptor()
 
-        This will print the method signature and the decompiled code.
-        """
-        args, ret = self.method.get_descriptor()[1:].split(")")
-        if self.code:
-            # We patch the descriptor here and add the registers, if code is available
-            args = args.split(" ")
+        for i in self.basic_blocks.get():
+            print "\t", i
+            i.show()
+            print ""
 
-            reg_len = self.code.get_registers_size()
-            nb_args = len(args)
+    def show_methods(self):
+        print "\t #METHODS :"
+        for i in self.__bb:
+            methods = i.get_methods()
+            for method in methods:
+                print "\t\t-->", method.get_class_name(), method.get_name(), method.get_descriptor()
+                for context in methods[method]:
+                    print "\t\t\t |---|", context.details
 
-            start_reg = reg_len - nb_args
-            args = ["{} v{}".format(a, start_reg + i) for i, a in enumerate(args)]
+    def create_tags(self):
+      """
+          Create the tags for the method
+      """
+      self.tags = Tags()
+      for i in self.tainted.get_tainted_packages().get_packages_by_method( self.method ):
+        self.tags.emit_by_classname( i )
 
-        print("METHOD {} {} {} ({}){}".format(
-              self.method.get_class_name(),
-              self.method.get_access_flags_string(),
-              self.method.get_name(),
-              ", ".join(args), ret))
-        bytecode.PrettyShow(self.basic_blocks.gets(), self.method.notes)
+    def get_tags(self):
+      """
+          Return the tags of the method
 
-    def show_xrefs(self):
-        data = "XREFto for %s\n" % self.method
-        for ref_class, ref_method, offset in self.xrefto:
-            data += "in\n"
-            data += "{}:{} @0x{:x}\n".format(ref_class.get_vm_class().get_name(), ref_method, offset)
+          :rtype: a :class:`Tags` object
+      """
+      return self.tags
 
-        data += "XREFFrom for %s\n" % self.method
-        for ref_class, ref_method, offset in self.xreffrom:
-            data += "in\n"
-            data += "{}:{} @0x{:x}\n".format(ref_class.get_vm_class().get_name(), ref_method, offset)
+SIGNATURE_L0_0 = "L0_0"
+SIGNATURE_L0_1 = "L0_1"
+SIGNATURE_L0_2 = "L0_2"
+SIGNATURE_L0_3 = "L0_3"
+SIGNATURE_L0_4 = "L0_4"
+SIGNATURE_L0_5 = "L0_5"
+SIGNATURE_L0_6 = "L0_6"
+SIGNATURE_L0_0_L1 = "L0_0:L1"
+SIGNATURE_L0_1_L1 = "L0_1:L1"
+SIGNATURE_L0_2_L1 = "L0_2:L1"
+SIGNATURE_L0_3_L1 = "L0_3:L1"
+SIGNATURE_L0_4_L1 = "L0_4:L1"
+SIGNATURE_L0_5_L1 = "L0_5:L1"
+SIGNATURE_L0_0_L2 = "L0_0:L2"
+SIGNATURE_L0_0_L3 = "L0_0:L3"
+SIGNATURE_HEX = "hex"
+SIGNATURE_SEQUENCE_BB = "sequencebb"
 
-        return data
+SIGNATURES = {
+                SIGNATURE_L0_0 : { "type" : 0 },
+                SIGNATURE_L0_1 : { "type" : 1 },
+                SIGNATURE_L0_2 : { "type" : 2, "arguments" : ["Landroid"] },
+                SIGNATURE_L0_3 : { "type" : 2, "arguments" : ["Ljava"] },
+                SIGNATURE_L0_4 : { "type" : 2, "arguments" : ["Landroid", "Ljava"] },
+                SIGNATURE_L0_5 : { "type" : 3, "arguments" : ["Landroid"] },
+                SIGNATURE_L0_6 : { "type" : 3, "arguments" : ["Ljava"] },
+                SIGNATURE_SEQUENCE_BB : {},
+                SIGNATURE_HEX : {},
+            }
 
-    def __repr__(self):
-        return "<analysis.MethodAnalysis {}>".format(self.method)
+from sign import Signature
 
-
-class StringAnalysis:
-    """
-    StringAnalysis contains the XREFs of a string.
-
-    As Strings are only used as a source, they only contain
-    the XREF_FROM set, i.e. where the string is used.
-
-    This Array stores the information in which method the String is used.
-    """
+class StringAnalysis(object):
     def __init__(self, value):
-        """
-
-        :param str value: the original string value
-        """
         self.value = value
-        self.orig_value = value
         self.xreffrom = set()
 
-    def add_xref_from(self, classobj, methodobj, off):
-        """
-        Adds a xref from the given method to this string
+    def AddXrefFrom(self, classobj, methodobj):
+        #debug("Added strings xreffrom for %s to %s" % (self.value, methodobj))
+        self.xreffrom.add((classobj, methodobj))
 
-        :param ClassAnalysis classobj:
-        :param MethodAnalysis methodobj:
-        :param int off: offset in the bytecode of the call
-        """
-        self.xreffrom.add((classobj, methodobj, off))
-
-    def get_xref_from(self, withoffset=False):
-        """
-        Returns a list of xrefs accessing the String.
-
-        The list contains tuples of the originating class and methods,
-        where the class is represented as a :class:`ClassAnalysis`,
-        while the method is a :class:`MethodAnalysis`.
-        """
-        if withoffset:
-            return self.xreffrom
-        return set(map(itemgetter(slice(0, 2)), self.xreffrom))
-
-    def set_value(self, value):
-        """
-        Overwrite the current value of the String with a new value.
-        The original value is not lost and can still be retrieved using :meth:`get_orig_value`.
-
-        :param str value: new string value
-        """
-        self.value = value
-
-    def get_value(self):
-        """
-        Return the (possible overwritten) value of the String
-
-        :return: the value of the string
-        """
-        return self.value
-
-    def get_orig_value(self):
-        """
-        Return the original, read only, value of the String
-
-        :return: the original value
-        """
-        return self.orig_value
-
-    def is_overwritten(self):
-        """
-        Returns True if the string was overwritten
-        :return:
-        """
-        return self.orig_value != self.value
+    def get_xref_from(self):
+        return self.xreffrom
 
     def __str__(self):
-        data = "XREFto for string %s in\n" % repr(self.get_value())
+        data = "XREFto for string %s in\n" % repr(self.value)
         for ref_class, ref_method in self.xreffrom:
-            data += "{}:{}\n".format(ref_class.get_vm_class().get_name(), ref_method)
+            data += "%s:%s\n" % (ref_class.get_vm_class().get_name(), ref_method)
         return data
 
-    def __repr__(self):
-        # TODO should remove all chars that are not pleasent. e.g. newlines
-        if len(self.get_value()) > 20:
-            s = "'{}'...".format(self.get_value()[:20])
-        else:
-            s = "'{}'".format(self.get_value())
-        return "<analysis.StringAnalysis {}>".format(s)
 
+class MethodClassAnalysis(object):
+    def __init__(self, method):
+        self.method = method
+        self.xrefto = set()
+        self.xreffrom = set()
 
-class FieldAnalysis:
-    """
-    FieldAnalysis contains the XREFs for a class field.
+    def AddXrefTo(self, classobj, methodobj):
+        #debug("Added method xrefto for %s [%s] to %s" % (self.method, classobj, methodobj))
+        self.xrefto.add((classobj, methodobj))
 
-    Instead of using XREF_FROM/XREF_TO, this object has methods for READ and
-    WRITE access to the field.
+    def AddXrefFrom(self, classobj, methodobj):
+        #debug("Added method xreffrom for %s [%s] to %s" % (self.method, classobj, methodobj))
+        self.xreffrom.add((classobj, methodobj))
 
-    That means, that it will show you, where the field is read or written.
+    def get_xref_from(self):
+        return self.xreffrom
 
-    :param androguard.core.bytecodes.dvm.EncodedField field: `dvm.EncodedField`
-    """
+    def get_xref_to(self):
+        return self.xrefto
+
+    def __str__(self):
+        data = "XREFto for %s\n" % self.method
+        for ref_class, ref_method in self.xrefto:
+            data += "in\n"
+            data += "%s:%s\n" % (ref_class.get_vm_class().get_name(), ref_method)
+
+        data += "XREFFrom for %s\n" % self.method
+        for ref_class, ref_method in self.xreffrom:
+            data += "in\n"
+            data += "%s:%s\n" % (ref_class.get_vm_class().get_name(), ref_method)
+
+        return data
+
+class FieldClassAnalysis(object):
     def __init__(self, field):
         self.field = field
         self.xrefread = set()
         self.xrefwrite = set()
 
-    @property
-    def name(self):
-        return self.field.get_name()
+    def AddXrefRead(self, classobj, methodobj):
+        #debug("Added method xrefto for %s [%s] to %s" % (self.method, classobj, methodobj))
+        self.xrefread.add((classobj, methodobj))
 
-    def add_xref_read(self, classobj, methodobj, offset):
-        """
-        :param ClassAnalysis classobj:
-        :param MethodAnalysis methodobj:
-        :param int offset: offset in the bytecode
-        """
-        self.xrefread.add((classobj, methodobj, offset))
+    def AddXrefWrite(self, classobj, methodobj):
+        #debug("Added method xreffrom for %s [%s] to %s" % (self.method, classobj, methodobj))
+        self.xrefwrite.add((classobj, methodobj))
 
-    def add_xref_write(self, classobj, methodobj, offset):
-        """
-        :param ClassAnalysis classobj:
-        :param MethodAnalysis methodobj:
-        :param int offset: offset in the bytecode
-        """
-        self.xrefwrite.add((classobj, methodobj, offset))
+    def get_xref_read(self):
+        return self.xrefread
 
-    def get_xref_read(self, withoffset=False):
-        """
-        Returns a list of xrefs where the field is read.
-
-        The list contains tuples of the originating class and methods,
-        where the class is represented as a :class:`ClassAnalysis`,
-        while the method is a :class:`MethodAnalysis`.
-
-        :param bool withoffset: return the xrefs including the offset
-        """
-        if withoffset:
-            return self.xrefread
-        # Legacy option, might be removed in the future
-        return set(map(itemgetter(slice(0, 2)), self.xrefread))
-
-    def get_xref_write(self, withoffset=False):
-        """
-        Returns a list of xrefs where the field is written to.
-
-        The list contains tuples of the originating class and methods,
-        where the class is represented as a :class:`ClassAnalysis`,
-        while the method is a :class:`MethodAnalysis`.
-
-        :param bool withoffset: return the xrefs including the offset
-        """
-        if withoffset:
-            return self.xrefwrite
-        # Legacy option, might be removed in the future
-        return set(map(itemgetter(slice(0, 2)), self.xrefwrite))
-
-    def get_field(self):
-        """
-        Returns the actual field object
-
-        :rtype: androguard.core.bytecodes.dvm.EncodedField
-        """
-        return self.field
+    def get_xref_write(self):
+        return self.xrefwrite
 
     def __str__(self):
         data = "XREFRead for %s\n" % self.field
-        for ref_class, ref_method, off in self.xrefread:
+        for ref_class, ref_method in self.xrefread:
             data += "in\n"
-            data += "{}:{} @{}\n".format(ref_class.get_vm_class().get_name(), ref_method, off)
+            data += "%s:%s\n" % (ref_class.get_vm_class().get_name(), ref_method)
 
         data += "XREFWrite for %s\n" % self.field
-        for ref_class, ref_method, off in self.xrefwrite:
+        for ref_class, ref_method in self.xrefwrite:
             data += "in\n"
-            data += "{}:{} @{}\n".format(ref_class.get_vm_class().get_name(), ref_method, off)
+            data += "%s:%s\n" % (ref_class.get_vm_class().get_name(), ref_method)
 
         return data
 
-    def __repr__(self):
-        return "<analysis.FieldAnalysis {}->{}>".format(self.field.class_name, self.field.name)
+REF_NEW_INSTANCE = 0
+REF_CLASS_USAGE = 1
 
-
-class ExternalClass:
-    """
-    The ExternalClass is used for all classes that are not defined in the
-    DEX file, thus are external classes.
-
-    :param name: Name of the external class
-    """
-    def __init__(self, name):
-        self.name = name
-        self.methods = []
-
-    def get_methods(self):
-        """
-        Return the stored methods for this external class
-        :return:
-        """
-        return self.methods
-
-    def add_method(self, method):
-        self.methods.append(method)
-
-    def get_name(self):
-        """
-        Returns the name of the ExternalClass object
-        """
-        return self.name
-
-    def __repr__(self):
-        return "<analysis.ExternalClass {}>".format(self.name)
-
-
-class ExternalMethod:
-    """
-    ExternalMethod is a stub class for methods that are not part of the current Analysis.
-    There are two possibilities for this:
-
-    1) The method is defined inside another DEX file which was not loaded into the Analysis
-    2) The method is an API method, hence it is defined in the Android system
-
-    External methods should have a similar API to :class:`~androguard.core.bytecodes.dvm.EncodedMethod`
-    but obviously they have no code attached.
-    The only known information about such methods are the class name, the method name and its descriptor.
-
-    :param str class_name: name of the class
-    :param str name: name of the method
-    :param List[str] descriptor: descriptor string
-    """
-    def __init__(self, class_name, name, descriptor):
-        self.class_name = class_name
-        self.name = name
-        self.descriptor = descriptor
-
-    def get_name(self):
-        return self.name
-
-    def get_class_name(self):
-        return self.class_name
-
-    def get_descriptor(self):
-        return mutf8.MUTF8String.join(self.descriptor)
-
-    @property
-    def full_name(self):
-        """Returns classname + name + descriptor, separated by spaces (no access flags)"""
-        return self.class_name + " " + self.name + " " + str(self.get_descriptor())
-
-    @property
-    def permission_api_name(self):
-        """Returns a name which can be used to look up in the permission maps"""
-        return self.class_name + "-" + self.name + "-" + str(self.get_descriptor())
-
-    def get_access_flags_string(self):
-        """
-        Returns the access flags string.
-
-        Right now, this is always an empty strings, as we can not say what
-        kind of access flags an external method might have.
-        """
-        # TODO can we assume that external methods are always public?
-        # they can also be static...
-        # or constructor...
-        # or they might be inherited and have all kinds of access flags...
-        return ""
-
-    def __str__(self):
-        return "{}->{}{}".format(self.class_name.__str__(), self.name.__str__(), str(self.get_descriptor()))
-
-    def __repr__(self):
-        return "<analysis.ExternalMethod {}>".format(self.__str__())
-
-
-class ClassAnalysis:
-    """
-    ClassAnalysis contains the XREFs from a given Class.
-    It is also used to wrap :class:`~androguard.core.bytecode.dvm.ClassDefItem`, which
-    contain the actual class content like bytecode.
-
-    Also external classes will generate xrefs, obviously only XREF_FROM are
-    shown for external classes.
-
-    :param classobj: class:`~androguard.core.bytecode.dvm.ClassDefItem` or :class:`ExternalClass`
-    """
-
+class ClassAnalysis(object):
     def __init__(self, classobj):
-        # Automatically decide if the class is external or not
-        self.external = isinstance(classobj, ExternalClass)
-
-        self.orig_class = classobj
-
-        # Contains EncodedMethod/ExternalMethod -> MethodAnalysis
-        self._methods = dict()
-
-        # Contains EncodedField -> FieldAnalysis
-        self._fields = dict()
+        self._class = classobj
+        self._methods = {}
+        self._fields = {}
 
         self.xrefto = collections.defaultdict(set)
         self.xreffrom = collections.defaultdict(set)
 
-        self.xrefnewinstance = set()
-        self.xrefconstclass = set()
-
-        # Reserved for further use
-        self.apilist = None
-
-    def add_method(self, method_analysis):
-        """
-        Add the given method to this analyis.
-        usually only called during Analysis.add and Analysis._resolve_method
-
-        :param MethodAnalysis method_analysis:
-        """
-        self._methods[method_analysis.get_method()] = method_analysis
-        if self.external:
-            # Propagate ExternalMethod to ExternalClass
-            self.orig_class.add_method(method_analysis.get_method())
-
-    @property
-    def implements(self):
-        """
-        Get a list of interfaces which are implemented by this class
-
-        :return: a list of Interface names
-        """
-        if self.is_external():
-            return []
-
-        return self.orig_class.get_interfaces()
-
-    @property
-    def extends(self):
-        """
-        Return the parent class
-
-        For external classes, this is not sure, thus we return always Object (which is the parent of all classes)
-
-        :return: a string of the parent class name
-        """
-        if self.is_external():
-            return "Ljava/lang/Object;"
-
-        return self.orig_class.get_superclassname()
-
-    @property
-    def name(self):
-        """
-        Return the class name
-
-        :return:
-        """
-        return self.orig_class.get_name()
-
-    def is_external(self):
-        """
-        Tests if this class is an external class
-
-        :return: True if the Class is external, False otherwise
-        """
-        return self.external
-
-    def is_android_api(self):
-        """
-        Tries to guess if the current class is an Android API class.
-
-        This might be not very precise unless an apilist is given, with classes that
-        are in fact known APIs.
-        Such a list might be generated by using the android.jar files.
-
-        :return: boolean
-        """
-
-        # Packages found at https://developer.android.com/reference/packages.html
-        api_candidates = ["Landroid/", "Lcom/android/internal/util", "Ldalvik/", "Ljava/", "Ljavax/", "Lorg/apache/",
-                          "Lorg/json/", "Lorg/w3c/dom/", "Lorg/xml/sax", "Lorg/xmlpull/v1/", "Ljunit/"]
-
-        if not self.is_external():
-            # API must be external
-            return False
-
-        if self.apilist:
-            return self.orig_class.get_name() in self.apilist
-        else:
-            for candidate in api_candidates:
-                if self.orig_class.get_name().startswith(candidate):
-                    return True
-
-        return False
-
-    def get_methods(self):
-        """
-        Return all :class:`MethodAnalysis` objects of this class
-
-        :rtype: Iterator[MethodAnalysis]
-        """
-        return list(self._methods.values())
-
-    def get_fields(self):
-        """
-        Return all `FieldAnalysis` objects of this class
-        """
-        return self._fields.values()
-
-    def get_nb_methods(self):
-        """
-        Get the number of methods in this class
-        """
-        return len(self._methods)
-
     def get_method_analysis(self, method):
-        """
-        Return the MethodAnalysis object for a given EncodedMethod
-
-        :param method: :class:`EncodedMethod`
-        :return: :class:`MethodAnalysis`
-        :rtype: MethodAnalysis
-        """
         return self._methods.get(method)
 
     def get_field_analysis(self, field):
         return self._fields.get(field)
 
-    def add_field_xref_read(self, method, classobj, field, off):
-        """
-        Add a Field Read to this class
-
-        :param MethodAnalysis method:
-        :param ClassAnalysis classobj:
-        :param androguard.code.bytecodes.dvm.EncodedField field:
-        :param int off:
-        :return:
-        """
+    def AddFXrefRead(self, method, classobj, field):
         if field not in self._fields:
-            self._fields[field] = FieldAnalysis(field)
-        self._fields[field].add_xref_read(classobj, method, off)
+            self._fields[field] = FieldClassAnalysis(field)
+        self._fields[field].AddXrefRead(classobj, method)
 
-    def add_field_xref_write(self, method, classobj, field, off):
-        """
-        Add a Field Write to this class in a given method
-
-        :param MethodAnalysis method:
-        :param ClassAnalysis classobj:
-        :param androguard.core.bytecodes.dvm.EncodedField field:
-        :param int off:
-        :return:
-        """
+    def AddFXrefWrite(self, method, classobj, field):
         if field not in self._fields:
-            self._fields[field] = FieldAnalysis(field)
-        self._fields[field].add_xref_write(classobj, method, off)
+            self._fields[field] = FieldClassAnalysis(field)
+        self._fields[field].AddXrefWrite(classobj, method)
 
-    def add_method_xref_to(self, method1, classobj, method2, offset):
-        """
+    def AddMXrefTo(self, method1, classobj, method2):
+        if method1 not in self._methods:
+            self._methods[method1] = MethodClassAnalysis(method1)
+        self._methods[method1].AddXrefTo(classobj, method2)
 
-        :param MethodAnalysis method1: the calling method
-        :param ClassAnalysis classobj: the calling class
-        :param MethodAnalysis method2: the called method
-        :param int offset: offset in the bytecode of calling method
-        """
+    def AddMXrefFrom(self, method1, classobj, method2):
+        if method1 not in self._methods:
+            self._methods[method1] = MethodClassAnalysis(method1)
+        self._methods[method1].AddXrefFrom(classobj, method2)
 
-        # FIXME: Not entirely sure why this can happen but usually a multidex issue:
-        # The given method was not added before...
-        if method1.get_method() not in self._methods:
-            self.add_method(method1)
+    def AddXrefTo(self, ref_kind, classobj, methodobj):
+        #debug("Added class xrefto for %s to %s" % (self._class.get_name(), classobj.get_vm_class().get_name()))
+        self.xrefto[classobj].add((ref_kind, methodobj))
 
-        self._methods[method1.get_method()].add_xref_to(classobj, method2, offset)
-
-    def add_method_xref_from(self, method1, classobj, method2, offset):
-        """
-
-        :param MethodAnalysis method1:
-        :param ClassAnalysis classobj:
-        :param MethodAnalysis method2:
-        :param int offset:
-        """
-        # FIXME: Not entirely sure why this can happen but usually a multidex issue:
-        # The given method was not added before...
-        if method1.get_method() not in self._methods:
-            self.add_method(method1)
-
-        self._methods[method1.get_method()].add_xref_from(classobj, method2, offset)
-
-    def add_xref_to(self, ref_kind, classobj, methodobj, offset):
-        """
-        Creates a crossreference to another class.
-        XrefTo means, that the current class calls another class.
-        The current class should also be contained in the another class' XrefFrom list.
-
-        .. warning::
-            The implementation of this specific method might not be what you expect!
-            the parameter :code:`methodobj` is the source method and not the destination
-            in the case that :code:`ref_kind` is const-class or new-instance!
-
-        :param REF_TYPE ref_kind: type of call
-        :param ClassAnalysis classobj: :class:`ClassAnalysis` object to link
-        :param MethodAnalysis methodobj:
-        :param int offset: Offset in the Methods Bytecode, where the call happens
-        :return:
-        """
-        self.xrefto[classobj].add((ref_kind, methodobj, offset))
-
-    def add_xref_from(self, ref_kind, classobj, methodobj, offset):
-        """
-        Creates a crossreference from this class.
-        XrefFrom means, that the current class is called by another class.
-
-        :param REF_TYPE ref_kind: type of call
-        :param ClassAnalysis classobj: :class:`ClassAnalysis` object to link
-        :param MethodAnalysis methodobj:
-        :param int offset: Offset in the methods bytecode, where the call happens
-        :return:
-        """
-        self.xreffrom[classobj].add((ref_kind, methodobj, offset))
+    def AddXrefFrom(self, ref_kind, classobj, methodobj):
+        #debug("Added class xreffrom for %s to %s" % (self._class.get_name(), classobj.get_vm_class().get_name()))
+        self.xreffrom[classobj].add((ref_kind, methodobj))
 
     def get_xref_from(self):
-        """
-        Returns a dictionary of all classes calling the current class.
-        This dictionary contains also information from which method the class is accessed.
-
-        .. note:: this method might contains wrong information about class usage!
-
-        The dictionary contains the classes as keys (stored as :class:`ClassAnalysis`)
-        and has a tuple as values, where the first item is the ref_kind (which is an Enum of type :class:`REF_TYPE`),
-        the second one is the method in which the class is called (:class:`MethodAnalysis`)
-        and the third the offset in the method where the call is originating.
-
-        example::
-            # dx is an Analysis object
-            for cls in dx.find_classes('.*some/name.*'):
-                print("Found class {} in Analysis".format(cls.name)
-                for caller, refs in cls.get_xref_from().items():
-                    print("  called from {}".format(caller.name))
-                    for ref_kind, ref_method, ref_offset in refs:
-                        print("    in method {} {}".format(ref_kind, ref_method))
-
-
-        :rtype: Iterator[Tuple[REF_TYPE, MethodAnalysis, int]]
-        """
         return self.xreffrom
 
     def get_xref_to(self):
-        """
-        Returns a dictionary of all classes which are called by the current class.
-        This dictionary contains also information about the method which is called.
-
-        .. note:: this method might contains wrong information about class usage!
-
-        The dictionary contains the classes as keys (stored as :class:`ClassAnalysis`)
-        and has a tuple as values, where the first item is the ref_kind (which is an Enum of type :class:`REF_TYPE`),
-        the second one is the method called (:class:`MethodAnalysis`)
-        and the third the offset in the method where the call is originating.
-
-        example::
-            # dx is an Analysis object
-            for cls in dx.find_classes('.*some/name.*'):
-                print("Found class {} in Analysis".format(cls.name)
-                for calling, refs in cls.get_xref_from().items():
-                    print("  calling class {}".format(calling.name))
-                    for ref_kind, ref_method, ref_offset in refs:
-                        print("    calling method {} {}".format(ref_kind, ref_method))
-
-        :rtype: Iterator[Tuple[REF_TYPE, MethodAnalysis, int]]
-        """
         return self.xrefto
 
-    def add_xref_new_instance(self, methobj, offset):
-        """
-        Add a crossreference to another method that is
-        instancing this class.
-
-        :param classobj: :class:`~MethodAnalysis`
-        :param offset: integer where in the method the instantiation happens
-        """
-        self.xrefnewinstance.add((methobj, offset))
-
-    def get_xref_new_instance(self):
-        """
-        Returns a list of tuples containing the set of methods
-        with offsets that instance this class
-
-
-        The list of tuples has the form:
-        (:class:`~MathodAnalysis`,
-        :class:`int`)
-        """
-        return self.xrefnewinstance
-
-    def add_xref_const_class(self, methobj, offset):
-        """
-        Add a crossreference to a method referencing this classtype.
-
-        :param classobj: :class:`~MethodAnalysis`
-        :param offset: integer where in the method the classtype is referenced
-        """
-        self.xrefconstclass.add((methobj, offset))
-
-    def get_xref_const_class(self):
-        """
-        Returns a list of tuples containing the method and offset
-        referencing this classtype.
-
-        The list of tuples has the form:
-        (:class:`~MethodAnalysis`,
-        :class:`int`)
-        """
-        return self.xrefconstclass
-
     def get_vm_class(self):
-        """
-        Returns the original Dalvik VM class or the external class object.
-
-        :return:
-        :rtype: Union[androguard.core.bytecodes.dvm.ClassDefItem, ExternalClass]
-        """
-        return self.orig_class
-
-    # Alias
-    get_class = get_vm_class
-
-    def __repr__(self):
-        return "<analysis.ClassAnalysis {}{}>".format(self.orig_class.get_name(),
-                " EXTERNAL" if isinstance(self.orig_class, ExternalClass) else "")
+        return self._class
 
     def __str__(self):
-        # Print only instantiation from other classes here
-        # TODO also method xref and field xref should be printed?
-        data = "XREFto for %s\n" % self.orig_class
+        data = "XREFto for %s\n" % self._class
         for ref_class in self.xrefto:
             data += str(ref_class.get_vm_class().get_name()) + " "
             data += "in\n"
-            for ref_kind, ref_method, ref_offset in self.xrefto[ref_class]:
-                data += "%d %s 0x%x\n" % (ref_kind, ref_method, ref_offset)
+            for ref_kind, ref_method in self.xrefto[ref_class]:
+                data += "%d %s\n" % (ref_kind, ref_method)
 
             data += "\n"
 
-        data += "XREFFrom for %s\n" % self.orig_class
+        data += "XREFFrom for %s\n" % self._class
         for ref_class in self.xreffrom:
             data += str(ref_class.get_vm_class().get_name()) + " "
             data += "in\n"
-            for ref_kind, ref_method, ref_offset in self.xreffrom[ref_class]:
-                data += "%d %s 0x%x\n" % (ref_kind, ref_method, ref_offset)
+            for ref_kind, ref_method in self.xreffrom[ref_class]:
+                data += "%d %s\n" % (ref_kind, ref_method)
 
             data += "\n"
 
         return data
 
+class newVMAnalysis(object):
+    def __init__(self, vm):
+        self.vm = vm
+        self.classes = {}
+        self.strings = {}
 
-class MethodClassAnalysis(MethodAnalysis):
-    """
-
-    .. deprecated:: 3.4.0
-
-        Always use MethodAnalysis!
-        This method is just here for compatability
-
-    """
-    def __init__(self, meth):
-        super().__init__(meth.cm.vm, meth)
-
-
-class Analysis:
-    """
-    Analysis Object
-
-    The Analysis contains a lot of information about (multiple) DalvikVMFormat objects
-    Features are for example XREFs between Classes, Methods, Fields and Strings.
-    Yet another part is the creation of BasicBlocks, which is important in the usage of
-    the Androguard Decompiler.
-
-    Multiple DalvikVMFormat Objects can be added using the function :meth:`add`.
-
-    XREFs are created for:
-    * classes (`ClassAnalysis`)
-    * methods (`MethodAnalysis`)
-    * strings (`StringAnalyis`)
-    * fields (`FieldAnalysis`)
-
-    The Analysis should be the only object you are using next to the :class:`~androguard.core.bytecodes.apk.APK`.
-    It encapsulates all the Dalvik related functions into a single place, while you have still the ability to use
-    the functions from :class:`~androguard.core.bytecodes.dvm.DalvikVMFormat` and the related classes.
-
-    :param Optional[androguard.core.bytecodes.dvm.DalvikVMFormat] vm: inital DalvikVMFormat object (default None)
-    """
-    def __init__(self, vm=None):
-        # Contains DalvikVMFormat objects
-        self.vms = []
-        # A dict of {classname: ClassAnalysis}, populated on add(vm)
-        self.classes = dict()
-        # A dict of {string: StringAnalysis}, populated on create_xref()
-        self.strings = dict()
-        # A dict of {EncodedMethod: MethodAnalysis}, populated on add(vm)
-        self.methods = dict()
-
-        # Used to quickly look up methods
-        self.__method_hashes = dict()
-
-        if vm:
-            self.add(vm)
-
-        self.__created_xrefs = False
-
-    def add(self, vm):
-        """
-        Add a DalvikVMFormat to this Analysis.
-
-        :param androguard.core.bytecodes.dvm.DalvikVMFormat vm: :class:`dvm.DalvikVMFormat` to add to this Analysis
-        """
-        self.vms.append(vm)
-
-        log.info("Adding DEX file version {}".format(vm.version))
-        # TODO: This step can easily be multithreaded, as there is no dependecy between the objects at this stage
-        tic = time.time()
-        for current_class in vm.get_classes():
+        for current_class in self.vm.get_classes():
             self.classes[current_class.get_name()] = ClassAnalysis(current_class)
-            for method in current_class.get_methods():
-                self.methods[method] = MethodAnalysis(vm, method)
-
-                self.classes[current_class.get_name()].add_method(self.methods[method])
-
-                # Store for faster lookup during create_xrefs
-                m_hash = (current_class.get_name(), method.get_name(), str(method.get_descriptor()))
-                self.__method_hashes[m_hash] = self.methods[method]
-
-        log.info("Reading bytecode took : {:0d}min {:02d}s".format(*divmod(int(time.time() - tic), 60)))
 
     def create_xref(self):
-        """
-        Create Class, Method, String and Field crossreferences
-        for all classes in the Analysis.
+        debug("Creating XREF/DREF")
 
-        If you are using multiple DEX files, this function must
-        be called when all DEX files are added.
-        If you call the function after every DEX file, it will only work
-        for the first time.
-        """
-        if self.__created_xrefs:
-            # TODO on concurrent runs, we probably need to clean up first,
-            # or check that we do not write garbage.
-            log.error("You have requested to run create_xref() twice! "
-                      "This will not work and cause problems! This function will exit right now. "
-                      "If you want to add multiple DEX files, use add() several times and then run create_xref() once.")
-            return
+        instances_class_name = self.classes.keys()
+        external_instances = {}
 
-        self.__created_xrefs = True
-        log.debug("Creating Crossreferences (XREF)")
-        tic = time.time()
+        for current_class in self.vm.get_classes():
+            for current_method in current_class.get_methods():
+                debug("Creating XREF for %s" % current_method)
 
-        # TODO multiprocessing
-        # One reason why multiprocessing is hard to implement is the creation of
-        # the external classes and methods. This must be synchronized, which is now possible as we have a single method!
-        for vm in self.vms:
-            for current_class in vm.get_classes():
-                self._create_xref(current_class)
+                code = current_method.get_code()
+                if code == None:
+                    continue
 
-        # TODO: After we collected all the information, we should add field and
-        # string xrefs to each MethodAnalysis
+                off = 0
+                bc = code.get_bc()
+                for instruction in bc.get_instructions():
+                    op_value = instruction.get_op_value()
+                    if op_value in [0x1c, 0x22]:
+                        idx_type = instruction.get_ref_kind()
+                        type_info = self.vm.get_cm_type(idx_type)
 
-        log.info("End of creating cross references (XREF) "
-                 "run time: {:0d}min {:02d}s".format(*divmod(int(time.time() - tic), 60)))
+                        # Internal xref related to class manipulation
+                        if type_info in instances_class_name and type_info != current_class.get_name():
+                            # new instance
+                            if op_value == 0x22:
+                                self.classes[current_class.get_name()].AddXrefTo(REF_NEW_INSTANCE, self.classes[type_info], current_method)
+                                self.classes[type_info].AddXrefFrom(REF_NEW_INSTANCE, self.classes[current_class.get_name()], current_method)
+                            # class reference
+                            else:
+                                self.classes[current_class.get_name()].AddXrefTo(REF_CLASS_USAGE, self.classes[type_info], current_method)
+                                self.classes[type_info].AddXrefFrom(REF_CLASS_USAGE, self.classes[current_class.get_name()], current_method)
 
-    def _create_xref(self, current_class):
-        """
-        Create the xref for `current_class`
+                    elif ((op_value >= 0x6e and op_value <= 0x72) or
+                        (op_value >= 0x74 and op_value <= 0x78)):
+                            idx_meth = instruction.get_ref_kind()
+                            method_info = self.vm.get_cm_method(idx_meth)
+                            if method_info:
+                                class_info = method_info[0]
 
-        There are four steps involved in getting the xrefs:
-        * Xrefs for class instantiation and static class usage
-        *       for method calls
-        *       for string usage
-        *       for field manipulation
+                                method_item = self.vm.get_method_descriptor(method_info[0], method_info[1], ''.join(method_info[2]))
+                                if method_item:
+                                    self.classes[current_class.get_name()].AddMXrefTo(current_method, self.classes[class_info], method_item)
+                                    self.classes[class_info].AddMXrefFrom(method_item, self.classes[current_class.get_name()], current_method)
 
-        All these information are stored in the *Analysis Objects.
+                                    # Internal xref related to class manipulation
+                                    if class_info in instances_class_name and class_info != current_class.get_name():
+                                        self.classes[current_class.get_name()].AddXrefTo(REF_CLASS_USAGE, self.classes[class_info], method_item)
+                                        self.classes[class_info].AddXrefFrom(REF_CLASS_USAGE, self.classes[current_class.get_name()], current_method)
 
-        Note that this might be quite slow, as all instructions are parsed.
+                    elif op_value >= 0x1a and op_value <= 0x1b:
+                        string_value = self.vm.get_cm_string(instruction.get_ref_kind())
+                        if string_value not in self.strings:
+                            self.strings[string_value] = StringAnalysis(string_value)
+                        self.strings[string_value].AddXrefFrom(self.classes[current_class.get_name()], current_method)
 
-        :param androguard.core.bytecodes.dvm.ClassDefItem current_class: The class to create xrefs for
-        """
-        cur_cls_name = current_class.get_name()
+                    elif op_value >= 0x52 and op_value <= 0x6d:
+                        idx_field = instruction.get_ref_kind()
+                        field_info = self.vm.get_cm_field(idx_field)
+                        field_item = self.vm.get_field_descriptor(field_info[0], field_info[2], field_info[1])
+                        if field_item:
+                            # read access to a field
+                            if (op_value >= 0x52 and op_value <= 0x58) or (op_value >= 0x60 and op_value <= 0x66):
+                                self.classes[current_class.get_name()].AddFXrefRead(current_method, self.classes[current_class.get_name()], field_item)
+                            # write access to a field
+                            else:
+                                self.classes[current_class.get_name()].AddFXrefWrite(current_method, self.classes[current_class.get_name()], field_item)
 
-        log.debug("Creating XREF/DREF for class at @0x{:08x}".format(current_class.get_class_data_off()))
-        for current_method in current_class.get_methods():
-            log.debug("Creating XREF for method at @0x{:08x}".format(current_method.get_code_off()))
-
-            cur_meth = self.get_method(current_method)
-            cur_cls = self.classes[cur_cls_name]
-
-            for off, instruction in current_method.get_instructions_idx():
-                op_value = instruction.get_op_value()
-
-                # 1) check for class calls: const-class (0x1c), new-instance (0x22)
-                if op_value in [0x1c, 0x22]:
-                    idx_type = instruction.get_ref_kind()
-                    # type_info is the string like 'Ljava/lang/Object;'
-                    type_info = instruction.cm.vm.get_cm_type(idx_type).lstrip(b'[')
-                    if type_info[0] != b'L':
-                        # Need to make sure, that we get class types and not other types
-                        continue
-
-                    if type_info == cur_cls_name:
-                        # FIXME: effectively ignoring calls to itself - do we want that?
-                        continue
-
-                    if type_info not in self.classes:
-                        # Create new external class
-                        self.classes[type_info] = ClassAnalysis(ExternalClass(type_info))
-
-                    oth_cls = self.classes[type_info]
-
-                    # FIXME: xref_to does not work here! current_method is wrong, as it is not the target!
-                    # In this case that means, that current_method calls the class oth_class.
-                    # Hence, on xref_to the method info is the calling method not the called one,
-                    # as there is no called method!
-                    # With the _new_instance and _const_class can this be deprecated?
-                    # Removing these does not impact tests
-                    cur_cls.add_xref_to(REF_TYPE(op_value), oth_cls, cur_meth, off)
-                    oth_cls.add_xref_from(REF_TYPE(op_value), cur_cls, cur_meth, off)
-
-                    if op_value == 0x1c:
-                        cur_meth.add_xref_const_class(oth_cls, off)
-                        oth_cls.add_xref_const_class(cur_meth, off)
-                    if op_value == 0x22:
-                        cur_meth.add_xref_new_instance(oth_cls, off)
-                        oth_cls.add_xref_new_instance(cur_meth, off)
-
-                # 2) check for method calls: invoke-* (0x6e ... 0x72), invoke-xxx/range (0x74 ... 0x78)
-                elif (0x6e <= op_value <= 0x72) or (0x74 <= op_value <= 0x78):
-                    idx_meth = instruction.get_ref_kind()
-                    method_info = instruction.cm.vm.get_cm_method(idx_meth)
-                    if not method_info:
-                        log.warning("Could not get method_info "
-                                    "for instruction at {} in method at @{}. "
-                                    "Requested IDX {}".format(off, current_method.get_code_off(), idx_meth))
-                        continue
-
-                    class_info = method_info[0].lstrip(b'[')
-                    if class_info[0] != b'L':
-                        # Need to make sure, that we get class types and not other types
-                        # If another type, like int is used, we simply skip it.
-                        continue
-
-                    # Resolve the second MethodAnalysis
-                    oth_meth = self._resolve_method(class_info, method_info[1], method_info[2])
-
-                    oth_cls = self.classes[class_info]
-
-                    # FIXME: we could merge add_method_xref_* and add_xref_*
-                    cur_cls.add_method_xref_to(cur_meth, oth_cls, oth_meth, off)
-                    oth_cls.add_method_xref_from(oth_meth, cur_cls, cur_meth, off)
-                    # Internal xref related to class manipulation
-                    cur_cls.add_xref_to(REF_TYPE(op_value), oth_cls, oth_meth, off)
-                    oth_cls.add_xref_from(REF_TYPE(op_value), cur_cls, cur_meth, off)
-
-                # 3) check for string usage: const-string (0x1a), const-string/jumbo (0x1b)
-                elif 0x1a <= op_value <= 0x1b:
-                    string_value = instruction.cm.vm.get_cm_string(instruction.get_ref_kind())
-                    if string_value not in self.strings:
-                        self.strings[string_value] = StringAnalysis(string_value)
-
-                    self.strings[string_value].add_xref_from(cur_cls, cur_meth, off)
-
-                # TODO maybe we should add a step 3a) here and check for all const fields. You can then xref for integers etc!
-                # But: This does not work, as const fields are usually optimized internally to const calls...
-
-                # 4) check for field usage: i*op (0x52 ... 0x5f), s*op (0x60 ... 0x6d)
-                elif 0x52 <= op_value <= 0x6d:
-                    idx_field = instruction.get_ref_kind()
-                    field_info = instruction.cm.vm.get_cm_field(idx_field)
-                    field_item = instruction.cm.vm.get_field_descriptor(field_info[0], field_info[2], field_info[1])
-                    if not field_item:
-                        continue
-
-                    if (0x52 <= op_value <= 0x58) or (0x60 <= op_value <= 0x66):
-                        # read access to a field
-                        self.classes[cur_cls_name].add_field_xref_read(cur_meth, cur_cls, field_item, off)
-                        cur_meth.add_xref_read(cur_cls, field_item, off)
-                    else:
-                        # write access to a field
-                        self.classes[cur_cls_name].add_field_xref_write(cur_meth, cur_cls, field_item, off)
-                        cur_meth.add_xref_write(cur_cls, field_item, off)
+                    off += instruction.get_length()
 
     def get_method(self, method):
-        """
-        Get the :class:`MethodAnalysis` object for a given :class:`EncodedMethod`.
-        This Analysis object is used to enhance EncodedMethods.
-
-        :param method: :class:`EncodedMethod` to search for
-        :return: :class:`MethodAnalysis` object for the given method, or None if method was not found
-        :rtype: MethodAnalysis
-        """
-        if method in self.methods:
-            return self.methods[method]
-        return None
-
-    # Alias
-    get_method_analysis = get_method
-
-    def _resolve_method(self, class_name, method_name, method_descriptor):
-        """
-        Resolves the Method and returns MethodAnalysis.
-        Will automatically create ExternalMethods if can not resolve and add to the ClassAnalysis etc
-
-        :param str class_name:
-        :param str method_name:
-        :param List[str] method_descriptor: Tuple which has parameters and return type, i.e. ['(I Z)', 'V']
-        :return:
-        :rtype: MethodAnalysis
-        """
-        m_hash = (class_name, method_name, mutf8.MUTF8String.join(method_descriptor))
-        if m_hash not in self.__method_hashes:
-            # Need to create a new method
-            if class_name not in self.classes:
-                # External class? no problem!
-                self.classes[class_name] = ClassAnalysis(ExternalClass(class_name))
-
-            # Create external method
-            meth = ExternalMethod(class_name, method_name, method_descriptor)
-            meth_analysis = MethodAnalysis(None, meth)
-
-            # add to all the collections we have
-            self.__method_hashes[m_hash] = meth_analysis
-            self.classes[class_name].add_method(meth_analysis)
-            self.methods[meth] = meth_analysis
-
-        return self.__method_hashes[m_hash]
+        return MethodAnalysis( self.vm, method, None )
 
     def get_method_by_name(self, class_name, method_name, method_descriptor):
-        """
-        Search for a :class:`EncodedMethod` in all classes in this analysis
-
-        :param class_name: name of the class, for example 'Ljava/lang/Object;'
-        :param method_name: name of the method, for example 'onCreate'
-        :param method_descriptor: descriptor, for example '(I I Ljava/lang/String)V
-        :return: :class:`EncodedMethod` or None if method was not found
-        :rtype: androguard.core.bytecodes.dvm.EncodedMethod
-        """
-        m_a = self.get_method_analysis_by_name(class_name, method_name, method_descriptor)
-        if m_a and not m_a.is_external():
-            return m_a.get_method()
-        return None
-
-    def get_method_analysis_by_name(self, class_name, method_name, method_descriptor):
-        """
-        Returns the crossreferencing object for a given method.
-
-        This function is similar to :meth:`~get_method_analysis`, with the difference
-        that you can look up the Method by name
-
-        :param class_name: name of the class, for example `'Ljava/lang/Object;'`
-        :param method_name: name of the method, for example `'onCreate'`
-        :param method_descriptor: method descriptor, for example `'(I I)V'`
-        :return: :class:`MethodAnalysis`
-        :rtype: MethodAnalysis
-        """
-        m_hash = (class_name, method_name, method_descriptor)
-        if m_hash not in self.__method_hashes:
-            return None
-        return self.__method_hashes[m_hash]
-
-    def get_field_analysis(self, field):
-        """
-        Get the FieldAnalysis for a given fieldname
-
-        :param androguard.core.bytecodes.dvm.EncodedField field: the field
-        :return: :class:`FieldAnalysis`
-        :rtype: FieldAnalysis
-        """
-        class_analysis = self.get_class_analysis(field.get_class_name())
-        if class_analysis:
-            return class_analysis.get_field_analysis(field)
+        print class_name, method_name, method_descriptor
+        if class_name in self.classes:
+            for method in self.classes[class_name].get_vm_class().get_methods():
+                print method.get_name(), method.get_descriptor()
+                if method.get_name() == method_name and method.get_descriptor() == method_descriptor:
+                    return method
         return None
 
     def is_class_present(self, class_name):
-        """
-        Checks if a given class name is part of this Analysis.
-
-        :param class_name: classname like 'Ljava/lang/Object;' (including L and ;)
-        :return: True if class was found, False otherwise
-        :rtype: bool
-        """
         return class_name in self.classes
 
     def get_class_analysis(self, class_name):
-        """
-        Returns the :class:`ClassAnalysis` object for a given classname.
-
-        :param class_name: classname like 'Ljava/lang/Object;' (including L and ;)
-        :return: :class:`ClassAnalysis`
-        :rtype: ClassAnalysis
-        """
         return self.classes.get(class_name)
 
-    def get_external_classes(self):
-        """
-        Returns all external classes, that means all classes that are not
-        defined in the given set of `DalvikVMObjects`.
-
-        :rtype: Iterator[ClassAnalysis]
-        """
-        for cls in self.classes.values():
-            if cls.is_external():
-                yield cls
-
-    def get_internal_classes(self):
-        """
-        Returns all external classes, that means all classes that are
-        defined in the given set of :class:`~DalvikVMFormat`.
-
-        :rtype: Iterator[ClassAnalysis]
-        """
-        for cls in self.classes.values():
-            if not cls.is_external():
-                yield cls
-
     def get_strings_analysis(self):
-        """
-        Returns a dictionary of strings and their corresponding :class:`StringAnalysis`
-
-        :rtype: Dict[str, StringAnalysis]
-        """
         return self.strings
 
-    def get_strings(self):
-        """
-        Returns a list of :class:`StringAnalysis` objects
+class VMAnalysis(object):
+    """
+       This class analyses a dex file
 
-        :rtype: Iterator[StringAnalysis]
-        """
-        return self.strings.values()
+       :param _vm: the object which represent the dex file
+       :type _vm: a :class:`DalvikVMFormat` object
 
-    def get_classes(self):
-        """
-        Returns a list of :class:`ClassAnalysis` objects
+       :Example:
+            VMAnalysis( DalvikVMFormat( read("toto.dex", binary=False) ) )
+    """
+    def __init__(self, vm):
+        self.vm = vm
 
-        Returns both internal and external classes (if any)
+        self.tainted_variables = TaintedVariables( self.vm )
+        self.tainted_packages = TaintedPackages( self.vm )
 
-        :rtype: Iterator[ClassAnalysis]
+        self.tainted = { "variables" : self.tainted_variables,
+                         "packages" : self.tainted_packages,
+                       }
+
+        self.signature = None
+
+        for i in self.vm.get_all_fields():
+            self.tainted_variables.add( [ i.get_class_name(), i.get_descriptor(), i.get_name() ], TAINTED_FIELD )
+
+        self.methods = []
+        self.hmethods = {}
+        self.__nmethods = {}
+        for i in self.vm.get_methods():
+            x = MethodAnalysis( self.vm, i, self )
+            self.methods.append( x )
+            self.hmethods[ i ] = x
+            self.__nmethods[ i.get_name() ] = x
+
+    def get_vm(self):
+        return self.vm
+
+    def get_method(self, method):
         """
-        return self.classes.values()
+            Return an analysis method
+
+            :param method: a classical method object
+            :type method: an :class:`EncodedMethod` object
+
+            :rtype: a :class:`MethodAnalysis` object
+        """
+        return self.hmethods[ method ]
 
     def get_methods(self):
         """
-        Returns a list of `MethodAnalysis` objects
+           Return each analysis method
 
-        :rtype: Iterator[MethodAnalysis]
-
+           :rtype: a :class:`MethodAnalysis` object
         """
-        yield from self.methods.values()
+        for i in self.hmethods:
+            yield self.hmethods[i]
 
-    def get_fields(self):
+    def get_method_signature(self, method, grammar_type="", options={}, predef_sign=""):
         """
-        Returns a list of `FieldAnalysis` objects
+            Return a specific signature for a specific method
 
-        :rtype: Iterator[FieldAnalysis]
+            :param method: a reference to method from a vm class
+            :type method: a :class:`EncodedMethod` object
+
+            :param grammar_type: the type of the signature (optional)
+            :type grammar_type: string
+
+            :param options: the options of the signature (optional)
+            :param options: dict
+
+            :param predef_sign: used a predefined signature (optional)
+            :type predef_sign: string
+
+            :rtype: a :class:`Sign` object
         """
-        for c in self.classes.values():
-            for f in c.get_fields():
-                yield f
+        if self.signature == None:
+          self.signature = Signature( self )
 
-    def find_classes(self, name=".*", no_external=False):
+        if predef_sign != "":
+            g = ""
+            o = {}
+
+            for i in predef_sign.split(":"):
+                if "_" in i:
+                    g += "L0:"
+                    o[ "L0" ] = SIGNATURES[ i ]
+                else:
+                    g += i
+                    g += ":"
+
+            return self.signature.get_method( self.get_method( method ), g[:-1], o )
+        else:
+            return self.signature.get_method( self.get_method( method ), grammar_type, options )
+
+    def get_permissions(self, permissions_needed):
         """
-        Find classes by name, using regular expression
-        This method will return all ClassAnalysis Object that match the name of
-        the class.
+            Return the permissions used
 
-        :param name: regular expression for class name (default ".*")
-        :param no_external: Remove external classes from the output (default False)
-        :rtype: Iterator[ClassAnalysis]
+            :param permissions_needed: a list of restricted permissions to get ([] returns all permissions)
+            :type permissions_needed: list
+
+            :rtype: a dictionnary of permissions paths
         """
-        name = bytes(mutf8.MUTF8String.from_str(name))
-        for cname, c in self.classes.items():
-            if no_external and isinstance(c.get_vm_class(), ExternalClass):
-                continue
-            if re.match(name, cname):
-                yield c
+        permissions = {}
 
-    def find_methods(self, classname=".*", methodname=".*", descriptor=".*",
-            accessflags=".*", no_external=False):
+        permissions.update( self.get_tainted_packages().get_permissions( permissions_needed ) )
+        permissions.update( self.get_tainted_variables().get_permissions( permissions_needed ) )
+
+        return permissions
+
+    def get_permissions_method(self, method):
+        permissions_f = self.get_tainted_packages().get_permissions_method( method )
+        permissions_v = self.get_tainted_variables().get_permissions_method( method )
+
+        all_permissions_of_method = permissions_f.union(permissions_v)
+
+        return list(all_permissions_of_method)
+
+    def get_tainted_variables(self):
         """
-        Find a method by name using regular expression.
-        This method will return all MethodAnalysis objects, which match the
-        classname, methodname, descriptor and accessflags of the method.
+           Return the tainted variables
 
-        :param classname: regular expression for the classname
-        :param methodname: regular expression for the method name
-        :param descriptor: regular expression for the descriptor
-        :param accessflags: regular expression for the accessflags
-        :param no_external: Remove external method from the output (default False)
-        :rtype: Iterator[MethodAnalysis]
+           :rtype: a :class:`TaintedVariables` object
         """
-        classname = bytes(mutf8.MUTF8String.from_str(classname))
-        methodname = bytes(mutf8.MUTF8String.from_str(methodname))
-        descriptor = bytes(mutf8.MUTF8String.from_str(descriptor))
-        for cname, c in self.classes.items():
-            if re.match(classname, cname):
-                for m in c.get_methods():
-                    z = m.get_method()
-                    # TODO is it even possible that an internal class has
-                    # external methods? Maybe we should check for ExternalClass
-                    # instead...
-                    if no_external and isinstance(z, ExternalMethod):
-                        continue
-                    if re.match(methodname, z.get_name()) and \
-                       re.match(descriptor, z.get_descriptor()) and \
-                       re.match(accessflags, z.get_access_flags_string()):
-                        yield m
+        return self.tainted_variables
 
-    def find_strings(self, string=".*"):
+    def get_tainted_packages(self):
         """
-        Find strings by regex
+           Return the tainted packages
 
-        :param string: regular expression for the string to search for
-        :rtype: Iterator[StringAnalysis]
+           :rtype: a :class:`TaintedPackages` object
         """
-        string = bytes(mutf8.MUTF8String.from_str(string))
-        for s, sa in self.strings.items():
-            if re.match(string, s):
-                yield sa
+        return self.tainted_packages
 
-    def find_fields(self, classname=".*", fieldname=".*", fieldtype=".*", accessflags=".*"):
+    def get_tainted_fields(self):
+        return self.get_tainted_variables().get_fields()
+
+    def get_tainted_field(self, class_name, name, descriptor):
         """
-        find fields by regex
+           Return a specific tainted field
 
-        :param classname: regular expression of the classname
-        :param fieldname: regular expression of the fieldname
-        :param fieldtype: regular expression of the fieldtype
-        :param accessflags: regular expression of the access flags
-        :rtype: Iterator[FieldAnalysis]
+           :param class_name: the name of the class
+           :param name: the name of the field
+           :param descriptor: the descriptor of the field
+           :type class_name: string
+           :type name: string
+           :type descriptor: string
+
+           :rtype: a :class:`TaintedVariable` object
         """
-        classname = bytes(mutf8.MUTF8String.from_str(classname))
-        fieldname = bytes(mutf8.MUTF8String.from_str(fieldname))
-        fieldtype = bytes(mutf8.MUTF8String.from_str(fieldtype))
-        for cname, c in self.classes.items():
-            if re.match(classname, cname):
-                for f in c.get_fields():
-                    z = f.get_field()
-                    if re.match(fieldname, z.get_name()) and \
-                       re.match(fieldtype, z.get_descriptor()) and \
-                       re.match(accessflags, z.get_access_flags_string()):
-                        yield f
+        return self.get_tainted_variables().get_field( class_name, name, descriptor )
 
-    def __repr__(self):
-        return "<analysis.Analysis VMs: {}, Classes: {}, Methods: {}, Strings: {}>".format(len(self.vms), len(self.classes), len(self.methods), len(self.strings))
+class uVMAnalysis(VMAnalysis):
+  """
+     This class analyses a dex file but on the fly (quicker !)
 
-    def get_call_graph(self, classname=".*", methodname=".*", descriptor=".*",
-                       accessflags=".*", no_isolated=False, entry_points=[]):
-        """
-        Generate a directed graph based on the methods found by the filters applied.
-        The filters are the same as in
-        :meth:`~androguard.core.analaysis.analaysis.Analysis.find_methods`
+     :param _vm: the object which represent the dex file
+     :type _vm: a :class:`DalvikVMFormat` object
 
-        A networkx.MultiDiGraph is returned, containing all xrefs.
-        That means a method which calls another method multiple times, will have multiple
-        edges between them. Attached to the edge is the attribute `offset`, which gives
-        the code offset inside the method of the call.
+     :Example:
+          uVMAnalysis( DalvikVMFormat( read("toto.dex", binary=False) ) )
+  """
+  def __init__(self, vm):
+    self.vm = vm
+    self.tainted_variables = TaintedVariables( self.vm )
+    self.tainted_packages = TaintedPackages( self.vm )
 
-        Specifying filters will not remove the methods if they are called by some other method.
+    self.tainted = { "variables" : self.tainted_variables,
+                     "packages" : self.tainted_packages,
+    }
 
-        The callgraph will check for both directions of edges. Thus, if you specify a single class
-        as input, it will contain all classes which are called by this class (xref_to),
-        as well as all methods who calls the specified one (xref_from).
+    self.signature = None
+    self.resolve = False
 
-        Each node will contain the following meta information as attribute:
+  def get_methods(self):
+    self.resolve = True
+    for i in self.vm.get_methods():
+      yield MethodAnalysis(self.vm, i, self)
 
-        * external: is the method external or not (boolean)
-        * entrypoint: is the method a known entry point (boolean)
-        * native: is the method a native method by signature (boolean)
-        * public: is the method declared public (boolean)
-        * static: is the method declared static (boolean)
-        * vm: An ID of the DEX file where this method is declared or 0 if external (signed int)
-        * codesize: size of code of the method or zero if external (int)
+  def get_method(self, method):
+    return MethodAnalysis( self.vm, method, None )
 
-        :param classname: regular expression of the classname (default: ".*")
-        :param methodname: regular expression of the methodname (default: ".*")
-        :param descriptor: regular expression of the descriptor (default: ".*")
-        :param accessflags: regular expression of the access flags (default: ".*")
-        :param no_isolated: remove isolated nodes from the graph, e.g. methods which do not call anything (default: False)
-        :param entry_points: A list of classes that are marked as entry point
+  def get_vm(self):
+    return self.vm
 
-        :rtype: networkx.MultiDiGraph
-        """
+  def _resolve(self):
+    if self.resolve == False:
+      for i in self.get_methods():
+        pass
 
-        def _add_node(G, method):
-            """
-            Wrapper to add methods to a graph without duplication
+  def get_tainted_packages(self):
+    self._resolve()
+    return self.tainted_packages
 
-            :param nx.MultiDiGraph G:
-            :param MethodAnalysis method:
-            """
-            if method in G.nodes:
-                return
-
-            G.add_node(method,
-                       external=method.is_external(),
-                       entrypoint=method.class_name in entry_points,
-                       native="native" in method.access,
-                       public="public" in method.access,
-                       static="static" in method.access,
-                       vm=hash(method.get_method().CM.vm) if not method.is_external() else 0,
-                       codesize=len(list(method.get_method().get_instructions())) if not method.is_external() else 0,
-                       )
-
-        CG = nx.MultiDiGraph()
-
-        # Note: If you create the CG from many classes at the same time, the drawing
-        # will be a total mess... Hence it is recommended to reduce the number of nodes beforehand.
-        # Obviously, you can always do this later at the costs of computational power.
-        for m in self.find_methods(classname=classname, methodname=methodname,
-                                   descriptor=descriptor, accessflags=accessflags):
-            log.info("Adding Method '{}' to callgraph".format(m.full_name))
-
-            if no_isolated and len(m.get_xref_to()) == 0 and len(m.get_xref_from()) == 0:
-                log.info("Skipped {}, because if has no xrefs".format(m.full_name))
-                continue
-
-            _add_node(CG, m)
-
-            for _, callee, offset in m.get_xref_to():
-                _add_node(CG, callee)
-                CG.add_edge(m, callee, key=offset, offset=offset)
-
-            for _, caller, offset in m.get_xref_from():
-                # If _all_ methods are added to the CG, this will not make any difference.
-                # But, if only a single class is chosen as a seed point, we require this information too!
-                # This is particularly useful for external classes, as they do not have xref_to,
-                # thus if an external class is chosen as starting point, it will generate an empty graph.
-                _add_node(CG, caller)
-                CG.add_edge(caller, m, key=offset, offset=offset)
-
-        return CG
-
-    def create_ipython_exports(self):
-        """
-        .. warning:: this feature is experimental and is currently not enabled by default! Use with caution!
-
-        Creates attributes for all classes, methods and fields on the Analysis object itself.
-        This makes it easier to work with Analysis module in an iPython shell.
-
-        Classes can be search by typing :code:`dx.CLASS_<tab>`, as each class is added via this attribute name.
-        Each class will have all methods attached to it via :code:`dx.CLASS_Foobar.METHOD_<tab>`.
-        Fields have a similar syntax: :code:`dx.CLASS_Foobar.FIELD_<tab>`.
-
-        As Strings can contain nearly anything, use :meth:`find_strings` instead.
-
-        * Each `CLASS_` item will return a :class:`~ClassAnalysis`
-        * Each `METHOD_` item will return a :class:`~MethodAnalysis`
-        * Each `FIELD_` item will return a :class:`~FieldAnalysis`
-        """
-        # TODO: it would be fun to have the classes organized like the packages. I.e. you could do dx.CLASS_xx.yyy.zzz
-        for cls in self.get_classes():
-            name = "CLASS_" + bytecode.FormatClassToPython(cls.name)
-            if hasattr(self, name):
-                log.warning("Already existing class {}!".format(name))
-            setattr(self, name, cls)
-
-            for meth in cls.get_methods():
-                method_name = meth.name
-                if method_name in ["<init>", "<clinit>"]:
-                    _, method_name = bytecode.get_package_class_name(cls.name)
-
-                # FIXME this naming schema is not very good... but to describe a method uniquely, we need all of it
-                mname = "METH_" + method_name + "_" + bytecode.FormatDescriptorToPython(meth.access) + "_" + bytecode.FormatDescriptorToPython(meth.descriptor)
-                if hasattr(cls, mname):
-                    log.warning("already existing method: {} at class {}".format(mname, name))
-                setattr(cls, mname, meth)
-
-            # FIXME: syntetic classes produce problems here.
-            # If the field name is the same in the parent as in the syntetic one, we can only add one!
-            for field in cls.get_fields():
-                mname = "FIELD_" + bytecode.FormatNameToPython(field.name)
-                if hasattr(cls, mname):
-                    log.warning("already existing field: {} at class {}".format(mname, name))
-                setattr(cls, mname, field)
-
-    def get_permissions(self, apilevel=None):
-        """
-        Returns the permissions and the API method based on the API level specified.
-        This can be used to find usage of API methods which require a permission.
-        Should be used in combination with an :class:`~androguard.core.bytecodes.apk.APK`.
-
-        The returned permissions are a list, as some API methods require multiple permissions at once.
-
-        The following example shows the usage and how to get the calling methods using XREF:
-
-        example::
-            from androguard.misc import AnalyzeAPK
-            a, d, dx = AnalyzeAPK("somefile.apk")
-
-            for meth, perm in dx.get_permissions(a.get_effective_target_sdk_version()):
-                print("Using API method {} for permission {}".format(meth, perm))
-                print("used in:")
-                for _, m, _ in meth.get_xref_from():
-                    print(m.full_name)
-
-        ..note::
-            This method might be unreliable and might not extract all used permissions.
-            The permission mapping is based on [Axplorer](https://github.com/reddr/axplorer)
-            and might be incomplete due to the nature of the extraction process.
-            Unfortunately, there is no official API<->Permission mapping.
-
-            The output of this method relies also on the set API level.
-            If the wrong API level is used, the results might be wrong.
-
-        :param apilevel: API level to load, or None for default
-        :return: yields tuples of :class:`MethodAnalysis` (of the API method) and list of permission string
-        """
-
-        # TODO maybe have the API level loading in the __init__ method and pass the APK as well?
-        permmap = load_api_specific_resource_module('api_permission_mappings', apilevel)
-        if not permmap:
-            raise ValueError("No permission mapping found! Is one available? "
-                             "The requested API level was '{}'".format(apilevel))
-
-        for cls in self.get_external_classes():
-            for meth_analysis in cls.get_methods():
-                meth = meth_analysis.get_method()
-                if meth.permission_api_name in permmap:
-                    yield meth_analysis, permmap[meth.permission_api_name]
-
-    def get_permission_usage(self, permission, apilevel=None):
-        """
-        Find the usage of a permission inside the Analysis.
-
-        example::
-            from androguard.misc import AnalyzeAPK
-            a, d, dx = AnalyzeAPK("somefile.apk")
-
-            for meth in dx.get_permission_usage('android.permission.SEND_SMS', a.get_effective_target_sdk_version()):
-                print("Using API method {}".format(meth))
-                print("used in:")
-                for _, m, _ in meth.get_xref_from():
-                    print(m.full_name)
-
-        .. note::
-            The permission mappings might be incomplete! See also :meth:`get_permissions`.
-
-        :param permission: the name of the android permission (usually 'android.permission.XXX')
-        :param apilevel: the requested API level or None for default
-        :return: yields :class:`MethodAnalysis` objects for all using API methods
-        """
-
-        # TODO maybe have the API level loading in the __init__ method and pass the APK as well?
-        permmap = load_api_specific_resource_module('api_permission_mappings', apilevel)
-        if not permmap:
-            raise ValueError("No permission mapping found! Is one available? "
-                             "The requested API level was '{}'".format(apilevel))
-
-        apis = {k for k, v in permmap.items() if permission in v}
-        if not apis:
-            raise ValueError("No API methods could be found which use the permission. "
-                             "Does the permission exists? You requested: '{}'".format(permission))
-
-        for cls in self.get_external_classes():
-            for meth_analysis in cls.get_methods():
-                meth = meth_analysis.get_method()
-                if meth.permission_api_name in apis:
-                    yield meth_analysis
-
-    def get_android_api_usage(self):
-        """
-        Get all usage of the Android APIs inside the Analysis.
-
-        :return: yields :class:`MethodAnalysis` objects for all Android APIs methods
-        """
-
-        for cls in self.get_external_classes():
-            for meth_analysis in cls.get_methods():
-                if meth_analysis.is_android_api():
-                    yield meth_analysis
-
+  def get_tainted_variables(self):
+        self._resolve()
+        return self.tainted_variables
 
 def is_ascii_obfuscation(vm):
-    """
-    Tests if any class inside a DalvikVMObject
-    uses ASCII Obfuscation (e.g. UTF-8 Chars in Classnames)
-
-    :param androguard.core.bytecodes.dvm.DalvikVMFormat vm: `DalvikVMObject`
-    :return: True if ascii obfuscation otherwise False
-    :rtype: bool
-    """
     for classe in vm.get_classes():
         if is_ascii_problem(classe.get_name()):
             return True

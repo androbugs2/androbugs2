@@ -1,22 +1,16 @@
-from PyQt5 import QtCore
+from tools.modified.androguard.core import androconf
+from PySide import QtCore
 
-import androguard.session as session
-from androguard.core import androconf
-import logging
+from tools.modified.androguard.misc import *
 
-log = logging.getLogger("androguard.gui")
-
+import os.path
+import traceback
 
 class FileLoadingThread(QtCore.QThread):
-    """
-    Loads a file into the session and emits a bool value
-    """
 
-    file_loaded = QtCore.pyqtSignal(bool)
-
-    def __init__(self, parent=None):
+    def __init__(self, session, parent=None):
         QtCore.QThread.__init__(self, parent)
-        self.parent = parent
+        self.session = session
 
         self.file_path = None
         self.incoming_file = ()
@@ -27,7 +21,6 @@ class FileLoadingThread(QtCore.QThread):
             self.incoming_file = (file_path, 'SESSION')
         else:
             file_type = androconf.is_android(file_path)
-            log.debug("Found filetype: {}".format(file_type))
             self.incoming_file = (file_path, file_type)
         self.start(QtCore.QThread.LowestPriority)
 
@@ -36,18 +29,17 @@ class FileLoadingThread(QtCore.QThread):
             try:
                 file_path, file_type = self.incoming_file
                 if file_type in ["APK", "DEX", "DEY"]:
-                    # session.add returns sha256 or None
-                    ret = self.parent.session.add(file_path, open(file_path, 'rb').read())
-                    self.file_loaded.emit(ret != None)
-                elif file_type == "SESSION":
-                    self.parent.session = session.Load(file_path)
-                    self.file_loaded.emit(True)
-                else:
-                    self.file_loaded.emit(False)
+                    ret = self.session.add(file_path,
+                                           open(file_path, 'r').read())
+                    self.emit(QtCore.SIGNAL("loadedFile(bool)"), ret)
+                elif file_type == "SESSION" :
+                    self.session.load(file_path)
+                    self.emit(QtCore.SIGNAL("loadedFile(bool)"), True)
             except Exception as e:
-                log.exception("Error loading the file into the Session!")
-                self.file_loaded.emit(False)
+                androconf.debug(e)
+                androconf.debug(traceback.format_exc())
+                self.emit(QtCore.SIGNAL("loadedFile(bool)"), False)
 
-            self.incoming_file = ()
+            self.incoming_file = []
         else:
-            self.file_loaded.emit(False)
+            self.emit(QtCore.SIGNAL("loadedFile(bool)"), False)

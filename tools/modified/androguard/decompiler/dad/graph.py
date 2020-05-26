@@ -14,31 +14,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import logging
 from collections import defaultdict
-
-from androguard.decompiler.dad.basic_blocks import (build_node_from_block,
+from tools.modified.androguard.decompiler.dad.basic_blocks import (build_node_from_block,
                                                     StatementBlock, CondBlock)
-from androguard.decompiler.dad.instruction import Variable
+from tools.modified.androguard.decompiler.dad.util import get_type
+from tools.modified.androguard.decompiler.dad.instruction import Variable
 
 logger = logging.getLogger('dad.graph')
 
 
-# TODO Could use networkx here, as it has plenty of tools already, no need to reengineer the wheel
-class Graph:
-    """
-    Stores a CFG (Control Flow Graph), which is a directed graph.
-
-    The CFG defines an entry node :py:attr:`entry`, a single exit node :py:attr:`exit`, a list of nodes
-    :py:attr:`nodes` and a list of edges :py:attr:`edges`.
-    """
+class Graph(object):
     def __init__(self):
         self.entry = None
         self.exit = None
         self.nodes = list()
-        self.edges = defaultdict(list)
-
         self.rpo = []
+        self.edges = defaultdict(list)
         self.catch_edges = defaultdict(list)
         self.reverse_edges = defaultdict(list)
         self.reverse_catch_edges = defaultdict(list)
@@ -52,18 +45,14 @@ class Graph:
         return self.edges.get(node, []) + self.catch_edges.get(node, [])
 
     def preds(self, node):
-        return [n for n in self.reverse_edges.get(node, []) if not n.in_catch]
+        return [n for n in self.reverse_edges.get(node, [])
+                if not n.in_catch]
 
     def all_preds(self, node):
-        return (self.reverse_edges.get(node, []) + self.reverse_catch_edges.get(
-            node, []))
+        return (self.reverse_edges.get(node, []) +
+                self.reverse_catch_edges.get(node, []))
 
     def add_node(self, node):
-        """
-        Adds the given node to the graph, without connecting it to anyhting else.
-
-        :param androguard.decompiler.dad.node.Node node: node to add
-        """
         self.nodes.append(node)
 
     def add_edge(self, e1, e2):
@@ -83,11 +72,6 @@ class Graph:
             lpreds.append(e1)
 
     def remove_node(self, node):
-        """
-        Remove the node from the graph, removes also all connections.
-
-        :param androguard.decompiler.dad.node.Node node: the node to remove
-        """
         preds = self.reverse_edges.get(node, [])
         for pred in preds:
             self.edges[pred].remove(node)
@@ -124,7 +108,7 @@ class Graph:
         return self.loc_to_ins.get(loc)
 
     def get_node_from_loc(self, loc):
-        for (start, end), node in self.loc_to_node.items():
+        for (start, end), node in self.loc_to_node.iteritems():
             if start <= loc <= end:
                 return node
 
@@ -134,52 +118,38 @@ class Graph:
         self.loc_to_ins.pop(loc)
 
     def compute_rpo(self):
-        """
+        '''
         Number the nodes in reverse post order.
         An RPO traversal visit as many predecessors of a node as possible
         before visiting the node itself.
-        """
+        '''
         nb = len(self.nodes) + 1
         for node in self.post_order():
             node.num = nb - node.po
         self.rpo = sorted(self.nodes, key=lambda n: n.num)
 
     def post_order(self):
-        """
-        Yields the :class`~androguard.decompiler.dad.node.Node`s of the graph in post-order i.e we visit all the
+        '''
+        Return the nodes of the graph in post-order i.e we visit all the
         children of a node before visiting the node itself.
-        """
+        '''
         def _visit(n, cnt):
             visited.add(n)
             for suc in self.all_sucs(n):
-                if suc not in visited:
+                if not suc in visited:
                     for cnt, s in _visit(suc, cnt):
                         yield cnt, s
             n.po = cnt
             yield cnt + 1, n
-
         visited = set()
         for _, node in _visit(self.entry, 1):
             yield node
 
     def draw(self, name, dname, draw_branches=True):
-        """
-        Writes the current graph as a PNG file
-
-        :param str name: filename (without .png)
-        :param str dname: directory of the output png
-        :param draw_branches:
-        :return:
-        """
         from pydot import Dot, Edge
-        import os
-
         g = Dot()
-        g.set_node_defaults(color='lightgray',
-                            style='filled',
-                            shape='box',
-                            fontname='Courier',
-                            fontsize='10')
+        g.set_node_defaults(color='lightgray', style='filled', shape='box',
+                            fontname='Courier', fontsize='10')
         for node in sorted(self.nodes, key=lambda x: x.num):
             if draw_branches and node.type.is_cond:
                 g.add_edge(Edge(str(node), str(node.true), color='green'))
@@ -188,12 +158,10 @@ class Graph:
                 for suc in self.sucs(node):
                     g.add_edge(Edge(str(node), str(suc), color='blue'))
             for except_node in self.catch_edges.get(node, []):
-                g.add_edge(Edge(str(node),
-                                str(except_node),
-                                color='black',
-                                style='dashed'))
+                g.add_edge(Edge(str(node), str(except_node),
+                                color='black', style='dashed'))
 
-        g.write(os.path.join(dname, '%s.png' % name), format='png')
+        g.write_png('%s/%s.png' % (dname, name))
 
     def immediate_dominators(self):
         return dom_lt(self)
@@ -210,10 +178,10 @@ class Graph:
 
 
 def split_if_nodes(graph):
-    """
+    '''
     Split IfNodes in two nodes, the first node is the header node, the
     second one is only composed of the jump condition.
-    """
+    '''
     node_map = {n: n for n in graph}
     to_update = set()
     for node in graph.nodes[:]:
@@ -273,13 +241,13 @@ def split_if_nodes(graph):
 
 
 def simplify(graph):
-    """
+    '''
     Simplify the CFG by merging/deleting statement nodes when possible:
     If statement B follows statement A and if B has no other predecessor
     besides A, then we can merge A and B into a new statement node.
     We also remove nodes which do nothing except redirecting the control
     flow (nodes which only contains a goto).
-    """
+    '''
     redo = True
     while redo:
         redo = False
@@ -293,7 +261,7 @@ def simplify(graph):
                 suc = sucs[0]
                 if len(node.get_ins()) == 0:
                     if any(pred.type.is_switch
-                           for pred in graph.all_preds(node)):
+                            for pred in graph.all_preds(node)):
                         continue
                     if node is suc:
                         continue
@@ -309,9 +277,10 @@ def simplify(graph):
                     if node is graph.entry:
                         graph.entry = suc
                     graph.remove_node(node)
-                elif (suc.type.is_stmt and len(graph.all_preds(suc)) == 1 and
-                          not (suc in graph.catch_edges) and not (
-                            (node is suc) or (suc is graph.entry))):
+                elif (suc.type.is_stmt and
+                      len(graph.all_preds(suc)) == 1 and
+                      not (suc in graph.catch_edges) and
+                      not ((node is suc) or (suc is graph.entry))):
                     ins_to_merge = suc.get_ins()
                     node.add_ins(ins_to_merge)
                     for var in suc.var_to_declare:
@@ -330,8 +299,7 @@ def simplify(graph):
 
 
 def dom_lt(graph):
-    """Dominator algorithm from Lengauer-Tarjan"""
-
+    '''Dominator algorithm from Lengaeur-Tarjan'''
     def _dfs(v, n):
         semi[v] = n = n + 1
         vertex[n] = label[v] = v
@@ -367,16 +335,16 @@ def dom_lt(graph):
     # Step 1:
     semi = {v: 0 for v in graph.nodes}
     n = _dfs(graph.entry, 0)
-    for i in range(n, 1, -1):
+    for i in xrange(n, 1, -1):
         w = vertex[i]
-        # Step 2:
+    # Step 2:
         for v in pred[w]:
             u = _eval(v)
             y = semi[w] = min(semi[w], semi[u])
         bucket[vertex[y]].add(w)
         pw = parent[w]
         _link(pw, w)
-        # Step 3:
+    # Step 3:
         bpw = bucket[pw]
         while bpw:
             v = bpw.pop()
@@ -393,15 +361,8 @@ def dom_lt(graph):
 
 
 def bfs(start):
-    """
-    Breadth first search
-
-    Yields all nodes found from the starting point
-
-    :param start: start node
-    """
     to_visit = [start]
-    visited = {start}
+    visited = set([start])
     while to_visit:
         node = to_visit.pop(0)
         yield node
@@ -416,7 +377,7 @@ def bfs(start):
                 visited.add(child)
 
 
-class GenInvokeRetName:
+class GenInvokeRetName(object):
     def __init__(self):
         self.num = 0
         self.ret = None
@@ -442,8 +403,8 @@ def make_node(graph, block, block_to_node, vmap, gen_ret):
         for _type, _, exception_target in block.exception_analysis.exceptions:
             exception_node = block_to_node.get(exception_target)
             if exception_node is None:
-                exception_node = build_node_from_block(exception_target, vmap,
-                                                       gen_ret, _type)
+                exception_node = build_node_from_block(exception_target,
+                                                        vmap, gen_ret, _type)
                 exception_node.set_catch_type(_type)
                 exception_node.in_catch = True
                 block_to_node[exception_target] = exception_node
@@ -457,9 +418,9 @@ def make_node(graph, block, block_to_node, vmap, gen_ret):
         if node.type.is_switch:
             node.add_case(child_node)
         if node.type.is_cond:
-            if_target = ((block.end // 2) -
-                         (block.last_length // 2) + node.off_last_ins)
-            child_addr = child_block.start // 2
+            if_target = ((block.end / 2) - (block.last_length / 2) +
+                          node.off_last_ins)
+            child_addr = child_block.start / 2
             if if_target == child_addr:
                 node.true = child_node
             else:
@@ -477,15 +438,6 @@ def make_node(graph, block, block_to_node, vmap, gen_ret):
 
 
 def construct(start_block, vmap, exceptions):
-    """
-    Constructs a CFG
-
-    :param androguard.core.analysis.analysis.DVMBasicBlock start_block: The startpoint
-    :param vmap: variable mapping
-    :param exceptions: list of androguard.core.analysis.analysis.ExceptionAnalysis
-
-    :rtype: Graph
-    """
     bfs_blocks = bfs(start_block)
 
     graph = Graph()
@@ -510,13 +462,11 @@ def construct(start_block, vmap, exceptions):
     graph.number_ins()
 
     for node in graph.rpo:
-        preds = [pred for pred in graph.all_preds(node) if pred.num < node.num]
+        preds = [pred for pred in graph.all_preds(node)
+                 if pred.num < node.num]
         if preds and all(pred.in_catch for pred in preds):
             node.in_catch = True
 
-    # FIXME: We have seen samples in the wild which have multiple exit nodes!
-    #        This seems to be not necessarily a obfuscation method, but rather some
-    #        speciality with certain compilers!
     # Create a list of Node which are 'return' node
     # There should be one and only one node of this type
     # If this is not the case, try to continue anyway by setting the exit node

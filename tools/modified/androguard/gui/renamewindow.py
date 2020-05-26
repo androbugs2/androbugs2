@@ -1,28 +1,28 @@
-from PyQt5 import QtWidgets
+from PySide import QtCore, QtGui
+from tools.modified.androguard.core import androconf
 
-
-class RenameDialog(QtWidgets.QDialog):
-    """
+class RenameDialog(QtGui.QDialog):
+    '''
         parent: SourceWindow that started the new XrefDialog
-    """
+    '''
 
     def __init__(self, parent=None, win=None, element="", info=()):
-        super().__init__(parent)
-
+        super(RenameDialog, self).__init__(parent)
+    
         self.sourceWin = parent
         self.info = info
         self.element = element
         title = "Rename: " + element
         self.setWindowTitle(title)
 
-        layout = QtWidgets.QGridLayout()
-        question = QtWidgets.QLabel("Please enter new name:")
+        layout = QtGui.QGridLayout()
+        question = QtGui.QLabel("Please enter new name:")
         layout.addWidget(question, 0, 0)
-        self.lineEdit = QtWidgets.QLineEdit()
+        self.lineEdit = QtGui.QLineEdit()
         layout.addWidget(self.lineEdit, 0, 1)
-        self.buttonOK = QtWidgets.QPushButton("OK", self)
+        self.buttonOK = QtGui.QPushButton("OK", self)
         layout.addWidget(self.buttonOK, 1, 1)
-        self.buttonCancel = QtWidgets.QPushButton("Cancel", self)
+        self.buttonCancel = QtGui.QPushButton("Cancel", self)
         layout.addWidget(self.buttonCancel, 1, 0)
 
         self.lineEdit.setText(self.element)
@@ -36,6 +36,6 @@ class RenameDialog(QtWidgets.QDialog):
         self.close()
 
     def okClicked(self):
-        self.sourceWin.renameElement(self.element, self.lineEdit.text(),
-                                     self.info)
+        self.sourceWin.renameElement(self.element, self.lineEdit.text(), self.info)
         self.close()
+    

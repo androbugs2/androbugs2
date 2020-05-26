@@ -17,26 +17,30 @@
 
 import logging
 from collections import defaultdict
-from androguard.decompiler.dad.basic_blocks import (
-    CatchBlock, Condition, LoopBlock, ShortCircuitBlock, TryBlock)
-from androguard.decompiler.dad.graph import Graph
-from androguard.decompiler.dad.node import Interval
-from androguard.decompiler.dad.util import common_dom
+from tools.modified.androguard.decompiler.dad.basic_blocks import (CatchBlock,
+                                                    Condition,
+                                                    LoopBlock,
+                                                    ShortCircuitBlock,
+                                                    TryBlock)
+from tools.modified.androguard.decompiler.dad.graph import Graph
+from tools.modified.androguard.decompiler.dad.node import Interval
+from tools.modified.androguard.decompiler.dad.util import common_dom
+
 
 logger = logging.getLogger('dad.control_flow')
 
 
 def intervals(graph):
-    """
+    '''
     Compute the intervals of the graph
     Returns
-    interval_graph: a graph of the intervals of G
-    interv_heads: a dict of (header node, interval)
-    """
+        interval_graph: a graph of the intervals of G
+        interv_heads: a dict of (header node, interval)
+    '''
     interval_graph = Graph()  # graph of intervals
     heads = [graph.entry]  # list of header nodes
     interv_heads = {}  # interv_heads[i] = interval of header i
-    processed = {i: False for i in graph}
+    processed = dict([(i, False) for i in graph])
     edges = defaultdict(list)
 
     while heads:
@@ -54,7 +58,7 @@ def intervals(graph):
                 change = False
                 for node in graph.rpo[1:]:
                     if all(
-                                    p in interv_heads[head] for p in graph.all_preds(node)):
+                      p in interv_heads[head] for p in graph.all_preds(node)):
                         change |= interv_heads[head].add_node(node)
 
             # At this stage, a node which is not in the interval, but has one
@@ -63,9 +67,9 @@ def intervals(graph):
             for node in graph:
                 if node not in interv_heads[head] and node not in heads:
                     if any(
-                                    p in interv_heads[head] for p in graph.all_preds(node)):
+                      p in interv_heads[head] for p in graph.all_preds(node)):
                         edges[interv_heads[head]].append(node)
-                        assert (node not in heads)
+                        assert(node not in heads)
                         heads.append(node)
 
             interval_graph.add_node(interv_heads[head])
@@ -84,12 +88,12 @@ def intervals(graph):
 
 
 def derived_sequence(graph):
-    """
+    '''
     Compute the derived sequence of the graph G
     The intervals of G are collapsed into nodes, intervals of these nodes are
     built, and the process is repeated iteratively until we obtain a single
     node (if the graph is not irreducible)
-    """
+    '''
     deriv_seq = [graph]
     deriv_interv = []
     single_node = False
@@ -164,12 +168,12 @@ def loop_follow(start, end, nodes_in_loop):
         num_next = float('inf')
         for node in nodes_in_loop:
             if node.type.is_cond:
-                if (node.true.num < num_next and
-                            node.true not in nodes_in_loop):
+                if (node.true.num < num_next
+                        and node.true not in nodes_in_loop):
                     follow = node.true
                     num_next = follow.num
-                elif (node.false.num < num_next and
-                              node.false not in nodes_in_loop):
+                elif (node.false.num < num_next
+                        and node.false not in nodes_in_loop):
                     follow = node.false
                     num_next = follow.num
     start.follow['loop'] = follow
@@ -183,7 +187,7 @@ def loop_struct(graphs_list, intervals_list):
     first_graph = graphs_list[0]
     for i, graph in enumerate(graphs_list):
         interval = intervals_list[i]
-        for head in sorted(list(interval.keys()), key=lambda x: x.num):
+        for head in sorted(interval.keys(), key=lambda x: x.num):
             loop_nodes = []
             for node in graph.all_preds(head):
                 if node.interval is head.interval:
@@ -199,7 +203,7 @@ def if_struct(graph, idoms):
     for node in graph.post_order():
         if node.type.is_cond:
             ldominates = []
-            for n, idom in idoms.items():
+            for n, idom in idoms.iteritems():
                 if node is idom and len(graph.reverse_edges.get(n, [])) > 1:
                     ldominates.append(n)
             if len(ldominates) > 0:
@@ -223,7 +227,7 @@ def switch_struct(graph, idoms):
                 if idoms[suc] is not node:
                     m = common_dom(idoms, node, suc)
             ldominates = []
-            for n, dom in idoms.items():
+            for n, dom in idoms.iteritems():
                 if m is dom and len(graph.all_preds(n)) > 1:
                     ldominates.append(n)
             if len(ldominates) > 0:
@@ -252,11 +256,11 @@ def short_circuit_struct(graph, idom, node_map):
 
         entry = graph.entry in (node1, node2)
 
-        new_name = '{}+{}'.format(node1.name, node2.name)
+        new_name = '%s+%s' % (node1.name, node2.name)
         condition = Condition(node1, node2, is_and, is_not)
 
         new_node = ShortCircuitBlock(new_name, condition)
-        for old_n, new_n in node_map.items():
+        for old_n, new_n in node_map.iteritems():
             if new_n in (node1, node2):
                 node_map[old_n] = new_node
         node_map[node1] = new_node
@@ -396,7 +400,7 @@ def catch_struct(graph, idoms):
 
 
 def update_dom(idoms, node_map):
-    for n, dom in idoms.items():
+    for n, dom in idoms.iteritems():
         idoms[n] = node_map.get(dom, dom)
 
 
@@ -424,7 +428,8 @@ def identify_structures(graph, idoms):
         loop_follow(node, node.latch, node.loop_nodes)
 
     for node in if_unresolved:
-        follows = [n for n in (node.follow['loop'], node.follow['switch']) if n]
+        follows = [n for n in (node.follow['loop'],
+                               node.follow['switch']) if n]
         if len(follows) >= 1:
             follow = min(follows, key=lambda x: x.num)
             node.follow['if'] = follow
