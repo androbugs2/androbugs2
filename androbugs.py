@@ -912,8 +912,8 @@ def get_hashes_by_filename(filename):
     sha1 = None
     sha256 = None
     sha512 = None
-    with open(filename) as f:
-        data = f.read()
+    with open(filename, 'r', encoding='ISO-8859-1') as f:
+        data = f.read().encode()
         md5 = hashlib.md5(data).hexdigest()
         sha1 = hashlib.sha1(data).hexdigest()
         sha256 = hashlib.sha256(data).hexdigest()
@@ -1084,7 +1084,7 @@ def __analyze(writer, args):
 
     if args.store_analysis_result_in_db:
         try:
-            imp.find_module('pymongo')
+            importlib.util.find_spec('pymongo')
             found_pymongo_lib = True
         except ImportError:
             found_pymongo_lib = False
@@ -1177,7 +1177,8 @@ def __analyze(writer, args):
 
     writer.update_analyze_status("starting_analyze")
 
-    vmx = analysis.VMAnalysis(d)
+    # vmx = analysis.VMAnalysis(d)
+    vmx = analysis.Analysis(d)
 
     writer.update_analyze_status("starting_androbugs")
 
@@ -1214,7 +1215,7 @@ def __analyze(writer, args):
                             "http://hostname/"]
 
     for line in allstrings:
-        if re.match('http\:\/\/(.+)', line):  # ^https?\:\/\/(.+)$
+        if re.match('http\:\/\/(.+)', line.decode('ISO-8859-1')):  # ^https?\:\/\/(.+)$
             allurls_strip_duplicated.append(line)
 
     allurls_strip_non_duplicated = sorted(set(allurls_strip_duplicated))
@@ -3798,7 +3799,7 @@ def get_hash_scanning(writer):
     # use "-" because aaa-bbb.com is not a valid domain name
     tmp_original = writer.getInf("package_name", "pkg") + "-" + writer.getInf("file_sha256", "sha256") + "-" + str(
         time.time()) + "-" + str(random.randrange(10000000, 99999999))
-    tmp_hash = hashlib.sha512(tmp_original).hexdigest()
+    tmp_hash = hashlib.sha512(tmp_original.encode()).hexdigest()
     return tmp_hash
 
 
@@ -3806,7 +3807,7 @@ def get_hash_exception(writer):
     # signature = hash(analyze_error_id(default="") + "-" + file_sha256(default="") + "-" + timestamp_long + "-" + random_number_length8)
     tmp_original = writer.getInf("analyze_error_id", "err") + "-" + writer.getInf("file_sha256", "sha256") + "-" + str(
         time.time()) + "-" + str(random.randrange(10000000, 99999999))
-    tmp_hash = hashlib.sha512(tmp_original).hexdigest()
+    tmp_hash = hashlib.sha512(tmp_original.encode()).hexdigest()
     return tmp_hash
 
 
