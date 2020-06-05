@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
-
-from tools.modified.androguard.core.bytecodes import apk
-from tools.modified.androguard.core.bytecodes import dvm
-from tools.modified.androguard.core.analysis import analysis
-from tools.modified.androguard.core import bytecode
+from tools.modified.androguard.androguard.core.bytecodes import apk
+from tools.modified.androguard.androguard.core.bytecodes import dvm
+from tools.modified.androguard.androguard.core.analysis import analysis
+from tools.modified.androguard.androguard.core import bytecode
 import uuid
 import os
 import re
@@ -20,7 +19,7 @@ import argparse
 from zipfile import BadZipfile
 from configparser import SafeConfigParser
 import platform
-import imp
+import importlib
 import sys
 
 """
