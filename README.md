@@ -17,6 +17,8 @@ Version: 1.0.0
 ## Setup:
 In the folder create a virtual environment: `python3 -m venv venv` and activate the virtual environment: `source venv/bin/activate`
 
+Install requirements by running `pip -r requirements.txt` (It is now possible to use pip and python instead of pip3 and python3 since we have activated the virtual environment. The requirements will be installed locally in the folder `venv/lib/python3.7/site-packages`)
+
 ## Author
 
 - Yu-Cheng Lin  (androbugs.framework at gmail.com, @AndroBugs)
