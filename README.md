@@ -5,7 +5,7 @@ No splendid GUI interface, but the most efficient (less than 2 minutes per scan 
 
 Version: 1.0.0
 
-####Features:####
+## Features:
 
 - Find security vulnerabilities in an Android app
 - Check if the code is missing best practices
@@ -14,10 +14,10 @@ Version: 1.0.0
 - Check the app’s security protection (marked as ```<Hacker>```, designed for app repackaging hacking)
 
 
-####Setup:####
+## Setup:
 In the folder create a virtual environment: `python3 -m venv venv` and activate the virtual environment: `source venv/bin/activate`
 
-##Author
+## Author
 
 - Yu-Cheng Lin  (androbugs.framework at gmail.com, @AndroBugs)
 
