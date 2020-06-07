@@ -14,6 +14,9 @@ Version: 1.0.0
 - Check the app’s security protection (marked as ```<Hacker>```, designed for app repackaging hacking)
 
 
+####Setup:####
+In the folder create a virtual environment: `python3 -m venv venv` and activate the virtual environment: `source venv/bin/activate`
+
 ##Author
 
 - Yu-Cheng Lin  (androbugs.framework at gmail.com, @AndroBugs)
