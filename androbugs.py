@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from tools.modified.androguard.androguard.core.bytecodes import apk
-from tools.modified.androguard.androguard.core.bytecodes import dvm
-from tools.modified.androguard.androguard.core.analysis import analysis
-from tools.modified.androguard.androguard.core import bytecode
-import uuid
+# from androguard.core.bytecodes import apk
+# from androguard.core.bytecodes import dvm
+from androguard.core.analysis import analysis
+from androguard import misc
 import os
 import re
 import time
@@ -256,7 +255,7 @@ class Writer:
         self.__output_current_tag = tag
 
         assert ((tag is not None) and (level is not None) and (summary is not None) and (
-                    title_msg is not None)), "\"tag\", \"level\", \"summary\", \"title_msg\" should all have it's value."
+                title_msg is not None)), "\"tag\", \"level\", \"summary\", \"title_msg\" should all have it's value."
 
         if tag not in self.__output_dict_vector_result_information:
             self.__output_dict_vector_result_information[tag] = []
@@ -542,7 +541,7 @@ class Writer:
 
             if args.show_vector_id:
                 self.output("[%s] %s %s (Vector ID: %s):" % (
-                dict_information["level"], extra_field, dict_information["summary"], tag))
+                    dict_information["level"], extra_field, dict_information["summary"], tag))
             else:
                 self.output("[%s] %s %s:" % (dict_information["level"], extra_field, dict_information["summary"]))
 
@@ -817,7 +816,8 @@ class FilteringEngine:
         paths = self.filter_list_of_paths(vm, paths)
         for i in analysis.trace_Register_value_by_Param_in_source_Paths(vm, paths):
             if (i.getResult()[result_idx] is None) or (
-            not i.is_class_container(result_idx)):  # If parameter 0 is a class_container type (ex: Lclass/name;)
+                    not i.is_class_container(
+                        result_idx)):  # If parameter 0 is a class_container type (ex: Lclass/name;)
                 continue
             class_container = i.getResult()[result_idx]
             class_name = class_container.get_class_name()
@@ -1108,7 +1108,8 @@ def __analyze(writer, args):
 
     writer.writeInf_ForceNoPrint("time_starting_analyze", datetime.utcnow())
 
-    a = apk.APK(apk_Path)
+    # a = apk.APK(apk_Path)
+    a, d, dx = misc.AnalyzeAPK(apk_Path)
 
     writer.update_analyze_status("starting_apk")
 
@@ -1173,12 +1174,11 @@ def __analyze(writer, args):
 
     writer.update_analyze_status("starting_dvm")
 
-    d = dvm.DalvikVMFormat(a.get_dex())
+    # d = dvm.DalvikVMFormat(a.get_dex())
 
     writer.update_analyze_status("starting_analyze")
 
-    # vmx = analysis.VMAnalysis(d)
-    vmx = analysis.Analysis(d)
+    # dx = analysis.Analysis(d)
 
     writer.update_analyze_status("starting_androbugs")
 
@@ -1297,7 +1297,7 @@ def __analyze(writer, args):
                         for result_method in result_method_list:  # strip duplicated item
                             if filteringEngine.is_class_name_not_in_exclusion(result_method.get_class_name()):
                                 source_classes_and_functions = (
-                                            result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+                                        result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
                                 writer.write("    => " + source_classes_and_functions)
 
             except KeyError:
@@ -1449,7 +1449,7 @@ def __analyze(writer, args):
 
 	"""
     list_detected_FLAG_DEBUGGABLE_path = []
-    field_ApplicationInfo_flags_debuggable = vmx.get_tainted_field("Landroid/content/pm/ApplicationInfo;", "flags", "I")
+    field_ApplicationInfo_flags_debuggable = dx.find_fields("Landroid/content/pm/ApplicationInfo;", "flags", "I")
 
     if field_ApplicationInfo_flags_debuggable:
         for path, stack in field_ApplicationInfo_flags_debuggable.get_paths_and_stacks(d,
@@ -1575,12 +1575,12 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     # Find network methods:
 
     # pkg_xxx is a 'PathP' object
-    pkg_URLConnection = vmx.get_tainted_packages().search_packages("Ljava/net/URLConnection;")
-    pkg_HttpURLConnection = vmx.get_tainted_packages().search_packages("Ljava/net/HttpURLConnection;")
-    pkg_HttpsURLConnection = vmx.get_tainted_packages().search_packages("Ljavax/net/ssl/HttpsURLConnection;")
-    pkg_DefaultHttpClient = vmx.get_tainted_packages().search_packages(
+    pkg_URLConnection = dx.is_class_present("Ljava/net/URLConnection;")
+    pkg_HttpURLConnection = dx.is_class_present("Ljava/net/HttpURLConnection;")
+    pkg_HttpsURLConnection = dx.is_class_present("Ljavax/net/ssl/HttpsURLConnection;")
+    pkg_DefaultHttpClient = dx.is_class_present(
         "Lorg/apache/http/impl/client/DefaultHttpClient;")
-    pkg_HttpClient = vmx.get_tainted_packages().search_packages("Lorg/apache/http/client/HttpClient;")
+    pkg_HttpClient = dx.is_class_present("Lorg/apache/http/client/HttpClient;")
 
     pkg_URLConnection = filteringEngine.filter_list_of_paths(d, pkg_URLConnection)
     pkg_HttpURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpURLConnection)
@@ -1668,7 +1668,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
                 for class_name, result_method_list in list(dict_class_to_method_mapping.items()):
                     for result_method in result_method_list:
                         source_classes_and_functions = (
-                                    result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+                                result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
                         writer.write("    ->From class: " + source_classes_and_functions)
 
             if "http://" in decoded_string:
@@ -1696,7 +1696,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
                     for class_name, result_method_list in list(dict_class_to_method_mapping.items()):
                         for result_method in result_method_list:
                             source_classes_and_functions = (
-                                        result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+                                    result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
                             writer.write("    ->From class: " + source_classes_and_functions)
 
     else:
@@ -1707,7 +1707,7 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     # WebView addJavascriptInterface checking:
 
     # Don't match class name because it might use the subclass of WebView
-    path_WebView_addJavascriptInterface = vmx.get_tainted_packages().search_methods_exact_match(
+    path_WebView_addJavascriptInterface = dx.get_tainted_packages().search_methods_exact_match(
         "addJavascriptInterface", "(Ljava/lang/Object; Ljava/lang/String;)V")
     path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d, path_WebView_addJavascriptInterface)
 
@@ -1739,7 +1739,7 @@ Please modify the below code:"""
     list_no_pwd_keystore = []
     list_protected_keystore = []
 
-    path_KeyStore = vmx.get_tainted_packages().search_class_methods_exact_match("Ljava/security/KeyStore;", "load",
+    path_KeyStore = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/security/KeyStore;", "load",
                                                                                 "(Ljava/io/InputStream; [C)V")
     path_KeyStore = filteringEngine.filter_list_of_paths(d, path_KeyStore)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_KeyStore):
@@ -1808,12 +1808,12 @@ Please modify the below code:"""
 		"""
         if name.endswith(".bks") or name.endswith(".jks"):
             if (name.startswith("res/")) and (
-            not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw"
+                    not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw"
                 continue
             list_keystore_file_name.append(name)
         elif ("keystore" in name) or ("cert" in name):
             if (name.startswith("res/")) and (
-            not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw
+                    not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw
                 continue
             list_possible_keystore_file_name.append(name)
 
@@ -1844,7 +1844,7 @@ Please modify the below code:"""
 	"""
 
     list_Non_BKS_keystore = []
-    path_BKS_KeyStore = vmx.get_tainted_packages().search_class_methods_exact_match("Ljava/security/KeyStore;",
+    path_BKS_KeyStore = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/security/KeyStore;",
                                                                                     "getInstance",
                                                                                     "(Ljava/lang/String;)Ljava/security/KeyStore;")
     path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore)
@@ -1878,7 +1878,7 @@ Please modify the below code:"""
 	"""
 
     list_PackageInfo_signatures = []
-    path_PackageInfo_signatures = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_PackageInfo_signatures = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/content/pm/PackageManager;", "getPackageInfo",
         "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")
     path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d, path_PackageInfo_signatures)
@@ -1914,7 +1914,7 @@ Please modify the below code:"""
 	"""
 
     list_code_for_preventing_screen_capture = []
-    path_code_for_preventing_screen_capture = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_code_for_preventing_screen_capture = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/view/Window;", "setFlags", "(I I)V")
     path_code_for_preventing_screen_capture = filteringEngine.filter_list_of_paths(d,
                                                                                    path_code_for_preventing_screen_capture)
@@ -1954,7 +1954,7 @@ It is used by the developers to protect the app:""", ["Hacker"])
 
     list_Runtime_exec = []
 
-    path_Runtime_exec = vmx.get_tainted_packages().search_class_methods_exact_match("Ljava/lang/Runtime;", "exec",
+    path_Runtime_exec = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/lang/Runtime;", "exec",
                                                                                     "(Ljava/lang/String;)Ljava/lang/Process;")
     path_Runtime_exec = filteringEngine.filter_list_of_paths(d, path_Runtime_exec)
 
@@ -2008,9 +2008,9 @@ It is used by the developers to protect the app:""", ["Hacker"])
     # (1)inner class checking
 
     # First, find out who calls it
-    path_HOSTNAME_INNER_VERIFIER = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_HOSTNAME_INNER_VERIFIER = dx.get_tainted_packages().search_class_methods_exact_match(
         "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "(Ljavax/net/ssl/HostnameVerifier;)V")
-    path_HOSTNAME_INNER_VERIFIER2 = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_HOSTNAME_INNER_VERIFIER2 = dx.get_tainted_packages().search_class_methods_exact_match(
         "Lorg/apache/http/conn/ssl/SSLSocketFactory;", "setHostnameVerifier",
         "(Lorg/apache/http/conn/ssl/X509HostnameVerifier;)V")
     path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
@@ -2075,8 +2075,8 @@ Please check the code inside these methods:"""
     else:
         path_HOSTNAME_INNER_VERIFIER_new_instance = None
 
-    # "vmx.get_tainted_field" will return "None" if nothing found
-    field_ALLOW_ALL_HOSTNAME_VERIFIER = vmx.get_tainted_field("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
+    # "dx.get_tainted_field" will return "None" if nothing found
+    field_ALLOW_ALL_HOSTNAME_VERIFIER = dx.get_tainted_field("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
                                                               "ALLOW_ALL_HOSTNAME_VERIFIER",
                                                               "Lorg/apache/http/conn/ssl/X509HostnameVerifier;")
 
@@ -2136,7 +2136,7 @@ Please check the code inside these methods:"""
     # SSL getInsecure
 
     list_getInsecure = []
-    path_getInsecure = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_getInsecure = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
         "(I Landroid/net/SSLSessionCache;)Ljavax/net/ssl/SSLSocketFactory;")
     path_getInsecure = filteringEngine.filter_list_of_paths(d, path_getInsecure)
@@ -2171,7 +2171,7 @@ Please remove the insecure code:"""
 	"""
 
     list_HttpHost_scheme_http = []
-    path_HttpHost_scheme_http = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_HttpHost_scheme_http = dx.get_tainted_packages().search_class_methods_exact_match(
         "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
     path_HttpHost_scheme_http = filteringEngine.filter_list_of_paths(d, path_HttpHost_scheme_http)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_HttpHost_scheme_http):
@@ -2195,7 +2195,7 @@ Please remove the insecure code:"""
     # WebViewClient onReceivedSslError errors
 
     # First, find out who calls setWebViewClient
-    path_webviewClient_new_instance = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_webviewClient_new_instance = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/webkit/WebView;", "setWebViewClient", "(Landroid/webkit/WebViewClient;)V")
     dic_webviewClient_new_instance = filteringEngine.get_class_container_dict_by_new_instance_classname_in_paths(d,
                                                                                                                  analysis,
@@ -2251,7 +2251,7 @@ Vulnerable codes:
 	"""
 
     list_setJavaScriptEnabled_XSS = []
-    path_setJavaScriptEnabled_XSS = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_setJavaScriptEnabled_XSS = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
     path_setJavaScriptEnabled_XSS = filteringEngine.filter_list_of_paths(d, path_setJavaScriptEnabled_XSS)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_setJavaScriptEnabled_XSS):
@@ -2291,14 +2291,14 @@ Vulnerable codes:
 
     if (int_min_sdk is not None) and (int_min_sdk <= 8):
 
-        pkg_HttpURLConnection = vmx.get_tainted_packages().search_packages("Ljava/net/HttpURLConnection;")
+        pkg_HttpURLConnection = dx.is_class_present("Ljava/net/HttpURLConnection;")
         pkg_HttpURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpURLConnection)
 
         # Check only when using the HttpURLConnection
         if pkg_HttpURLConnection:
 
             list_pre_Froyo_HttpURLConnection = []
-            path_pre_Froyo_HttpURLConnection = vmx.get_tainted_packages().search_class_methods_exact_match(
+            path_pre_Froyo_HttpURLConnection = dx.get_tainted_packages().search_class_methods_exact_match(
                 "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
             path_pre_Froyo_HttpURLConnection = filteringEngine.filter_list_of_paths(d, path_pre_Froyo_HttpURLConnection)
 
@@ -2354,7 +2354,7 @@ Please check the reference:
 
     if (int_min_sdk is not None) and (int_min_sdk < 11):
 
-        path_SQLiteDatabase_beginTransactionNonExclusive = vmx.get_tainted_packages().search_class_methods_exact_match(
+        path_SQLiteDatabase_beginTransactionNonExclusive = dx.get_tainted_packages().search_class_methods_exact_match(
             "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "()V")
         path_SQLiteDatabase_beginTransactionNonExclusive = filteringEngine.filter_list_of_paths(d,
                                                                                                 path_SQLiteDatabase_beginTransactionNonExclusive)
@@ -2408,35 +2408,35 @@ Please check the reference:
     list_path_getSharedPreferences = []
     list_path_openFileOutput = []
 
-    path_openOrCreateDatabase = vmx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
+    path_openOrCreateDatabase = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
                                                                                       "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;)Landroid/database/sqlite/SQLiteDatabase;")
     path_openOrCreateDatabase = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_openOrCreateDatabase.append(i.getPath())
 
-    path_openOrCreateDatabase2 = vmx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
+    path_openOrCreateDatabase2 = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
                                                                                        "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;")
     path_openOrCreateDatabase2 = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase2)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase2):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_openOrCreateDatabase2.append(i.getPath())
 
-    path_getDir = vmx.get_tainted_packages().search_methods_exact_match("getDir",
+    path_getDir = dx.get_tainted_packages().search_methods_exact_match("getDir",
                                                                         "(Ljava/lang/String; I)Ljava/io/File;")
     path_getDir = filteringEngine.filter_list_of_paths(d, path_getDir)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getDir):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_getDir.append(i.getPath())
 
-    path_getSharedPreferences = vmx.get_tainted_packages().search_methods_exact_match("getSharedPreferences",
+    path_getSharedPreferences = dx.get_tainted_packages().search_methods_exact_match("getSharedPreferences",
                                                                                       "(Ljava/lang/String; I)Landroid/content/SharedPreferences;")
     path_getSharedPreferences = filteringEngine.filter_list_of_paths(d, path_getSharedPreferences)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getSharedPreferences):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_getSharedPreferences.append(i.getPath())
 
-    path_openFileOutput = vmx.get_tainted_packages().search_methods_exact_match("openFileOutput",
+    path_openFileOutput = dx.get_tainted_packages().search_methods_exact_match("openFileOutput",
                                                                                 "(Ljava/lang/String; I)Ljava/io/FileOutputStream;")
     path_openFileOutput = filteringEngine.filter_list_of_paths(d, path_openFileOutput)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openFileOutput):
@@ -2492,7 +2492,7 @@ Please check the reference:
 
     dic_NDK_library_classname_to_ndkso_mapping = {}
     list_NDK_library_classname_to_ndkso_mapping = []
-    path_NDK_library_classname_to_ndkso_mapping = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_NDK_library_classname_to_ndkso_mapping = dx.get_tainted_packages().search_class_methods_exact_match(
         "Ljava/lang/System;", "loadLibrary", "(Ljava/lang/String;)V")
     path_NDK_library_classname_to_ndkso_mapping = filteringEngine.filter_list_of_paths(d,
                                                                                        path_NDK_library_classname_to_ndkso_mapping)
@@ -2547,7 +2547,7 @@ Please check the reference:
             for class_name, method_names in list(dic_native_methods_sorted.items()):
                 if class_name in dic_NDK_library_classname_to_ndkso_mapping:
                     writer.write("Class: %s (Loaded NDK files: %s)" % (
-                    class_name, dic_NDK_library_classname_to_ndkso_mapping[class_name]))
+                        class_name, dic_NDK_library_classname_to_ndkso_mapping[class_name]))
                 else:
                     writer.write("Class: %s" % (class_name))
                 writer.write("   ->Methods:")
@@ -2575,7 +2575,7 @@ Please check the reference:
             if (android_name_in_application_tag == "com.secapk.wrapper.ApplicationWrapper"):
                 is_using_Framework_Bangcle = True
             else:
-                path_secapk = vmx.get_tainted_packages().search_class_methods_exact_match("Lcom/secapk/wrapper/ACall;",
+                path_secapk = dx.get_tainted_packages().search_class_methods_exact_match("Lcom/secapk/wrapper/ACall;",
                                                                                           "getACall",
                                                                                           "()Lcom/secapk/wrapper/ACall;")
                 if path_secapk:
@@ -2584,7 +2584,7 @@ Please check the reference:
         if (len(list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) == 2):
             if ("libexec.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) and (
                     "libexecmain.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location):
-                paths_ijiami_signature = vmx.get_tainted_packages().search_class_methods_exact_match(
+                paths_ijiami_signature = dx.get_tainted_packages().search_class_methods_exact_match(
                     "Lcom/shell/NativeApplication;", "load", "(Landroid/app/Application; Ljava/lang/String;)Z")
                 if paths_ijiami_signature:
                     is_using_Framework_ijiami = True
@@ -2614,7 +2614,7 @@ Please check the reference:
     # ------------------------------------------------------------------------
     # Detect dynamic code loading
 
-    paths_DexClassLoader = vmx.get_tainted_packages().search_methods("Ldalvik/system/DexClassLoader;", ".", ".")
+    paths_DexClassLoader = dx.get_tainted_packages().search_methods("Ldalvik/system/DexClassLoader;", ".", ".")
     paths_DexClassLoader = filteringEngine.filter_list_of_paths(d, paths_DexClassLoader)
     if paths_DexClassLoader:
         writer.startWriter("DYNAMIC_CODE_LOADING", LEVEL_WARNING, "Dynamic Code Loading",
@@ -2627,7 +2627,7 @@ Please check the reference:
     # ------------------------------------------------------------------------
     # Get External Storage Directory access invoke
 
-    paths_ExternalStorageAccess = vmx.get_tainted_packages().search_class_methods_exact_match(
+    paths_ExternalStorageAccess = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/os/Environment;", "getExternalStorageDirectory", "()Ljava/io/File;")
     paths_ExternalStorageAccess = filteringEngine.filter_list_of_paths(d, paths_ExternalStorageAccess)
     if paths_ExternalStorageAccess:
@@ -3085,7 +3085,7 @@ You can also protect it with a customized permission with "signature" or higher 
                         is_dangerous = True
                         break
             if (exported == "") and (int_target_sdk >= 17) and (
-            is_dangerous):  # permission is not set, it will depend on the Android system
+                    is_dangerous):  # permission is not set, it will depend on the Android system
                 list_alerting_exposing_providers_no_exported_setting.append(i)
 
         else:  # none of any permission
@@ -3218,7 +3218,7 @@ Reference: http://developer.android.com/guide/components/intents-filters.html#Ty
     # ------------------------------------------------------------------------
     # SQLite databases
 
-    is_using_android_dbs = vmx.get_tainted_packages().has_android_databases(filteringEngine.get_filtering_regexp())
+    is_using_android_dbs = dx.get_tainted_packages().has_android_databases(filteringEngine.get_filtering_regexp())
     if is_using_android_dbs:
         if int_min_sdk < 15:
             writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE, "Android SQLite Databases Vulnerability Checking",
@@ -3244,7 +3244,7 @@ Proof-Of-Concept Reference:
                            "This app is using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
                            ["Database"])
 
-        path_sqlcipher_dbs = vmx.get_tainted_packages().search_sqlcipher_databases()  # Don't do the exclusion checking on this one because it's not needed
+        path_sqlcipher_dbs = dx.get_tainted_packages().search_sqlcipher_databases()  # Don't do the exclusion checking on this one because it's not needed
 
         if path_sqlcipher_dbs:
             # Get versions:
@@ -3359,7 +3359,7 @@ Proof-Of-Concept Reference:
     # ------------------------------------------------------------------------
     # Android getting IMEI, Android_ID, UUID problem
 
-    path_Device_id = vmx.get_tainted_packages().search_class_methods_exact_match("Landroid/telephony/TelephonyManager;",
+    path_Device_id = dx.get_tainted_packages().search_class_methods_exact_match("Landroid/telephony/TelephonyManager;",
                                                                                  "getDeviceId", "()Ljava/lang/String;")
     path_Device_id = filteringEngine.filter_list_of_paths(d, path_Device_id)
 
@@ -3386,7 +3386,7 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
     # ------------------------------------------------------------------------
     # Android "android_id"
 
-    path_android_id = vmx.get_tainted_packages().search_class_methods_exact_match("Landroid/provider/Settings$Secure;",
+    path_android_id = dx.get_tainted_packages().search_class_methods_exact_match("Landroid/provider/Settings$Secure;",
                                                                                   "getString",
                                                                                   "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
     path_android_id = filteringEngine.filter_list_of_paths(d, path_android_id)
@@ -3434,7 +3434,7 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
          "(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V")
     ]
 
-    path_sms_sending = vmx.get_tainted_packages().search_class_methodlist_exact_match("Landroid/telephony/SmsManager;",
+    path_sms_sending = dx.get_tainted_packages().search_class_methodlist_exact_match("Landroid/telephony/SmsManager;",
                                                                                       list_sms_signatures)
     path_sms_sending = filteringEngine.filter_list_of_paths(d, path_sms_sending)
 
@@ -3471,7 +3471,7 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
     # ------------------------------------------------------------------------
     # File delete alert
 
-    path_FileDelete = vmx.get_tainted_packages().search_class_methods_exact_match("Ljava/io/File;", "delete", "()Z")
+    path_FileDelete = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/io/File;", "delete", "()Z")
     path_FileDelete = filteringEngine.filter_list_of_paths(d, path_FileDelete)
 
     if path_FileDelete:
@@ -3487,7 +3487,7 @@ Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
     # ------------------------------------------------------------------------
     # Check if app check for installing from Google Play
 
-    path_getInstallerPackageName = vmx.get_tainted_packages().search_class_methods_exact_match(
+    path_getInstallerPackageName = dx.get_tainted_packages().search_class_methods_exact_match(
         "Landroid/content/pm/PackageManager;", "getInstallerPackageName", "(Ljava/lang/String;)Ljava/lang/String;")
     path_getInstallerPackageName = filteringEngine.filter_list_of_paths(d, path_getInstallerPackageName)
 
@@ -3521,7 +3521,7 @@ Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
 		  }
 	"""
 
-    pkg_WebView_WebSettings = vmx.get_tainted_packages().search_packages("Landroid/webkit/WebSettings;")
+    pkg_WebView_WebSettings = dx.is_class_present("Landroid/webkit/WebSettings;")
     pkg_WebView_WebSettings = filteringEngine.filter_list_of_paths(d, pkg_WebView_WebSettings)
 
     dict_WebSettings_ClassMethod_to_Path = {}
