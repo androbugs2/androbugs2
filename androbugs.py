@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# from androguard.core.bytecodes import apk
-# from androguard.core.bytecodes import dvm
+from androguard.core.bytecodes import apk
+from androguard.core.bytecodes import dvm
 from androguard.core.analysis import analysis
 from androguard import misc
 import os
@@ -1108,8 +1108,8 @@ def __analyze(writer, args):
 
     writer.writeInf_ForceNoPrint("time_starting_analyze", datetime.utcnow())
 
-    # a = apk.APK(apk_Path)
-    a, d, dx = misc.AnalyzeAPK(apk_Path)
+    a = apk.APK(apk_Path)
+    # a, d, dx = misc.AnalyzeAPK(apk_Path)
 
     writer.update_analyze_status("starting_apk")
 
@@ -1174,11 +1174,11 @@ def __analyze(writer, args):
 
     writer.update_analyze_status("starting_dvm")
 
-    # d = dvm.DalvikVMFormat(a.get_dex())
+    d = dvm.DalvikVMFormat(a.get_dex())
 
     writer.update_analyze_status("starting_analyze")
 
-    # dx = analysis.Analysis(d)
+    dx = analysis.Analysis(d)
 
     writer.update_analyze_status("starting_androbugs")
 
@@ -1414,7 +1414,7 @@ def __analyze(writer, args):
 
     # DEBUGGABLE checking:
 
-    is_debug_open = a.is_debuggable()  # Check 'android:debuggable'
+    is_debug_open = a.get_attribute_value('application', 'debuggable') is not None  # Check 'android:debuggable'
     if is_debug_open:
         writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
                            "DEBUG mode is ON(android:debuggable=\"true\") in AndroidManifest.xml. This is very dangerous. The attackers will be able to sniffer the debug messages by Logcat. Please disable the DEBUG mode if it is a released application.",
@@ -1426,70 +1426,13 @@ def __analyze(writer, args):
 
     # ------------------------------------------------------------------------------------------------------
 
-    # Checking whether the app is checking debuggable:
+        # Checking whether the app is checking debuggable:
+    for cert in a.get_certificates():
+        if "Common Name: Android Debug" in cert.issuer.human_friendly:
+            writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
+                               "App is signed with debug certificate, indicating that debug mode may be enabled. This could potentially be dangerous if used in production environments.",
+                               ["Debug"])
 
-    """
-		Java code checking debuggable:
-			boolean isDebuggable = (0 != (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE));
-			if (isDebuggable) { }
-
-		Smali code checking debuggable:
-			invoke-virtual {p0}, Lcom/example/androiddebuggable/MainActivity;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;
-			move-result-object v1
-			iget v1, v1, Landroid/content/pm/ApplicationInfo;->flags:I
-			and-int/lit8 v1, v1, 0x2
-			if-eqz v1, :cond_0
-
-		Checking Pattern:
-			1. Find tainted calling field: Landroid/content/pm/ApplicationInfo;->flags:I
-			2. Get the next instruction of the calling field: Landroid/content/pm/ApplicationInfo;->flags:I
-			3. Check whether the next instruction is 0xDD(and-int/lit8) and make sure the register numbers are all matched
-				iget [[v1]], v1, [[[Landroid/content/pm/ApplicationInfo;->flags:I]]]
-				and-int/lit8 v1, [[v1]], [0x2]
-
-	"""
-    list_detected_FLAG_DEBUGGABLE_path = []
-    field_ApplicationInfo_flags_debuggable = dx.find_fields("Landroid/content/pm/ApplicationInfo;", "flags", "I")
-
-    if field_ApplicationInfo_flags_debuggable:
-        for path, stack in field_ApplicationInfo_flags_debuggable.get_paths_and_stacks(d,
-                                                                                       filteringEngine.get_filtering_regexp()):
-            last_one_ins = stack.gets()[-1]
-            last_two_ins = stack.gets()[-2]
-
-            if (last_one_ins is not None) and (last_two_ins is not None):
-                try:
-                    if (last_one_ins[0] == 0xDD) and (last_two_ins[1][0][1] == last_one_ins[1][1][1]) and (
-                            last_one_ins[1][2][1] == 2):  # and-int/lit8 vx,vy,lit8
-                        list_detected_FLAG_DEBUGGABLE_path.append(path)
-                    """
-						Example 1:
-							last_two_ins => [82, [(0, 1), (0, 1), (258, 16, 'Landroid/content/pm/ApplicationInfo;->flags I')]]
-							last_one_ins => [221, [(0, 1), (0, 1), (1, 2)]]
-
-						Example 2:
-							last_two_ins => [82, [(0, 2), (0, 0), (258, 896, 'Landroid/content/pm/ApplicationInfo;->flags I')]]
-							last_one_ins => [221, [(0, 2), (0, 2), (1, 2)]]
-
-						Java code:
-							stack.show()
-							print(last_one_ins)
-							print(last_two_ins)
-					"""
-                except:
-                    pass
-
-    if list_detected_FLAG_DEBUGGABLE_path:
-        writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_NOTICE, "Codes for Checking Android Debug Mode",
-                           "Found codes for checking \"ApplicationInfo.FLAG_DEBUGGABLE\" in AndroidManifest.xml:",
-                           ["Debug", "Hacker"])
-
-        for path in list_detected_FLAG_DEBUGGABLE_path:
-            writer.show_single_PathVariable(d, path)
-    else:
-        writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_INFO, "Codes for Checking Android Debug Mode",
-                           "Did not detect codes for checking \"ApplicationInfo.FLAG_DEBUGGABLE\" in AndroidManifest.xml.",
-                           ["Debug", "Hacker"])
 
     # ----------------------------------------------------------------------------------
 
@@ -1707,9 +1650,9 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     # WebView addJavascriptInterface checking:
 
     # Don't match class name because it might use the subclass of WebView
-    path_WebView_addJavascriptInterface = dx.get_tainted_packages().search_methods_exact_match(
-        "addJavascriptInterface", "(Ljava/lang/Object; Ljava/lang/String;)V")
-    path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d, path_WebView_addJavascriptInterface)
+    path_WebView_addJavascriptInterface = dx.find_methods(
+        methodname="addJavascriptInterface", descriptor="(Ljava/lang/Object; Ljava/lang/String;)V")
+    path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d, path_WebView_addJavascriptInterface) # TODO fix filtering
 
     if path_WebView_addJavascriptInterface:
 
@@ -1739,9 +1682,8 @@ Please modify the below code:"""
     list_no_pwd_keystore = []
     list_protected_keystore = []
 
-    path_KeyStore = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/security/KeyStore;", "load",
-                                                                                "(Ljava/io/InputStream; [C)V")
-    path_KeyStore = filteringEngine.filter_list_of_paths(d, path_KeyStore)
+    path_KeyStore = dx.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; [C)V")
+    path_KeyStore = filteringEngine.filter_list_of_paths(d, path_KeyStore)  # TODO maybe fix
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_KeyStore):
         if i.getResult()[2] == 0:  # null = 0 = Not using password
             if (i.is_class_container(1)):
@@ -1844,10 +1786,8 @@ Please modify the below code:"""
 	"""
 
     list_Non_BKS_keystore = []
-    path_BKS_KeyStore = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/security/KeyStore;",
-                                                                                    "getInstance",
-                                                                                    "(Ljava/lang/String;)Ljava/security/KeyStore;")
-    path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore)
+    path_BKS_KeyStore = dx.find_methods("Ljava/security/KeyStore;","getInstance","(Ljava/lang/String;)Ljava/security/KeyStore;")
+    path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore) # TODO fix filtering
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_BKS_KeyStore):
         if i.getResult()[0] is None:
             continue
@@ -1878,10 +1818,10 @@ Please modify the below code:"""
 	"""
 
     list_PackageInfo_signatures = []
-    path_PackageInfo_signatures = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_PackageInfo_signatures = dx.find_methods(
         "Landroid/content/pm/PackageManager;", "getPackageInfo",
-        "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")
-    path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d, path_PackageInfo_signatures)
+        "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;") #TODO might be changed due to Android Support library -> androidX
+    path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d, path_PackageInfo_signatures) #TODO fix filtering
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_PackageInfo_signatures):
         if i.getResult()[2] is None:
             continue
@@ -1914,8 +1854,8 @@ Please modify the below code:"""
 	"""
 
     list_code_for_preventing_screen_capture = []
-    path_code_for_preventing_screen_capture = dx.get_tainted_packages().search_class_methods_exact_match(
-        "Landroid/view/Window;", "setFlags", "(I I)V")
+    path_code_for_preventing_screen_capture = dx.find_methods(
+        "Landroid/view/Window;", "setFlags", "(I I)V") #TODO might be changed due to Android Support library -> androidX
     path_code_for_preventing_screen_capture = filteringEngine.filter_list_of_paths(d,
                                                                                    path_code_for_preventing_screen_capture)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_code_for_preventing_screen_capture):
@@ -1954,7 +1894,7 @@ It is used by the developers to protect the app:""", ["Hacker"])
 
     list_Runtime_exec = []
 
-    path_Runtime_exec = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/lang/Runtime;", "exec",
+    path_Runtime_exec = dx.find_methods("Ljava/lang/Runtime;", "exec",
                                                                                     "(Ljava/lang/String;)Ljava/lang/Process;")
     path_Runtime_exec = filteringEngine.filter_list_of_paths(d, path_Runtime_exec)
 
@@ -2008,9 +1948,9 @@ It is used by the developers to protect the app:""", ["Hacker"])
     # (1)inner class checking
 
     # First, find out who calls it
-    path_HOSTNAME_INNER_VERIFIER = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_HOSTNAME_INNER_VERIFIER = dx.find_methods(
         "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "(Ljavax/net/ssl/HostnameVerifier;)V")
-    path_HOSTNAME_INNER_VERIFIER2 = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_HOSTNAME_INNER_VERIFIER2 = dx.find_methods(
         "Lorg/apache/http/conn/ssl/SSLSocketFactory;", "setHostnameVerifier",
         "(Lorg/apache/http/conn/ssl/X509HostnameVerifier;)V")
     path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
@@ -2136,7 +2076,7 @@ Please check the code inside these methods:"""
     # SSL getInsecure
 
     list_getInsecure = []
-    path_getInsecure = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_getInsecure = dx.find_methods(
         "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
         "(I Landroid/net/SSLSessionCache;)Ljavax/net/ssl/SSLSocketFactory;")
     path_getInsecure = filteringEngine.filter_list_of_paths(d, path_getInsecure)
@@ -2171,7 +2111,7 @@ Please remove the insecure code:"""
 	"""
 
     list_HttpHost_scheme_http = []
-    path_HttpHost_scheme_http = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_HttpHost_scheme_http = dx.find_methods(
         "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
     path_HttpHost_scheme_http = filteringEngine.filter_list_of_paths(d, path_HttpHost_scheme_http)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_HttpHost_scheme_http):
@@ -2195,7 +2135,7 @@ Please remove the insecure code:"""
     # WebViewClient onReceivedSslError errors
 
     # First, find out who calls setWebViewClient
-    path_webviewClient_new_instance = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_webviewClient_new_instance = dx.find_methods(
         "Landroid/webkit/WebView;", "setWebViewClient", "(Landroid/webkit/WebViewClient;)V")
     dic_webviewClient_new_instance = filteringEngine.get_class_container_dict_by_new_instance_classname_in_paths(d,
                                                                                                                  analysis,
@@ -2251,7 +2191,7 @@ Vulnerable codes:
 	"""
 
     list_setJavaScriptEnabled_XSS = []
-    path_setJavaScriptEnabled_XSS = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_setJavaScriptEnabled_XSS = dx.find_methods(
         "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
     path_setJavaScriptEnabled_XSS = filteringEngine.filter_list_of_paths(d, path_setJavaScriptEnabled_XSS)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_setJavaScriptEnabled_XSS):
@@ -2298,7 +2238,7 @@ Vulnerable codes:
         if pkg_HttpURLConnection:
 
             list_pre_Froyo_HttpURLConnection = []
-            path_pre_Froyo_HttpURLConnection = dx.get_tainted_packages().search_class_methods_exact_match(
+            path_pre_Froyo_HttpURLConnection = dx.find_methods(
                 "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
             path_pre_Froyo_HttpURLConnection = filteringEngine.filter_list_of_paths(d, path_pre_Froyo_HttpURLConnection)
 
@@ -2354,7 +2294,7 @@ Please check the reference:
 
     if (int_min_sdk is not None) and (int_min_sdk < 11):
 
-        path_SQLiteDatabase_beginTransactionNonExclusive = dx.get_tainted_packages().search_class_methods_exact_match(
+        path_SQLiteDatabase_beginTransactionNonExclusive = dx.find_methods(
             "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "()V")
         path_SQLiteDatabase_beginTransactionNonExclusive = filteringEngine.filter_list_of_paths(d,
                                                                                                 path_SQLiteDatabase_beginTransactionNonExclusive)
@@ -2492,7 +2432,7 @@ Please check the reference:
 
     dic_NDK_library_classname_to_ndkso_mapping = {}
     list_NDK_library_classname_to_ndkso_mapping = []
-    path_NDK_library_classname_to_ndkso_mapping = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_NDK_library_classname_to_ndkso_mapping = dx.find_methods(
         "Ljava/lang/System;", "loadLibrary", "(Ljava/lang/String;)V")
     path_NDK_library_classname_to_ndkso_mapping = filteringEngine.filter_list_of_paths(d,
                                                                                        path_NDK_library_classname_to_ndkso_mapping)
@@ -2575,7 +2515,7 @@ Please check the reference:
             if (android_name_in_application_tag == "com.secapk.wrapper.ApplicationWrapper"):
                 is_using_Framework_Bangcle = True
             else:
-                path_secapk = dx.get_tainted_packages().search_class_methods_exact_match("Lcom/secapk/wrapper/ACall;",
+                path_secapk = dx.find_methods("Lcom/secapk/wrapper/ACall;",
                                                                                           "getACall",
                                                                                           "()Lcom/secapk/wrapper/ACall;")
                 if path_secapk:
@@ -2584,7 +2524,7 @@ Please check the reference:
         if (len(list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) == 2):
             if ("libexec.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) and (
                     "libexecmain.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location):
-                paths_ijiami_signature = dx.get_tainted_packages().search_class_methods_exact_match(
+                paths_ijiami_signature = dx.find_methods(
                     "Lcom/shell/NativeApplication;", "load", "(Landroid/app/Application; Ljava/lang/String;)Z")
                 if paths_ijiami_signature:
                     is_using_Framework_ijiami = True
@@ -2627,7 +2567,7 @@ Please check the reference:
     # ------------------------------------------------------------------------
     # Get External Storage Directory access invoke
 
-    paths_ExternalStorageAccess = dx.get_tainted_packages().search_class_methods_exact_match(
+    paths_ExternalStorageAccess = dx.find_methods(
         "Landroid/os/Environment;", "getExternalStorageDirectory", "()Ljava/io/File;")
     paths_ExternalStorageAccess = filteringEngine.filter_list_of_paths(d, paths_ExternalStorageAccess)
     if paths_ExternalStorageAccess:
@@ -3359,7 +3299,7 @@ Proof-Of-Concept Reference:
     # ------------------------------------------------------------------------
     # Android getting IMEI, Android_ID, UUID problem
 
-    path_Device_id = dx.get_tainted_packages().search_class_methods_exact_match("Landroid/telephony/TelephonyManager;",
+    path_Device_id = dx.find_methods("Landroid/telephony/TelephonyManager;",
                                                                                  "getDeviceId", "()Ljava/lang/String;")
     path_Device_id = filteringEngine.filter_list_of_paths(d, path_Device_id)
 
@@ -3386,7 +3326,7 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
     # ------------------------------------------------------------------------
     # Android "android_id"
 
-    path_android_id = dx.get_tainted_packages().search_class_methods_exact_match("Landroid/provider/Settings$Secure;",
+    path_android_id = dx.find_methods("Landroid/provider/Settings$Secure;",
                                                                                   "getString",
                                                                                   "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
     path_android_id = filteringEngine.filter_list_of_paths(d, path_android_id)
@@ -3471,7 +3411,7 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
     # ------------------------------------------------------------------------
     # File delete alert
 
-    path_FileDelete = dx.get_tainted_packages().search_class_methods_exact_match("Ljava/io/File;", "delete", "()Z")
+    path_FileDelete = dx.find_methods("Ljava/io/File;", "delete", "()Z")
     path_FileDelete = filteringEngine.filter_list_of_paths(d, path_FileDelete)
 
     if path_FileDelete:
@@ -3487,7 +3427,7 @@ Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
     # ------------------------------------------------------------------------
     # Check if app check for installing from Google Play
 
-    path_getInstallerPackageName = dx.get_tainted_packages().search_class_methods_exact_match(
+    path_getInstallerPackageName = dx.find_methods(
         "Landroid/content/pm/PackageManager;", "getInstallerPackageName", "(Ljava/lang/String;)Ljava/lang/String;")
     path_getInstallerPackageName = filteringEngine.filter_list_of_paths(d, path_getInstallerPackageName)
 
@@ -3587,7 +3527,7 @@ Please add or modify "yourWebView.getSettings().setAllowFileAccess(false)" to yo
     # ------------------------------------------------------------------------
     # Adb Backup check
 
-    if a.is_adb_backup_enabled():
+    if a.get_element("application", "allowBackup") is (True or None):
         writer.startWriter("ALLOW_BACKUP", LEVEL_NOTICE, "AndroidManifest Adb Backup Checking",
                            """ADB Backup is ENABLED for this app (default: ENABLED). ADB Backup is a good tool for backing up all of your files. If it's open for this app, people who have your phone can copy all of the sensitive data for this app in your phone (Prerequisite: 1.Unlock phone's screen 2.Open the developer mode). The sensitive data may include lifetime access token, username or password, etc.
 Security case related to ADB Backup:
