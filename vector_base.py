@@ -4,8 +4,7 @@ from androguard.core.analysis.analysis import Analysis
 from androguard.core.bytecodes.apk import APK
 from androguard.core.bytecodes.dvm import DalvikVMFormat
 
-from androbugs import Writer
-
+from writer import Writer
 
 class VectorBase(ABC):
     """
