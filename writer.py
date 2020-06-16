@@ -4,9 +4,9 @@ from androguard.core.analysis import analysis
 import collections  # for sorting key of dictionary
 from constants import *
 
-
 REPORT_OUTPUT = 'print_and_file'  # when compiling to Windows executable, switch to "file"
 DIRECTORY_REPORT_OUTPUT = "Reports/"  # Only need to specify when (REPORT_OUTPUT = TYPE_REPORT_OUTPUT_ONLY_FILE) or (REPORT_OUTPUT = TYPE_REPORT_OUTPUT_PRINT_AND_FILE)
+
 
 class Writer:
     def __init__(self):
@@ -264,7 +264,8 @@ class Writer:
 
                 output_string = ""
                 for line in self.__cache_output_detail_stream:
-                    output_string = output_string + str(line).encode('string_escape')  # To escape the "\n" shown in the original string inside the APK
+                    output_string = output_string + str(line).encode(
+                        'string_escape')  # To escape the "\n" shown in the original string inside the APK
 
                 self.__output_dict_vector_result_information[current_tag][
                     "vector_details"] = self.get_valid_encoding_utf8_string(

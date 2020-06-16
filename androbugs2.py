@@ -418,19 +418,26 @@ def __analyze(writer, args):
     writer.update_analyze_status("loading_vectors")
 
     vectors = list()
-    print("Hier komen de globs!")
-    print(glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vectors", "*.py"), recursive=True))
+
     # recursively loop through files in "./vectors/" and load them in to the vectors list
-    for file in glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vectors", "*.py"), recursive=True):
+    for file in glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vectors", "**", "*.py"), recursive=True):
         name = os.path.splitext(os.path.basename(file))[0]
+        print(file)
         vectors.append(__import__(name))
 
+    file_list = os.listdir(os.path.dirname(vectors.__file__))
+    for file_name in file_list:
+        if file_name.endswith('.py') and file_name != '__init__.py':
+            vectors.append(file_name.strip('.py'))
+
+    # TODO fix en gebruik .__subclasses__() voor class names
+    # import_module van importlib en get_attr
 
     writer.update_analyze_status("checking_vectors")
     print("Hier komen de vectors!")
     print(vectors)
     # vector: Type[VectorBase]
-    for vector in vectors:
+    # for vector in vectors:
         # v = vector(writer, apk, d, dx)
         # print(v.description)
 

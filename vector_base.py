@@ -6,6 +6,7 @@ from androguard.core.bytecodes.dvm import DalvikVMFormat
 
 from writer import Writer
 
+
 class VectorBase(ABC):
     """
     This abstract class is used to define vulnerability vectors for the AndroBugs vulnerability scanner.
