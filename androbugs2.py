@@ -1,6 +1,9 @@
 import hashlib
 import traceback
 
+from traitlets import Type
+
+import vectors
 from vector_base import VectorBase
 from writer import *
 import argparse
@@ -405,11 +408,11 @@ def __analyze(writer, args):
 
     writer.update_analyze_status("starting_dvm")
 
-    # d = dvm.DalvikVMFormat(a.get_dex())
+    d = dvm.DalvikVMFormat(a.get_dex())
 
-    writer.update_analyze_status("starting_analyze")
+    writer.update_analyze_status("starting_analysis")
 
-    # dx = analysis.Analysis(d)
+    dx = analysis.Analysis(d)
 
     writer.update_analyze_status("starting_androbugs")
 
@@ -417,29 +420,20 @@ def __analyze(writer, args):
 
     writer.update_analyze_status("loading_vectors")
 
-    vectors = list()
+    loaded_vector_classes = list()
 
-    # recursively loop through files in "./vectors/" and load them in to the vectors list
-    for file in glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vectors", "**", "*.py"), recursive=True):
-        name = os.path.splitext(os.path.basename(file))[0]
-        print(file)
-        vectors.append(__import__(name))
-
+    print("Loaded vectors:")
     file_list = os.listdir(os.path.dirname(vectors.__file__))
     for file_name in file_list:
         if file_name.endswith('.py') and file_name != '__init__.py':
-            vectors.append(file_name.strip('.py'))
+            loaded_vector_classes.append(importlib.import_module('vectors.' + file_name.replace('.py', '')))
+            print(file_name.replace('.py', ''))
 
-    # TODO fix en gebruik .__subclasses__() voor class names
-    # import_module van importlib en get_attr
 
     writer.update_analyze_status("checking_vectors")
-    print("Hier komen de vectors!")
-    print(vectors)
-    # vector: Type[VectorBase]
-    # for vector in vectors:
-        # v = vector(writer, apk, d, dx)
-        # print(v.description)
+    for vector_class in loaded_vector_classes:
+        print("Running " + vector_class.__name__ + " analysis.")
+        vector_class.Vector(writer, a, d, dx).analyze()
 
     # End of Checking
 
@@ -467,7 +461,6 @@ def main():
     writer = Writer()
 
     try:
-
         # Print Title
         writer.writePlainInf("""*************************************************************************
 **   AndroBugs Framework - Android App Security Vulnerability Scanner  **
@@ -554,7 +547,6 @@ def main():
         elif REPORT_OUTPUT == "print_and_file":
             writer.show(args)
             __persist_file(writer, args)  # write report to "disk"
-
 
 if __name__ == "__main__":
     main()
