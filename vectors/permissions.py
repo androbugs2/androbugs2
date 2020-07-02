@@ -8,6 +8,7 @@ class Vector(VectorBase):
     description = "Checks if app has correct permissions"
 
     def analyze(self) -> None:
+
         all_permissions = self.apk.get_permissions()
 
         # ACCESS_MOCK_LOCATION check
@@ -99,3 +100,5 @@ class Vector(VectorBase):
         else:
             self.writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
                                     "No HTTP-related connection codes found.")
+
+

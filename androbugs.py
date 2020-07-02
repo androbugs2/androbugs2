@@ -1191,123 +1191,123 @@ def __analyze(writer, args):
     allstrings = d.get_strings()
     allurls_strip_duplicated = []
 
-    # ------------------------------------------------------------------------
-    # [Important: String Efficient Searching Engine]
-    # >>>>STRING_SEARCH<<<<
-    # addSearchItem params: (1)match_id  (2)regex or string(url or string you want to find), (3)is using regex for parameter 2
-    efficientStringSearchEngine.addSearchItem("$__possibly_check_root__", re.compile("/system/bin"),
-                                              True)  # "root" checking
-    efficientStringSearchEngine.addSearchItem("$__possibly_check_su__", "su", False)  # "root" checking2
-    efficientStringSearchEngine.addSearchItem("$__sqlite_encryption__", re.compile("PRAGMA\s*key\s*=", re.I),
-                                              True)  # SQLite encryption checking
-
-    print("------------------------------------------------------------")
-
-    # Print all urls without SSL:
-
-    exception_url_string = ["http://example.com",
-                            "http://example.com/",
-                            "http://www.example.com",
-                            "http://www.example.com/",
-                            "http://www.google-analytics.com/collect",
-                            "http://www.google-analytics.com",
-                            "http://hostname/?",
-                            "http://hostname/"]
-
-    for line in allstrings:
-        if re.match('http\:\/\/(.+)', line.decode('ISO-8859-1')):  # ^https?\:\/\/(.+)$
-            allurls_strip_duplicated.append(line)
-
-    allurls_strip_non_duplicated = sorted(set(allurls_strip_duplicated))
-    allurls_strip_non_duplicated_final = []
-
-    if allurls_strip_non_duplicated:
-        for url in allurls_strip_non_duplicated:
-            if (url not in exception_url_string) and (not url.startswith("http://schemas.android.com/")) and \
-                    (not url.startswith("http://www.w3.org/")) and \
-                    (not url.startswith("http://apache.org/")) and \
-                    (not url.startswith("http://xml.org/")) and \
-                    (not url.startswith("http://localhost/")) and \
-                    (not url.startswith("http://java.sun.com/")) and \
-                    (not url.endswith("/namespace")) and \
-                    (not url.endswith("-dtd")) and \
-                    (not url.endswith(".dtd")) and \
-                    (not url.endswith("-handler")) and \
-                    (not url.endswith("-instance")):
-                # >>>>STRING_SEARCH<<<<
-                efficientStringSearchEngine.addSearchItem(url, url, False)  # use url as "key"
-
-                allurls_strip_non_duplicated_final.append(url)
-
-    # ------------------------------------------------------------------------
-
-    # Base64 String decoding:
-    list_base64_success_decoded_string_to_original_mapping = {}
-    list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "endNanos", "cityList", "cloudid=",
-                                            "Liouciou"]  # exclusion list
-
-    for line in allstrings:
-        if (isBase64(line)) and (len(line) >= 3):
-            try:
-                decoded_string = base64.b64decode(line)
-                if isSuccessBase64DecodedString(decoded_string):
-                    if len(decoded_string) > 3:
-                        if (decoded_string not in list_base64_success_decoded_string_to_original_mapping) and (
-                                line not in list_base64_excluded_original_string):
-                            list_base64_success_decoded_string_to_original_mapping[decoded_string] = line
-                            # >>>>STRING_SEARCH<<<<
-                            efficientStringSearchEngine.addSearchItem(line, line, False)
-            except:
-                pass
-
-    # ------------------------------------------------------------------------
-
-    # >>>>STRING_SEARCH<<<<
-
-    # start the search core engine
-    efficientStringSearchEngine.search(d, allstrings)
-
-    # ------------------------------------------------------------------------
-
-    # pre-run to avoid all the urls are in exclusion list but the results are shown
-    allurls_strip_non_duplicated_final_prerun_count = 0
-    for url in allurls_strip_non_duplicated_final:
-        dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
-            url)
-        if filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
-            allurls_strip_non_duplicated_final_prerun_count = allurls_strip_non_duplicated_final_prerun_count + 1
-
-    if allurls_strip_non_duplicated_final_prerun_count != 0:
-        writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_CRITICAL, "SSL Connection Checking",
-                           "URLs that are NOT under SSL (Total:" + str(
-                               allurls_strip_non_duplicated_final_prerun_count) + "):", ["SSL_Security"])
-
-        for url in allurls_strip_non_duplicated_final:
-
-            dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
-                url)
-            if not filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
-                continue
-
-            writer.write(url)
-
-            try:
-                if dict_class_to_method_mapping:  # Found the corresponding url in the code
-                    for _, result_method_list in list(dict_class_to_method_mapping.items()):
-                        for result_method in result_method_list:  # strip duplicated item
-                            if filteringEngine.is_class_name_not_in_exclusion(result_method.get_class_name()):
-                                source_classes_and_functions = (
-                                        result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
-                                writer.write("    => " + source_classes_and_functions)
-
-            except KeyError:
-                pass
-
-    else:
-        writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_INFO, "SSL Connection Checking",
-                           "Did not discover urls that are not under SSL (Notice: if you encrypt the url string, we can not discover that).",
-                           ["SSL_Security"])
-
+    # # ------------------------------------------------------------------------
+    # # [Important: String Efficient Searching Engine]
+    # # >>>>STRING_SEARCH<<<<
+    # # addSearchItem params: (1)match_id  (2)regex or string(url or string you want to find), (3)is using regex for parameter 2
+    # efficientStringSearchEngine.addSearchItem("$__possibly_check_root__", re.compile("/system/bin"),
+    #                                           True)  # "root" checking
+    # efficientStringSearchEngine.addSearchItem("$__possibly_check_su__", "su", False)  # "root" checking2
+    # efficientStringSearchEngine.addSearchItem("$__sqlite_encryption__", re.compile("PRAGMA\s*key\s*=", re.I),
+    #                                           True)  # SQLite encryption checking
+    #
+    # print("------------------------------------------------------------")
+    #
+    # # Print all urls without SSL:
+    #
+    # exception_url_string = ["http://example.com",
+    #                         "http://example.com/",
+    #                         "http://www.example.com",
+    #                         "http://www.example.com/",
+    #                         "http://www.google-analytics.com/collect",
+    #                         "http://www.google-analytics.com",
+    #                         "http://hostname/?",
+    #                         "http://hostname/"]
+    #
+    # for line in allstrings:
+    #     if re.match('http\:\/\/(.+)', line.decode('ISO-8859-1')):  # ^https?\:\/\/(.+)$
+    #         allurls_strip_duplicated.append(line)
+    #
+    # allurls_strip_non_duplicated = sorted(set(allurls_strip_duplicated))
+    # allurls_strip_non_duplicated_final = []
+    #
+    # if allurls_strip_non_duplicated:
+    #     for url in allurls_strip_non_duplicated:
+    #         if (url not in exception_url_string) and (not url.startswith("http://schemas.android.com/")) and \
+    #                 (not url.startswith("http://www.w3.org/")) and \
+    #                 (not url.startswith("http://apache.org/")) and \
+    #                 (not url.startswith("http://xml.org/")) and \
+    #                 (not url.startswith("http://localhost/")) and \
+    #                 (not url.startswith("http://java.sun.com/")) and \
+    #                 (not url.endswith("/namespace")) and \
+    #                 (not url.endswith("-dtd")) and \
+    #                 (not url.endswith(".dtd")) and \
+    #                 (not url.endswith("-handler")) and \
+    #                 (not url.endswith("-instance")):
+    #             # >>>>STRING_SEARCH<<<<
+    #             efficientStringSearchEngine.addSearchItem(url, url, False)  # use url as "key"
+    #
+    #             allurls_strip_non_duplicated_final.append(url)
+    #
+    # # ------------------------------------------------------------------------
+    #
+    # # Base64 String decoding:
+    # list_base64_success_decoded_string_to_original_mapping = {}
+    # list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "endNanos", "cityList", "cloudid=",
+    #                                         "Liouciou"]  # exclusion list
+    #
+    # for line in allstrings:
+    #     if (isBase64(line)) and (len(line) >= 3):
+    #         try:
+    #             decoded_string = base64.b64decode(line)
+    #             if isSuccessBase64DecodedString(decoded_string):
+    #                 if len(decoded_string) > 3:
+    #                     if (decoded_string not in list_base64_success_decoded_string_to_original_mapping) and (
+    #                             line not in list_base64_excluded_original_string):
+    #                         list_base64_success_decoded_string_to_original_mapping[decoded_string] = line
+    #                         # >>>>STRING_SEARCH<<<<
+    #                         efficientStringSearchEngine.addSearchItem(line, line, False)
+    #         except:
+    #             pass
+    #
+    # # ------------------------------------------------------------------------
+    #
+    # # >>>>STRING_SEARCH<<<<
+    #
+    # # start the search core engine
+    # efficientStringSearchEngine.search(d, allstrings)
+    #
+    # # ------------------------------------------------------------------------
+    #
+    # # pre-run to avoid all the urls are in exclusion list but the results are shown
+    # allurls_strip_non_duplicated_final_prerun_count = 0
+    # for url in allurls_strip_non_duplicated_final:
+    #     dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
+    #         url)
+    #     if filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
+    #         allurls_strip_non_duplicated_final_prerun_count = allurls_strip_non_duplicated_final_prerun_count + 1
+    #
+    # if allurls_strip_non_duplicated_final_prerun_count != 0:
+    #     writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_CRITICAL, "SSL Connection Checking",
+    #                        "URLs that are NOT under SSL (Total:" + str(
+    #                            allurls_strip_non_duplicated_final_prerun_count) + "):", ["SSL_Security"])
+    #
+    #     for url in allurls_strip_non_duplicated_final:
+    #
+    #         dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
+    #             url)
+    #         if not filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
+    #             continue
+    #
+    #         writer.write(url)
+    #
+    #         try:
+    #             if dict_class_to_method_mapping:  # Found the corresponding url in the code
+    #                 for _, result_method_list in list(dict_class_to_method_mapping.items()):
+    #                     for result_method in result_method_list:  # strip duplicated item
+    #                         if filteringEngine.is_class_name_not_in_exclusion(result_method.get_class_name()):
+    #                             source_classes_and_functions = (
+    #                                     result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+    #                             writer.write("    => " + source_classes_and_functions)
+    #
+    #         except KeyError:
+    #             pass
+    #
+    # else:
+    #     writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_INFO, "SSL Connection Checking",
+    #                        "Did not discover urls that are not under SSL (Notice: if you encrypt the url string, we can not discover that).",
+    #                        ["SSL_Security"])
+    #
     # --------------------------------------------------------------------
 
     regexGerneralRestricted = ".*(config|setting|constant).*";
@@ -1412,87 +1412,87 @@ def __analyze(writer, args):
 
     # ------------------------------------------------------------------------------------------------------
 
-    # DEBUGGABLE checking:
-
-    is_debug_open = a.get_attribute_value('application', 'debuggable') is not None  # Check 'android:debuggable'
-    if is_debug_open:
-        writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
-                           "DEBUG mode is ON(android:debuggable=\"true\") in AndroidManifest.xml. This is very dangerous. The attackers will be able to sniffer the debug messages by Logcat. Please disable the DEBUG mode if it is a released application.",
-                           ["Debug"])
-
-    else:
-        writer.startWriter("DEBUGGABLE", LEVEL_INFO, "Android Debug Mode Checking",
-                           "DEBUG mode is OFF(android:debuggable=\"false\") in AndroidManifest.xml.", ["Debug"])
-
-    # ------------------------------------------------------------------------------------------------------
-
-    # Checking whether the app is checking debuggable:
-    for cert in a.get_certificates():
-        if "Common Name: Android Debug" in cert.issuer.human_friendly:
-            writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
-                               "App is signed with debug certificate, indicating that debug mode may be enabled. This could potentially be dangerous if used in production environments.",
-                               ["Debug"])
-
-    # ----------------------------------------------------------------------------------
-
-    ACCESS_MOCK_LOCATION = "android.permission.ACCESS_MOCK_LOCATION"
-    if ACCESS_MOCK_LOCATION in all_permissions:
-        writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_CRITICAL, "Unnecessary Permission Checking",
-                           "Permission 'android.permission.ACCESS_MOCK_LOCATION' only works in emulator environment. Please remove this permission if it is a released application.")
-    else:
-        writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_INFO, "Unnecessary Permission Checking",
-                           "Permission 'android.permission.ACCESS_MOCK_LOCATION' sets correctly.")
+    # # DEBUGGABLE checking:
+    #
+    # is_debug_open = a.get_attribute_value('application', 'debuggable') is not None  # Check 'android:debuggable'
+    # if is_debug_open:
+    #     writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
+    #                        "DEBUG mode is ON(android:debuggable=\"true\") in AndroidManifest.xml. This is very dangerous. The attackers will be able to sniffer the debug messages by Logcat. Please disable the DEBUG mode if it is a released application.",
+    #                        ["Debug"])
+    #
+    # else:
+    #     writer.startWriter("DEBUGGABLE", LEVEL_INFO, "Android Debug Mode Checking",
+    #                        "DEBUG mode is OFF(android:debuggable=\"false\") in AndroidManifest.xml.", ["Debug"])
+    #
+    # # ------------------------------------------------------------------------------------------------------
+    #
+    # # Checking whether the app is checking debuggable:
+    # for cert in a.get_certificates():
+    #     if "Common Name: Android Debug" in cert.issuer.human_friendly:
+    #         writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
+    #                            "App is signed with debug certificate, indicating that debug mode may be enabled. This could potentially be dangerous if used in production environments.",
+    #                            ["Debug"])
 
     # ----------------------------------------------------------------------------------
 
-    permissionNameOfWrongPermissionGroup = a.get_permission_tag_wrong_settings_names()
-
-    if permissionNameOfWrongPermissionGroup:  # If the list is not empty
-        writer.startWriter("PERMISSION_GROUP_EMPTY_VALUE", LEVEL_CRITICAL, "AndroidManifest PermissionGroup Checking",
-                           "Setting the 'permissionGroup' attribute an empty value will make the permission definition become invalid and no other apps will be able to use the permission.")
-
-        for name in permissionNameOfWrongPermissionGroup:
-            writer.write("Permission name '%s' sets an empty value in `permissionGroup` attribute." % (name))
-    else:
-        writer.startWriter("PERMISSION_GROUP_EMPTY_VALUE", LEVEL_INFO, "AndroidManifest PermissionGroup Checking",
-                           "PermissionGroup in permission tag of AndroidManifest sets correctly.")
-
-    # ----------------------------------------------------------------------------------
-
-    # Critical use-permission check:
-    user_permission_critical_manufacturer = ["android.permission.INSTALL_PACKAGES",
-                                             "android.permission.WRITE_SECURE_SETTINGS"]
-    user_permission_critical = ["android.permission.MOUNT_FORMAT_FILESYSTEMS",
-                                "android.permission.MOUNT_UNMOUNT_FILESYSTEMS", "android.permission.RESTART_PACKAGES"]
-
-    list_user_permission_critical_manufacturer = []
-    list_user_permission_critical = []
-
-    for permission in all_permissions:
-        if permission in user_permission_critical_manufacturer:
-            list_user_permission_critical_manufacturer.append(permission)
-        if permission in user_permission_critical:
-            list_user_permission_critical.append(permission)
-
-    if list_user_permission_critical_manufacturer or list_user_permission_critical:
-        if list_user_permission_critical_manufacturer:
-            writer.startWriter("USE_PERMISSION_SYSTEM_APP", LEVEL_CRITICAL,
-                               "AndroidManifest System Use Permission Checking",
-                               "This app should only be released and signed by device manufacturer or Google and put under '/system/app'. If not, it may be a malicious app.")
-
-            for permission in list_user_permission_critical_manufacturer:
-                writer.write("System use-permission found: \"" + permission + "\"")
-
-        if list_user_permission_critical:
-            writer.startWriter("USE_PERMISSION_CRITICAL", LEVEL_CRITICAL,
-                               "AndroidManifest Critical Use Permission Checking",
-                               "This app has very high privileges. Use it carefully.")
-
-            for permission in list_user_permission_critical:
-                writer.write("Critical use-permission found: \"" + permission + "\"")
-    else:
-        writer.startWriter("USE_PERMISSION_SYSTEM_APP", LEVEL_INFO, "AndroidManifest System Use Permission Checking",
-                           "No system-level critical use-permission found.")
+    # ACCESS_MOCK_LOCATION = "android.permission.ACCESS_MOCK_LOCATION"
+    # if ACCESS_MOCK_LOCATION in all_permissions:
+    #     writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_CRITICAL, "Unnecessary Permission Checking",
+    #                        "Permission 'android.permission.ACCESS_MOCK_LOCATION' only works in emulator environment. Please remove this permission if it is a released application.")
+    # else:
+    #     writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_INFO, "Unnecessary Permission Checking",
+    #                        "Permission 'android.permission.ACCESS_MOCK_LOCATION' sets correctly.")
+    #
+    # # ----------------------------------------------------------------------------------
+    #
+    # permissionNameOfWrongPermissionGroup = a.get_permission_tag_wrong_settings_names()
+    #
+    # if permissionNameOfWrongPermissionGroup:  # If the list is not empty
+    #     writer.startWriter("PERMISSION_GROUP_EMPTY_VALUE", LEVEL_CRITICAL, "AndroidManifest PermissionGroup Checking",
+    #                        "Setting the 'permissionGroup' attribute an empty value will make the permission definition become invalid and no other apps will be able to use the permission.")
+    #
+    #     for name in permissionNameOfWrongPermissionGroup:
+    #         writer.write("Permission name '%s' sets an empty value in `permissionGroup` attribute." % (name))
+    # else:
+    #     writer.startWriter("PERMISSION_GROUP_EMPTY_VALUE", LEVEL_INFO, "AndroidManifest PermissionGroup Checking",
+    #                        "PermissionGroup in permission tag of AndroidManifest sets correctly.")
+    #
+    # # ----------------------------------------------------------------------------------
+    #
+    # # Critical use-permission check:
+    # user_permission_critical_manufacturer = ["android.permission.INSTALL_PACKAGES",
+    #                                          "android.permission.WRITE_SECURE_SETTINGS"]
+    # user_permission_critical = ["android.permission.MOUNT_FORMAT_FILESYSTEMS",
+    #                             "android.permission.MOUNT_UNMOUNT_FILESYSTEMS", "android.permission.RESTART_PACKAGES"]
+    #
+    # list_user_permission_critical_manufacturer = []
+    # list_user_permission_critical = []
+    #
+    # for permission in all_permissions:
+    #     if permission in user_permission_critical_manufacturer:
+    #         list_user_permission_critical_manufacturer.append(permission)
+    #     if permission in user_permission_critical:
+    #         list_user_permission_critical.append(permission)
+    #
+    # if list_user_permission_critical_manufacturer or list_user_permission_critical:
+    #     if list_user_permission_critical_manufacturer:
+    #         writer.startWriter("USE_PERMISSION_SYSTEM_APP", LEVEL_CRITICAL,
+    #                            "AndroidManifest System Use Permission Checking",
+    #                            "This app should only be released and signed by device manufacturer or Google and put under '/system/app'. If not, it may be a malicious app.")
+    #
+    #         for permission in list_user_permission_critical_manufacturer:
+    #             writer.write("System use-permission found: \"" + permission + "\"")
+    #
+    #     if list_user_permission_critical:
+    #         writer.startWriter("USE_PERMISSION_CRITICAL", LEVEL_CRITICAL,
+    #                            "AndroidManifest Critical Use Permission Checking",
+    #                            "This app has very high privileges. Use it carefully.")
+    #
+    #         for permission in list_user_permission_critical:
+    #             writer.write("Critical use-permission found: \"" + permission + "\"")
+    # else:
+    #     writer.startWriter("USE_PERMISSION_SYSTEM_APP", LEVEL_INFO, "AndroidManifest System Use Permission Checking",
+    #                        "No system-level critical use-permission found.")
 
     # ----------------------------------------------------------------------------------
 
@@ -1515,41 +1515,41 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
 
     # ------------------------------------------------------------------------------------------------------
     # Find network methods:
-
-    # pkg_xxx is a 'PathP' object
-    pkg_URLConnection = dx.is_class_present("Ljava/net/URLConnection;")
-    pkg_HttpURLConnection = dx.is_class_present("Ljava/net/HttpURLConnection;")
-    pkg_HttpsURLConnection = dx.is_class_present("Ljavax/net/ssl/HttpsURLConnection;")
-    pkg_DefaultHttpClient = dx.is_class_present(
-        "Lorg/apache/http/impl/client/DefaultHttpClient;")
-    pkg_HttpClient = dx.is_class_present("Lorg/apache/http/client/HttpClient;")
-
-    pkg_URLConnection = filteringEngine.filter_list_of_paths(d, pkg_URLConnection)
-    pkg_HttpURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpURLConnection)
-    pkg_HttpsURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpsURLConnection)
-    pkg_DefaultHttpClient = filteringEngine.filter_list_of_paths(d, pkg_DefaultHttpClient)
-    pkg_HttpClient = filteringEngine.filter_list_of_paths(d, pkg_HttpClient)
-
-    # size_pkg_URLConnection = len(pkg_URLConnection)
-    # size_pkg_HttpURLConnection = len(pkg_HttpURLConnection)
-    # size_pkg_HttpsURLConnection = len(pkg_HttpsURLConnection)
-    # size_pkg_DefaultHttpClient = len(pkg_DefaultHttpClient)
-    # size_pkg_HttpClient = len(pkg_HttpClient)
-
-    # Provide 2 options for users:
-    # 1.Show the network-related class or not
-    # 2.Exclude 'Lcom/google/' package or 'Lcom/facebook/' package  or not
-    # **Should Make the output path sorted by class name
-
-    if pkg_URLConnection or pkg_HttpURLConnection or pkg_HttpsURLConnection or pkg_DefaultHttpClient or pkg_HttpClient:
-
-        if "android.permission.INTERNET" in all_permissions:
-            writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
-                               "This app is using the Internet via HTTP protocol.")
-
-        else:
-            writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_CRITICAL, "Accessing the Internet Checking",
-                               "This app has some internet accessing codes but does not have 'android.permission.INTERNET' use-permission in AndroidManifest.")
+    #
+    # # pkg_xxx is a 'PathP' object
+    # pkg_URLConnection = dx.is_class_present("Ljava/net/URLConnection;")
+    # pkg_HttpURLConnection = dx.is_class_present("Ljava/net/HttpURLConnection;")
+    # pkg_HttpsURLConnection = dx.is_class_present("Ljavax/net/ssl/HttpsURLConnection;")
+    # pkg_DefaultHttpClient = dx.is_class_present(
+    #     "Lorg/apache/http/impl/client/DefaultHttpClient;")
+    # pkg_HttpClient = dx.is_class_present("Lorg/apache/http/client/HttpClient;")
+    #
+    # pkg_URLConnection = filteringEngine.filter_list_of_paths(d, pkg_URLConnection)
+    # pkg_HttpURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpURLConnection)
+    # pkg_HttpsURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpsURLConnection)
+    # pkg_DefaultHttpClient = filteringEngine.filter_list_of_paths(d, pkg_DefaultHttpClient)
+    # pkg_HttpClient = filteringEngine.filter_list_of_paths(d, pkg_HttpClient)
+    #
+    # # size_pkg_URLConnection = len(pkg_URLConnection)
+    # # size_pkg_HttpURLConnection = len(pkg_HttpURLConnection)
+    # # size_pkg_HttpsURLConnection = len(pkg_HttpsURLConnection)
+    # # size_pkg_DefaultHttpClient = len(pkg_DefaultHttpClient)
+    # # size_pkg_HttpClient = len(pkg_HttpClient)
+    #
+    # # Provide 2 options for users:
+    # # 1.Show the network-related class or not
+    # # 2.Exclude 'Lcom/google/' package or 'Lcom/facebook/' package  or not
+    # # **Should Make the output path sorted by class name
+    #
+    # if pkg_URLConnection or pkg_HttpURLConnection or pkg_HttpsURLConnection or pkg_DefaultHttpClient or pkg_HttpClient:
+    #
+    #     if "android.permission.INTERNET" in all_permissions:
+    #         writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
+    #                            "This app is using the Internet via HTTP protocol.")
+    #
+    #     else:
+    #         writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_CRITICAL, "Accessing the Internet Checking",
+    #                            "This app has some internet accessing codes but does not have 'android.permission.INTERNET' use-permission in AndroidManifest.")
 
     # if pkg_URLConnection:
     # 	print("        =>URLConnection:")
@@ -1571,79 +1571,79 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     # 	print("        =>HttpClient:")
     # 	analysis.show_Paths(d, pkg_HttpClient)
     # 	print
-
-    else:
-        writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
-                           "No HTTP-related connection codes found.")
+    #
+    # else:
+    #     writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
+    #                        "No HTTP-related connection codes found.")
 
     # ------------------------------------------------------------------------
 
-    # Base64 String decoding:
-
-    organized_list_base64_success_decoded_string_to_original_mapping = []
-    for decoded_string, original_string in list(list_base64_success_decoded_string_to_original_mapping.items()):
-        dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
-            original_string)
-        if filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
-            """
-				All of same string found are inside the excluded packages.
-				Only the strings found the original class will be added.
-			"""
-            organized_list_base64_success_decoded_string_to_original_mapping.append(
-                (decoded_string, original_string, dict_class_to_method_mapping))
-
-    if organized_list_base64_success_decoded_string_to_original_mapping:  # The result is from the upper code section
-
-        list_base64_decoded_urls = {}
-
-        writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_CRITICAL, "Base64 String Encryption",
-                           "Found Base64 encoding \"String(s)\" (Total: " + str(len(
-                               organized_list_base64_success_decoded_string_to_original_mapping)) + "). We cannot guarantee all of the Strings are Base64 encoding and also we will not show you the decoded binary file:",
-                           ["Hacker"])
-
-        for decoded_string, original_string, dict_class_to_method_mapping in organized_list_base64_success_decoded_string_to_original_mapping:
-
-            writer.write(decoded_string)
-            writer.write("    ->Original Encoding String: " + original_string)
-
-            if dict_class_to_method_mapping:
-                for class_name, result_method_list in list(dict_class_to_method_mapping.items()):
-                    for result_method in result_method_list:
-                        source_classes_and_functions = (
-                                result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
-                        writer.write("    ->From class: " + source_classes_and_functions)
-
-            if "http://" in decoded_string:
-                list_base64_decoded_urls[decoded_string] = original_string
-
-        if list_base64_decoded_urls:
-
-            writer.startWriter("HACKER_BASE64_URL_DECODE", LEVEL_CRITICAL, "Base64 String Encryption",
-                               "Base64 encoding \"HTTP URLs without SSL\" from all the Strings (Total: " + str(
-                                   len(list_base64_decoded_urls)) + ")", ["SSL_Security", "Hacker"])
-
-            for decoded_string, original_string in list(list_base64_decoded_urls.items()):
-
-                dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
-                    original_string)
-
-                if not filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(
-                        dict_class_to_method_mapping):  # All of the same string found are inside the excluded packages
-                    continue
-
-                writer.write(decoded_string)
-                writer.write("    ->Original Encoding String: " + original_string)
-
-                if dict_class_to_method_mapping:
-                    for class_name, result_method_list in list(dict_class_to_method_mapping.items()):
-                        for result_method in result_method_list:
-                            source_classes_and_functions = (
-                                    result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
-                            writer.write("    ->From class: " + source_classes_and_functions)
-
-    else:
-        writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_INFO, "Base64 String Encryption",
-                           "No encoded Base64 String or Urls found.", ["Hacker"])
+    # # Base64 String decoding:
+    #
+    # organized_list_base64_success_decoded_string_to_original_mapping = []
+    # for decoded_string, original_string in list(list_base64_success_decoded_string_to_original_mapping.items()):
+    #     dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
+    #         original_string)
+    #     if filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
+    #         """
+	# 			All of same string found are inside the excluded packages.
+	# 			Only the strings found the original class will be added.
+	# 		"""
+    #         organized_list_base64_success_decoded_string_to_original_mapping.append(
+    #             (decoded_string, original_string, dict_class_to_method_mapping))
+    #
+    # if organized_list_base64_success_decoded_string_to_original_mapping:  # The result is from the upper code section
+    #
+    #     list_base64_decoded_urls = {}
+    #
+    #     writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_CRITICAL, "Base64 String Encryption",
+    #                        "Found Base64 encoding \"String(s)\" (Total: " + str(len(
+    #                            organized_list_base64_success_decoded_string_to_original_mapping)) + "). We cannot guarantee all of the Strings are Base64 encoding and also we will not show you the decoded binary file:",
+    #                        ["Hacker"])
+    #
+    #     for decoded_string, original_string, dict_class_to_method_mapping in organized_list_base64_success_decoded_string_to_original_mapping:
+    #
+    #         writer.write(decoded_string)
+    #         writer.write("    ->Original Encoding String: " + original_string)
+    #
+    #         if dict_class_to_method_mapping:
+    #             for class_name, result_method_list in list(dict_class_to_method_mapping.items()):
+    #                 for result_method in result_method_list:
+    #                     source_classes_and_functions = (
+    #                             result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+    #                     writer.write("    ->From class: " + source_classes_and_functions)
+    #
+    #         if "http://" in decoded_string:
+    #             list_base64_decoded_urls[decoded_string] = original_string
+    #
+    #     if list_base64_decoded_urls:
+    #
+    #         writer.startWriter("HACKER_BASE64_URL_DECODE", LEVEL_CRITICAL, "Base64 String Encryption",
+    #                            "Base64 encoding \"HTTP URLs without SSL\" from all the Strings (Total: " + str(
+    #                                len(list_base64_decoded_urls)) + ")", ["SSL_Security", "Hacker"])
+    #
+    #         for decoded_string, original_string in list(list_base64_decoded_urls.items()):
+    #
+    #             dict_class_to_method_mapping = efficientStringSearchEngine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
+    #                 original_string)
+    #
+    #             if not filteringEngine.is_all_of_key_class_in_dict_not_in_exclusion(
+    #                     dict_class_to_method_mapping):  # All of the same string found are inside the excluded packages
+    #                 continue
+    #
+    #             writer.write(decoded_string)
+    #             writer.write("    ->Original Encoding String: " + original_string)
+    #
+    #             if dict_class_to_method_mapping:
+    #                 for class_name, result_method_list in list(dict_class_to_method_mapping.items()):
+    #                     for result_method in result_method_list:
+    #                         source_classes_and_functions = (
+    #                                 result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+    #                         writer.write("    ->From class: " + source_classes_and_functions)
+    #
+    # else:
+    #     writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_INFO, "Base64 String Encryption",
+    #                        "No encoded Base64 String or Urls found.", ["Hacker"])
 
     # ------------------------------------------------------------------------
     # WebView addJavascriptInterface checking:

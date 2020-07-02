@@ -18,5 +18,6 @@ def is_null_or_empty_string(input_string, strip_whitespaces=False):
     return False
 
 
-def is_base_64(base64_string):
+def is_base64(base64_string):
     return re.match('^[A-Za-z0-9+/]+[=]{0,2}$', base64_string)
+
