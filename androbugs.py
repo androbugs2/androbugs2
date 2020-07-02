@@ -1426,13 +1426,12 @@ def __analyze(writer, args):
 
     # ------------------------------------------------------------------------------------------------------
 
-        # Checking whether the app is checking debuggable:
+    # Checking whether the app is checking debuggable:
     for cert in a.get_certificates():
         if "Common Name: Android Debug" in cert.issuer.human_friendly:
             writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
                                "App is signed with debug certificate, indicating that debug mode may be enabled. This could potentially be dangerous if used in production environments.",
                                ["Debug"])
-
 
     # ----------------------------------------------------------------------------------
 
@@ -1652,7 +1651,8 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     # Don't match class name because it might use the subclass of WebView
     path_WebView_addJavascriptInterface = dx.find_methods(
         methodname="addJavascriptInterface", descriptor="(Ljava/lang/Object; Ljava/lang/String;)V")
-    path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d, path_WebView_addJavascriptInterface) # TODO fix filtering
+    path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d,
+                                                                               path_WebView_addJavascriptInterface)  # TODO fix filtering
 
     if path_WebView_addJavascriptInterface:
 
@@ -1786,8 +1786,9 @@ Please modify the below code:"""
 	"""
 
     list_Non_BKS_keystore = []
-    path_BKS_KeyStore = dx.find_methods("Ljava/security/KeyStore;","getInstance","(Ljava/lang/String;)Ljava/security/KeyStore;")
-    path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore) # TODO fix filtering
+    path_BKS_KeyStore = dx.find_methods("Ljava/security/KeyStore;", "getInstance",
+                                        "(Ljava/lang/String;)Ljava/security/KeyStore;")
+    path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore)  # TODO fix filtering
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_BKS_KeyStore):
         if i.getResult()[0] is None:
             continue
@@ -1820,8 +1821,9 @@ Please modify the below code:"""
     list_PackageInfo_signatures = []
     path_PackageInfo_signatures = dx.find_methods(
         "Landroid/content/pm/PackageManager;", "getPackageInfo",
-        "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;") #TODO might be changed due to Android Support library -> androidX
-    path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d, path_PackageInfo_signatures) #TODO fix filtering
+        "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
+    path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d,
+                                                                       path_PackageInfo_signatures)  # TODO fix filtering
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_PackageInfo_signatures):
         if i.getResult()[2] is None:
             continue
@@ -1855,7 +1857,8 @@ Please modify the below code:"""
 
     list_code_for_preventing_screen_capture = []
     path_code_for_preventing_screen_capture = dx.find_methods(
-        "Landroid/view/Window;", "setFlags", "(I I)V") #TODO might be changed due to Android Support library -> androidX
+        "Landroid/view/Window;", "setFlags",
+        "(I I)V")  # TODO might be changed due to Android Support library -> androidX
     path_code_for_preventing_screen_capture = filteringEngine.filter_list_of_paths(d,
                                                                                    path_code_for_preventing_screen_capture)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_code_for_preventing_screen_capture):
@@ -1895,7 +1898,7 @@ It is used by the developers to protect the app:""", ["Hacker"])
     list_Runtime_exec = []
 
     path_Runtime_exec = dx.find_methods("Ljava/lang/Runtime;", "exec",
-                                                                                    "(Ljava/lang/String;)Ljava/lang/Process;")
+                                        "(Ljava/lang/String;)Ljava/lang/Process;")
     path_Runtime_exec = filteringEngine.filter_list_of_paths(d, path_Runtime_exec)
 
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_Runtime_exec):
@@ -1917,10 +1920,11 @@ It is used by the developers to protect the app:""", ["Hacker"])
                                ["Command"])
 
             for path in list_Runtime_exec:
-                             writer.show_Path(d, path)
-                              else:
-        writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
-                           "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.", ["Command"])
+                writer.show_Path(d, path)
+        else:
+            writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
+                               "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",
+                               ["Command"])
 
     # -------------------------------------------------------
 
@@ -2017,8 +2021,8 @@ Please check the code inside these methods:"""
 
     # "dx.get_tainted_field" will return "None" if nothing found
     field_ALLOW_ALL_HOSTNAME_VERIFIER = dx.get_tainted_field("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
-                                                              "ALLOW_ALL_HOSTNAME_VERIFIER",
-                                                              "Lorg/apache/http/conn/ssl/X509HostnameVerifier;")
+                                                             "ALLOW_ALL_HOSTNAME_VERIFIER",
+                                                             "Lorg/apache/http/conn/ssl/X509HostnameVerifier;")
 
     if field_ALLOW_ALL_HOSTNAME_VERIFIER:
         filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = filteringEngine.filter_list_of_variables(d,
@@ -2349,35 +2353,35 @@ Please check the reference:
     list_path_openFileOutput = []
 
     path_openOrCreateDatabase = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
-                                                                                      "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;)Landroid/database/sqlite/SQLiteDatabase;")
+                                                                                     "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;)Landroid/database/sqlite/SQLiteDatabase;")
     path_openOrCreateDatabase = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_openOrCreateDatabase.append(i.getPath())
 
     path_openOrCreateDatabase2 = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
-                                                                                       "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;")
+                                                                                      "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;")
     path_openOrCreateDatabase2 = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase2)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase2):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_openOrCreateDatabase2.append(i.getPath())
 
     path_getDir = dx.get_tainted_packages().search_methods_exact_match("getDir",
-                                                                        "(Ljava/lang/String; I)Ljava/io/File;")
+                                                                       "(Ljava/lang/String; I)Ljava/io/File;")
     path_getDir = filteringEngine.filter_list_of_paths(d, path_getDir)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getDir):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_getDir.append(i.getPath())
 
     path_getSharedPreferences = dx.get_tainted_packages().search_methods_exact_match("getSharedPreferences",
-                                                                                      "(Ljava/lang/String; I)Landroid/content/SharedPreferences;")
+                                                                                     "(Ljava/lang/String; I)Landroid/content/SharedPreferences;")
     path_getSharedPreferences = filteringEngine.filter_list_of_paths(d, path_getSharedPreferences)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getSharedPreferences):
         if (0x1 <= i.getResult()[2] <= 0x3):
             list_path_getSharedPreferences.append(i.getPath())
 
     path_openFileOutput = dx.get_tainted_packages().search_methods_exact_match("openFileOutput",
-                                                                                "(Ljava/lang/String; I)Ljava/io/FileOutputStream;")
+                                                                               "(Ljava/lang/String; I)Ljava/io/FileOutputStream;")
     path_openFileOutput = filteringEngine.filter_list_of_paths(d, path_openFileOutput)
     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openFileOutput):
         if (0x1 <= i.getResult()[2] <= 0x3):
@@ -2516,8 +2520,8 @@ Please check the reference:
                 is_using_Framework_Bangcle = True
             else:
                 path_secapk = dx.find_methods("Lcom/secapk/wrapper/ACall;",
-                                                                                          "getACall",
-                                                                                          "()Lcom/secapk/wrapper/ACall;")
+                                              "getACall",
+                                              "()Lcom/secapk/wrapper/ACall;")
                 if path_secapk:
                     is_using_Framework_Bangcle = True
 
@@ -3300,7 +3304,7 @@ Proof-Of-Concept Reference:
     # Android getting IMEI, Android_ID, UUID problem
 
     path_Device_id = dx.find_methods("Landroid/telephony/TelephonyManager;",
-                                                                                 "getDeviceId", "()Ljava/lang/String;")
+                                     "getDeviceId", "()Ljava/lang/String;")
     path_Device_id = filteringEngine.filter_list_of_paths(d, path_Device_id)
 
     if path_Device_id:
@@ -3327,8 +3331,8 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
     # Android "android_id"
 
     path_android_id = dx.find_methods("Landroid/provider/Settings$Secure;",
-                                                                                  "getString",
-                                                                                  "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
+                                      "getString",
+                                      "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
     path_android_id = filteringEngine.filter_list_of_paths(d, path_android_id)
 
     list_android_id = []
@@ -3375,7 +3379,7 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
     ]
 
     path_sms_sending = dx.get_tainted_packages().search_class_methodlist_exact_match("Landroid/telephony/SmsManager;",
-                                                                                      list_sms_signatures)
+                                                                                     list_sms_signatures)
     path_sms_sending = filteringEngine.filter_list_of_paths(d, path_sms_sending)
 
     if path_sms_sending:
