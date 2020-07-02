@@ -3,6 +3,7 @@ import re
 from vector_base import VectorBase
 from constants import *
 
+
 class Vector(VectorBase):
     description = "Checks if app has correct permissions"
 
@@ -11,10 +12,12 @@ class Vector(VectorBase):
 
         # ACCESS_MOCK_LOCATION check
         if "android.permission.ACCESS_MOCK_LOCATION" in all_permissions:
-            self.writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_CRITICAL, "Unnecessary Permission Checking",
+            self.writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_CRITICAL,
+                                    "Unnecessary Permission Checking",
                                     "Permission 'android.permission.ACCESS_MOCK_LOCATION' only works in emulator environment. Please remove this permission if it is a released application.")
         else:
-            self.writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_INFO, "Unnecessary Permission Checking",
+            self.writer.startWriter("USE_PERMISSION_ACCESS_MOCK_LOCATION", LEVEL_INFO,
+                                    "Unnecessary Permission Checking",
                                     "Permission 'android.permission.ACCESS_MOCK_LOCATION' sets correctly.")
 
         # Empty permissionGroup check
@@ -34,9 +37,11 @@ class Vector(VectorBase):
                                     "Setting the 'permissionGroup' attribute an empty value will make the permission definition become invalid and no other apps will be able to use the permission.")
 
             for permission_name in permissions_with_empty_permission_group:
-                self.writer.write("Permission name '%s' sets an empty value in `permissionGroup` attribute." % (permission_name))
+                self.writer.write(
+                    "Permission name '%s' sets an empty value in `permissionGroup` attribute." % (permission_name))
         else:
-            self.writer.startWriter("PERMISSION_GROUP_EMPTY_VALUE", LEVEL_INFO, "AndroidManifest PermissionGroup Checking",
+            self.writer.startWriter("PERMISSION_GROUP_EMPTY_VALUE", LEVEL_INFO,
+                                    "AndroidManifest PermissionGroup Checking",
                                     "PermissionGroup in permission tag of AndroidManifest sets correctly.")
 
         # Critical use-permission check:

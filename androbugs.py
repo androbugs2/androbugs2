@@ -582,7 +582,7 @@ class Writer:
 
             analysis_tips_output += ")"
 
-            if (REPORT_OUTPUT == TYPE_REPORT_OUTPUT_ONLY_FILE):
+            if REPORT_OUTPUT == TYPE_REPORT_OUTPUT_ONLY_FILE:
                 self.output_and_force_print_console(
                     "<<< Analysis result has stored into database " + analysis_tips_output + " >>>")
             else:
