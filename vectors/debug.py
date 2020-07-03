@@ -1,6 +1,7 @@
 from vector_base import VectorBase
 from constants import *
 
+
 class Vector(VectorBase):
     description = "Checks if debug mode is enabled"
 

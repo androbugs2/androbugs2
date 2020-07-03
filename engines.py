@@ -38,8 +38,9 @@ class EfficientStringSearchEngine:
 
         dict_string_value_to_idx_from_file_mapping = {}
 
-        for idx_from_file, string_value in vm.get_all_offset_from_file_and_string_value_mapping():  # get a dictionary of string value and string idx mapping
-            dict_string_value_to_idx_from_file_mapping[string_value] = idx_from_file
+        # for idx_from_file, string_value in vm.get_all_offset_from_file_and_string_value_mapping():  # get a dictionary of string value and string idx mapping
+        for i in vm.get_string_data_item():  # get a dictionary of string value and string idx mapping
+            dict_string_value_to_idx_from_file_mapping[i.get_unicode()] = i.get_off()
 
         ## [String Search Performance Profiling]
         # string_loading_end = datetime.now()
