@@ -7,10 +7,12 @@ import base64
 STR_REGEXP_TYPE_EXCLUDE_CLASSES = "^(Landroid/support/|Lcom/actionbarsherlock/|Lorg/apache/)"
 ENABLE_EXCLUDE_CLASSES = True
 
+
 class Vector(VectorBase):
     description = "Checks if there are any Base64 encoded strings present and decodes them"
 
     def analyze(self) -> None:
+        # TODO use androguard analysis.find_strings method
         efficient_string_search_engine = EfficientStringSearchEngine()
         filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
 
@@ -22,12 +24,12 @@ class Vector(VectorBase):
         # >>>>STRING_SEARCH<<<<
         # addSearchItem params: (1)match_id  (2)regex or string(url or string you want to find), (3)is using regex for parameter 2
         efficient_string_search_engine.addSearchItem("$__possibly_check_root__", re.compile("/system/bin"),
-                                                  True)  # "root" checking
+                                                     True)  # "root" checking
         efficient_string_search_engine.addSearchItem("$__possibly_check_su__", "su", False)  # "root" checking2
         efficient_string_search_engine.addSearchItem("$__sqlite_encryption__", re.compile("PRAGMA\s*key\s*=", re.I),
-                                                  True)  # SQLite encryption checking
+                                                     True)  # SQLite encryption checking
 
-        print("------------------------------------------------------------")
+        # print("------------------------------------------------------------")
 
         # Print all urls without SSL:
 
@@ -41,14 +43,14 @@ class Vector(VectorBase):
                                 "http://hostname/"]
 
         for line in all_strings:
-            if re.match('http\:\/\/(.+)', line.decode('ISO-8859-1')):  # ^https?\:\/\/(.+)$
+            if re.match('http\:\/\/(.+)', line):  # ^https?\:\/\/(.+)$
                 all_urls_strip_duplicated.append(line)
 
-        allurls_strip_non_duplicated = sorted(set(all_urls_strip_duplicated))
-        allurls_strip_non_duplicated_final = []
+        all_urls_strip_non_duplicated = sorted(set(all_urls_strip_duplicated))
+        all_urls_strip_non_duplicated_final = []
 
-        if allurls_strip_non_duplicated:
-            for url in allurls_strip_non_duplicated:
+        if all_urls_strip_non_duplicated:
+            for url in all_urls_strip_non_duplicated:
                 if (url not in exception_url_string) and (not url.startswith("http://schemas.android.com/")) and \
                         (not url.startswith("http://www.w3.org/")) and \
                         (not url.startswith("http://apache.org/")) and \
@@ -62,15 +64,15 @@ class Vector(VectorBase):
                         (not url.endswith("-instance")):
                     # >>>>STRING_SEARCH<<<<
                     efficient_string_search_engine.addSearchItem(url, url, False)  # use url as "key"
+                    all_urls_strip_non_duplicated_final.append(url)
 
-                    allurls_strip_non_duplicated_final.append(url)
-
+        efficient_string_search_engine.addSearchItem("android.intent.action.MY_PACKAGE_REPLACED", "android.intent.action.MY_PACKAGE_REPLACED", False)  # use url as "key"
         # ------------------------------------------------------------------------
 
         # Base64 String decoding:
         list_base64_success_decoded_string_to_original_mapping = {}
         list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "endNanos", "cityList", "cloudid=",
-                                                "Liouciou"]  # exclusion list
+                                                "Liouciou"]  # exclusion lis
 
         for line in all_strings:
             if (utils.is_base64(line)) and (len(line) >= 3):
@@ -88,8 +90,6 @@ class Vector(VectorBase):
 
         # ------------------------------------------------------------------------
 
-        # >>>>STRING_SEARCH<<<<
-
         # start the search core engine
         efficient_string_search_engine.search(self.dalvik, all_strings)
 
@@ -97,7 +97,7 @@ class Vector(VectorBase):
 
         # pre-run to avoid all the urls are in exclusion list but the results are shown
         all_urls_strip_non_duplicated_final_prerun_count = 0
-        for url in allurls_strip_non_duplicated_final:
+        for url in all_urls_strip_non_duplicated_final:
             dict_class_to_method_mapping = efficient_string_search_engine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
                 url)
             if filtering_engine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
@@ -105,10 +105,10 @@ class Vector(VectorBase):
 
         if all_urls_strip_non_duplicated_final_prerun_count != 0:
             self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_CRITICAL, "SSL Connection Checking",
-                               "URLs that are NOT under SSL (Total:" + str(
-                                   all_urls_strip_non_duplicated_final_prerun_count) + "):", ["SSL_Security"])
+                                    "URLs that are NOT under SSL (Total:" + str(
+                                        all_urls_strip_non_duplicated_final_prerun_count) + "):", ["SSL_Security"])
 
-            for url in allurls_strip_non_duplicated_final:
+            for url in all_urls_strip_non_duplicated_final:
 
                 dict_class_to_method_mapping = efficient_string_search_engine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
                     url)
@@ -131,8 +131,8 @@ class Vector(VectorBase):
 
         else:
             self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_INFO, "SSL Connection Checking",
-                               "Did not discover urls that are not under SSL (Notice: if you encrypt the url string, we can not discover that).",
-                               ["SSL_Security"])
+                                    "Did not discover urls that are not under SSL (Notice: if you encrypt the url string, we can not discover that).",
+                                    ["SSL_Security"])
 
         # Base64 String decoding:
         organized_list_base64_success_decoded_string_to_original_mapping = []
@@ -152,9 +152,9 @@ class Vector(VectorBase):
             list_base64_decoded_urls = {}
 
             self.writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_CRITICAL, "Base64 String Encryption",
-                               "Found Base64 encoding \"String(s)\" (Total: " + str(len(
-                                   organized_list_base64_success_decoded_string_to_original_mapping)) + "). We cannot guarantee all of the Strings are Base64 encoding and also we will not show you the decoded binary file:",
-                               ["Hacker"])
+                                    "Found Base64 encoding \"String(s)\" (Total: " + str(len(
+                                        organized_list_base64_success_decoded_string_to_original_mapping)) + "). We cannot guarantee all of the Strings are Base64 encoding and also we will not show you the decoded binary file:",
+                                    ["Hacker"])
 
             for decoded_string, original_string, dict_class_to_method_mapping in organized_list_base64_success_decoded_string_to_original_mapping:
 
@@ -174,8 +174,8 @@ class Vector(VectorBase):
             if list_base64_decoded_urls:
 
                 self.writer.startWriter("HACKER_BASE64_URL_DECODE", LEVEL_CRITICAL, "Base64 String Encryption",
-                                   "Base64 encoding \"HTTP URLs without SSL\" from all the Strings (Total: " + str(
-                                       len(list_base64_decoded_urls)) + ")", ["SSL_Security", "Hacker"])
+                                        "Base64 encoding \"HTTP URLs without SSL\" from all the Strings (Total: " + str(
+                                            len(list_base64_decoded_urls)) + ")", ["SSL_Security", "Hacker"])
 
                 for decoded_string, original_string in list(list_base64_decoded_urls.items()):
 
@@ -198,4 +198,4 @@ class Vector(VectorBase):
 
         else:
             self.writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_INFO, "Base64 String Encryption",
-                               "No encoded Base64 String or Urls found.", ["Hacker"])
+                                    "No encoded Base64 String or Urls found.", ["Hacker"])
