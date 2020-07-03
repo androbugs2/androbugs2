@@ -1309,78 +1309,78 @@ def __analyze(writer, args):
     #                        ["SSL_Security"])
     #
     # --------------------------------------------------------------------
+    #
+    # regexGerneralRestricted = ".*(config|setting|constant).*";
+    # regexSecurityRestricted = ".*(encrypt|decrypt|encod|decod|aes|sha1|sha256|sha512|md5).*"  # No need to add "sha1" and "des"
+    # # show the user which package is excluded
+    #
+    # prog = re.compile(regexGerneralRestricted, re.I)
+    # prog_sec = re.compile(regexSecurityRestricted, re.I)
+    #
+    # # Security methods finding:
+    #
+    # if args.extra == 2:  # The output may be too verbose, so make it an option
+    #
+    #     list_security_related_methods = []
+    #
+    #     for method in d.get_methods():
+    #         if prog.match(method.get_name()) or prog_sec.match(method.get_name()):
+    #             if filteringEngine.is_class_name_not_in_exclusion(method.get_class_name()):
+    #                 # Need to exclude "onConfigurationChanged (Landroid/content/res/Configuration;)V"
+    #                 if (method.get_name() != 'onConfigurationChanged') and (
+    #                         method.get_descriptor() != '(Landroid/content/res/Configuration;)V'):
+    #                     list_security_related_methods.append(method)
+    #
+    #     if list_security_related_methods:
+    #         writer.startWriter("Security_Methods", LEVEL_NOTICE, "Security Methods Checking",
+    #                            "Find some security-related method names:")
+    #         for method in list_security_related_methods:
+    #             writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
+    #     else:
+    #         writer.startWriter("Security_Methods", LEVEL_INFO, "Security Methods Checking",
+    #                            "Did not detect method names containing security related string.")
 
-    regexGerneralRestricted = ".*(config|setting|constant).*";
-    regexSecurityRestricted = ".*(encrypt|decrypt|encod|decod|aes|sha1|sha256|sha512|md5).*"  # No need to add "sha1" and "des"
-    # show the user which package is excluded
-
-    prog = re.compile(regexGerneralRestricted, re.I)
-    prog_sec = re.compile(regexSecurityRestricted, re.I)
-
-    # Security methods finding:
-
-    if args.extra == 2:  # The output may be too verbose, so make it an option
-
-        list_security_related_methods = []
-
-        for method in d.get_methods():
-            if prog.match(method.get_name()) or prog_sec.match(method.get_name()):
-                if filteringEngine.is_class_name_not_in_exclusion(method.get_class_name()):
-                    # Need to exclude "onConfigurationChanged (Landroid/content/res/Configuration;)V"
-                    if (method.get_name() != 'onConfigurationChanged') and (
-                            method.get_descriptor() != '(Landroid/content/res/Configuration;)V'):
-                        list_security_related_methods.append(method)
-
-        if list_security_related_methods:
-            writer.startWriter("Security_Methods", LEVEL_NOTICE, "Security Methods Checking",
-                               "Find some security-related method names:")
-            for method in list_security_related_methods:
-                writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
-        else:
-            writer.startWriter("Security_Methods", LEVEL_INFO, "Security Methods Checking",
-                               "Did not detect method names containing security related string.")
+    # ------------------------------------------------------------------------------------------------------
+    #
+    # # Security classes finding:
+    #
+    # if args.extra == 2:  # The output may be too verbose, so make it an option
+    #     list_security_related_classes = []
+    #
+    #     for current_class in d.get_classes():
+    #         if prog.match(current_class.get_name()) or prog_sec.match(current_class.get_name()):
+    #             if filteringEngine.is_class_name_not_in_exclusion(current_class.get_name()):
+    #                 list_security_related_classes.append(current_class)
+    #
+    #     if list_security_related_classes:
+    #         writer.startWriter("Security_Classes", LEVEL_NOTICE, "Security Classes Checking",
+    #                            "Find some security-related class names:")
+    #
+    #         for current_class in list_security_related_classes:
+    #             writer.write(current_class.get_name())
+    #     else:
+    #         writer.startWriter("Security_Classes", LEVEL_INFO, "Security Classes Checking",
+    #                            "Did not detect class names containing security related string.")
 
     # ------------------------------------------------------------------------------------------------------
 
-    # Security classes finding:
-
-    if args.extra == 2:  # The output may be too verbose, so make it an option
-        list_security_related_classes = []
-
-        for current_class in d.get_classes():
-            if prog.match(current_class.get_name()) or prog_sec.match(current_class.get_name()):
-                if filteringEngine.is_class_name_not_in_exclusion(current_class.get_name()):
-                    list_security_related_classes.append(current_class)
-
-        if list_security_related_classes:
-            writer.startWriter("Security_Classes", LEVEL_NOTICE, "Security Classes Checking",
-                               "Find some security-related class names:")
-
-            for current_class in list_security_related_classes:
-                writer.write(current_class.get_name())
-        else:
-            writer.startWriter("Security_Classes", LEVEL_INFO, "Security Classes Checking",
-                               "Did not detect class names containing security related string.")
-
-    # ------------------------------------------------------------------------------------------------------
-
-    # Master Key Vulnerability checking:
-
-    dexes_count = 0
-    all_files = a.get_files()
-    for f in all_files:
-        if f == 'classes.dex':
-            dexes_count += 1
-
-    if dexes_count > 1:
-        isMasterKeyVulnerability = True
-
-    if isMasterKeyVulnerability:
-        writer.startWriter("MASTER_KEY", LEVEL_CRITICAL, "Master Key Type I Vulnerability",
-                           "This APK is suffered from Master Key Type I Vulnerability.", None, "CVE-2013-4787")
-    else:
-        writer.startWriter("MASTER_KEY", LEVEL_INFO, "Master Key Type I Vulnerability",
-                           "No Master Key Type I Vulnerability in this APK.", None, "CVE-2013-4787")
+    # # Master Key Vulnerability checking:
+    #
+    # dexes_count = 0
+    # all_files = a.get_files()
+    # for f in all_files:
+    #     if f == 'classes.dex':
+    #         dexes_count += 1
+    #
+    # if dexes_count > 1:
+    #     isMasterKeyVulnerability = True
+    #
+    # if isMasterKeyVulnerability:
+    #     writer.startWriter("MASTER_KEY", LEVEL_CRITICAL, "Master Key Type I Vulnerability",
+    #                        "This APK is suffered from Master Key Type I Vulnerability.", None, "CVE-2013-4787")
+    # else:
+    #     writer.startWriter("MASTER_KEY", LEVEL_INFO, "Master Key Type I Vulnerability",
+    #                        "No Master Key Type I Vulnerability in this APK.", None, "CVE-2013-4787")
 
     # ------------------------------------------------------------------------------------------------------
     # Certificate checking (Prerequisite: 1.directory name "tmp" available  2.keytool command is available)
@@ -1646,34 +1646,34 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     #                        "No encoded Base64 String or Urls found.", ["Hacker"])
 
     # ------------------------------------------------------------------------
-    # WebView addJavascriptInterface checking:
-
-    # Don't match class name because it might use the subclass of WebView
-    path_WebView_addJavascriptInterface = dx.find_methods(
-        methodname="addJavascriptInterface", descriptor="(Ljava/lang/Object; Ljava/lang/String;)V")
-    path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d,
-                                                                               path_WebView_addJavascriptInterface)  # TODO fix filtering
-
-    if path_WebView_addJavascriptInterface:
-
-        output_string = """Found a critical WebView "addJavascriptInterface" vulnerability. This method can be used to allow JavaScript to control the host application. 
-This is a powerful feature, but also presents a security risk for applications targeted to API level JELLY_BEAN(4.2) or below, because JavaScript could use reflection to access an injected object's public fields. Use of this method in a WebView containing untrusted content could allow an attacker to manipulate the host application in unintended ways, executing Java code with the permissions of the host application. 
-Reference: 
-  1."http://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object, java.lang.String) "
-  2.https://labs.mwrinfosecurity.com/blog/2013/09/24/webview-addjavascriptinterface-remote-code-execution/
-  3.http://50.56.33.56/blog/?p=314
-  4.http://blog.trustlook.com/2013/09/04/alert-android-webview-addjavascriptinterface-code-execution-vulnerability/
-Please modify the below code:"""
-
-        writer.startWriter("WEBVIEW_RCE", LEVEL_CRITICAL, "WebView RCE Vulnerability Checking", output_string,
-                           ["WebView", "Remote Code Execution"], "CVE-2013-4710")
-        writer.show_Paths(d, path_WebView_addJavascriptInterface)
-
-    else:
-
-        writer.startWriter("WEBVIEW_RCE", LEVEL_INFO, "WebView RCE Vulnerability Checking",
-                           "WebView addJavascriptInterface vulnerabilities not found.",
-                           ["WebView", "Remote Code Execution"], "CVE-2013-4710")
+#     # WebView addJavascriptInterface checking:
+#
+#     # Don't match class name because it might use the subclass of WebView
+#     path_WebView_addJavascriptInterface = dx.find_methods(
+#         methodname="addJavascriptInterface", descriptor="(Ljava/lang/Object; Ljava/lang/String;)V")
+#     path_WebView_addJavascriptInterface = filteringEngine.filter_list_of_paths(d,
+#                                                                                path_WebView_addJavascriptInterface)  # TODO fix filtering
+#
+#     if path_WebView_addJavascriptInterface:
+#
+#         output_string = """Found a critical WebView "addJavascriptInterface" vulnerability. This method can be used to allow JavaScript to control the host application.
+# This is a powerful feature, but also presents a security risk for applications targeted to API level JELLY_BEAN(4.2) or below, because JavaScript could use reflection to access an injected object's public fields. Use of this method in a WebView containing untrusted content could allow an attacker to manipulate the host application in unintended ways, executing Java code with the permissions of the host application.
+# Reference:
+#   1."http://developer.android.com/reference/android/webkit/WebView.html#addJavascriptInterface(java.lang.Object, java.lang.String) "
+#   2.https://labs.mwrinfosecurity.com/blog/2013/09/24/webview-addjavascriptinterface-remote-code-execution/
+#   3.http://50.56.33.56/blog/?p=314
+#   4.http://blog.trustlook.com/2013/09/04/alert-android-webview-addjavascriptinterface-code-execution-vulnerability/
+# Please modify the below code:"""
+#
+#         writer.startWriter("WEBVIEW_RCE", LEVEL_CRITICAL, "WebView RCE Vulnerability Checking", output_string,
+#                            ["WebView", "Remote Code Execution"], "CVE-2013-4710")
+#         writer.show_Paths(d, path_WebView_addJavascriptInterface)
+#
+#     else:
+#
+#         writer.startWriter("WEBVIEW_RCE", LEVEL_INFO, "WebView RCE Vulnerability Checking",
+#                            "WebView addJavascriptInterface vulnerabilities not found.",
+#                            ["WebView", "Remote Code Execution"], "CVE-2013-4710")
 
     # ------------------------------------------------------------------------
     # KeyStore null PWD checking:
@@ -1806,39 +1806,39 @@ Please modify the below code:"""
                            ["KeyStore"])
 
     # ------------------------------------------------------------------------
-    # Android PackageInfo signatures checking:
-
-    """
-		Example:
-
-		    move-result-object v0
-		    iget-object v2, v0, Landroid/content/pm/PackageInfo;->signatures:[Landroid/content/pm/Signature;
-
-			PackageManager pkgManager = context.getPackageManager();
-			pkgManager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES).signatures[0].toByteArray();
-	"""
-
-    list_PackageInfo_signatures = []
-    path_PackageInfo_signatures = dx.find_methods(
-        "Landroid/content/pm/PackageManager;", "getPackageInfo",
-        "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
-    path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d,
-                                                                       path_PackageInfo_signatures)  # TODO fix filtering
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_PackageInfo_signatures):
-        if i.getResult()[2] is None:
-            continue
-        if i.getResult()[2] == 64:
-            list_PackageInfo_signatures.append(i.getPath())
-
-    if list_PackageInfo_signatures:
-        writer.startWriter("HACKER_SIGNATURE_CHECK", LEVEL_NOTICE, "Getting Signature Code Checking",
-                           "This app has code checking the package signature in the code. It might be used to check for whether the app is hacked by the attackers.",
-                           ["Signature", "Hacker"])
-        for signature in list_PackageInfo_signatures:
-            writer.show_Path(d, signature)
-    else:
-        writer.startWriter("HACKER_SIGNATURE_CHECK", LEVEL_INFO, "Getting Signature Code Checking",
-                           "Did not detect this app is checking the signature in the code.", ["Signature", "Hacker"])
+    # # Android PackageInfo signatures checking:
+    #
+    # """
+	# 	Example:
+    #
+	# 	    move-result-object v0
+	# 	    iget-object v2, v0, Landroid/content/pm/PackageInfo;->signatures:[Landroid/content/pm/Signature;
+    #
+	# 		PackageManager pkgManager = context.getPackageManager();
+	# 		pkgManager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES).signatures[0].toByteArray();
+	# """
+    #
+    # list_PackageInfo_signatures = []
+    # path_PackageInfo_signatures = dx.find_methods(
+    #     "Landroid/content/pm/PackageManager;", "getPackageInfo",
+    #     "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
+    # path_PackageInfo_signatures = filteringEngine.filter_list_of_paths(d,
+    #                                                                    path_PackageInfo_signatures)  # TODO fix filtering
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_PackageInfo_signatures):
+    #     if i.getResult()[2] is None:
+    #         continue
+    #     if i.getResult()[2] == 64:
+    #         list_PackageInfo_signatures.append(i.getPath())
+    #
+    # if list_PackageInfo_signatures:
+    #     writer.startWriter("HACKER_SIGNATURE_CHECK", LEVEL_NOTICE, "Getting Signature Code Checking",
+    #                        "This app has code checking the package signature in the code. It might be used to check for whether the app is hacked by the attackers.",
+    #                        ["Signature", "Hacker"])
+    #     for signature in list_PackageInfo_signatures:
+    #         writer.show_Path(d, signature)
+    # else:
+    #     writer.startWriter("HACKER_SIGNATURE_CHECK", LEVEL_INFO, "Getting Signature Code Checking",
+    #                        "Did not detect this app is checking the signature in the code.", ["Signature", "Hacker"])
 
     # ------------------------------------------------------------------------
     # Developers preventing screenshot capturing checking:
