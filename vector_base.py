@@ -6,6 +6,9 @@ from androguard.core.bytecodes.dvm import DalvikVMFormat
 
 from writer import Writer
 
+from engines import FilteringEngine
+from constants import ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES
+
 
 class VectorBase(ABC):
     """
@@ -26,6 +29,7 @@ class VectorBase(ABC):
         self.dalvik = dalvik
         self.analysis = analysis
         self.args = args
+        self.filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
 
     @property
     @abstractmethod
