@@ -34,9 +34,9 @@ LINE_MAX_OUTPUT_INDENT = 20
 """
 	*****************************************************************************
 	** AndroBugs Framework - Android App Security Vulnerability Scanner        **
-	** This tool is created by Yu-Cheng Lin (a.k.a. AndroBugs) @ AndroBugs.com **
-	** Twitter: @AndroBugs                                                     **
-	** Email: androbugs.framework@gmail.com                                    **
+	** This tool was originally created by Yu-Cheng Lin                        **
+	** Modifications by Jasper van Thuijl & Noam Drong                         **
+	** Version: 2.0                                                            **
 	*****************************************************************************
 
 	** Read Python codeing style first: http://www.python.org/dev/peps/pep-0008/ **
