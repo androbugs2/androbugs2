@@ -152,10 +152,6 @@ def get_hash_exception(writer):
     return tmp_hash
 
 def get_hashes_by_filename(filename):
-    md5 = None
-    sha1 = None
-    sha256 = None
-    sha512 = None
     with open(filename, 'r', encoding='ISO-8859-1') as f:
         data = f.read().encode()
         md5 = hashlib.md5(data).hexdigest()
@@ -189,12 +185,6 @@ def __analyze(writer, args):
 
     # StopWatch: Counting execution time...
     start_time = datetime.now()
-
-    # efficientStringSearchEngine = EfficientStringSearchEngine()
-    # filteringEngine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
-
-    isUsingSQLCipher = False
-    isMasterKeyVulnerability = False
 
     if args.line_max_output_characters is None:
         if platform.system().lower() == "windows":
