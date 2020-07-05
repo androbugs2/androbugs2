@@ -433,7 +433,7 @@ def __analyze(writer, args):
     writer.update_analyze_status("checking_vectors")
     for vector_class in loaded_vector_classes:
         print("Running " + vector_class.__name__ + " analysis.")
-        vector_class.Vector(writer, a, d, dx).analyze()
+        vector_class.Vector(writer, a, d, dx, args).analyze()
 
     # End of Checking
 

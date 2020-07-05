@@ -66,7 +66,8 @@ class Vector(VectorBase):
                     efficient_string_search_engine.addSearchItem(url, url, False)  # use url as "key"
                     all_urls_strip_non_duplicated_final.append(url)
 
-        efficient_string_search_engine.addSearchItem("android.intent.action.MY_PACKAGE_REPLACED", "android.intent.action.MY_PACKAGE_REPLACED", False)  # use url as "key"
+# TEST for Airpods app
+        # efficient_string_search_engine.addSearchItem("android.intent.action.MY_PACKAGE_REPLACED", "android.intent.action.MY_PACKAGE_REPLACED", False)  # use url as "key"
         # ------------------------------------------------------------------------
 
         # Base64 String decoding:
