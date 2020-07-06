@@ -12,62 +12,82 @@ class Vector(VectorBase):
     description = "Checks if there are any Base64 encoded strings present and decodes them"
 
     def analyze(self) -> None:
+
+        # filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+
+        excluded_class_names = re.compile(STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+        found = False
+
+        for string, string_analysis in self.analysis.get_strings_analysis():
+            if (utils.is_base64(string)) and (len(string) >= 3):
+                try:
+                    decoded_string = base64.b64decode(string)
+                    if utils.is_success_base64_decoded_string(decoded_string) and len(decoded_string) > 3:
+                        for xref_class, xref_method in string_analysis.get_xref_from():
+                            if not excluded_class_names.match(xref_class.name):
+                                found = True
+                                print(decoded_string + " found!!!!")
+
+                except:
+                    pass
+        if found:
+            self.writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_CRITICAL,
+                                    "Base64 String Encryption",
+                                    "Found Base64 encoding \"String(s)\" (Total: " + 10 + "). We cannot guarantee all of the Strings are Base64 encoding and also we will not show you the decoded binary file:",
+                                    ["Hacker"])
+
+
+        else:
+            self.writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_INFO, "Base64 String Encryption",
+                                    "No encoded Base64 String or Urls found.", ["Hacker"])
+
+        return
+
         # TODO use androguard analysis.find_strings method
-        efficient_string_search_engine = EfficientStringSearchEngine()
+        # efficient_string_search_engine = EfficientStringSearchEngine()
         filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
 
         all_strings = self.dalvik.get_strings()
         all_urls_strip_duplicated = []
 
-        # ------------------------------------------------------------------------
-        # [Important: String Efficient Searching Engine]
-        # >>>>STRING_SEARCH<<<<
-        # addSearchItem params: (1)match_id  (2)regex or string(url or string you want to find), (3)is using regex for parameter 2
-        efficient_string_search_engine.addSearchItem("$__possibly_check_root__", re.compile("/system/bin"),
-                                                     True)  # "root" checking
-        efficient_string_search_engine.addSearchItem("$__possibly_check_su__", "su", False)  # "root" checking2
-        efficient_string_search_engine.addSearchItem("$__sqlite_encryption__", re.compile("PRAGMA\s*key\s*=", re.I),
-                                                     True)  # SQLite encryption checking
 
-        # print("------------------------------------------------------------")
-
-        # Print all urls without SSL:
-
-        exception_url_string = ["http://example.com",
-                                "http://example.com/",
-                                "http://www.example.com",
-                                "http://www.example.com/",
-                                "http://www.google-analytics.com/collect",
-                                "http://www.google-analytics.com",
-                                "http://hostname/?",
-                                "http://hostname/"]
-
-        for line in all_strings:
-            if re.match('http\:\/\/(.+)', line):  # ^https?\:\/\/(.+)$
-                all_urls_strip_duplicated.append(line)
-
-        all_urls_strip_non_duplicated = sorted(set(all_urls_strip_duplicated))
-        all_urls_strip_non_duplicated_final = []
-
-        if all_urls_strip_non_duplicated:
-            for url in all_urls_strip_non_duplicated:
-                if (url not in exception_url_string) and (not url.startswith("http://schemas.android.com/")) and \
-                        (not url.startswith("http://www.w3.org/")) and \
-                        (not url.startswith("http://apache.org/")) and \
-                        (not url.startswith("http://xml.org/")) and \
-                        (not url.startswith("http://localhost/")) and \
-                        (not url.startswith("http://java.sun.com/")) and \
-                        (not url.endswith("/namespace")) and \
-                        (not url.endswith("-dtd")) and \
-                        (not url.endswith(".dtd")) and \
-                        (not url.endswith("-handler")) and \
-                        (not url.endswith("-instance")):
-                    # >>>>STRING_SEARCH<<<<
-                    efficient_string_search_engine.addSearchItem(url, url, False)  # use url as "key"
-                    all_urls_strip_non_duplicated_final.append(url)
-
-# TEST for Airpods app
-        # efficient_string_search_engine.addSearchItem("android.intent.action.MY_PACKAGE_REPLACED", "android.intent.action.MY_PACKAGE_REPLACED", False)  # use url as "key"
+        # Print all urls without SSL: TODO implement this
+#
+#         exception_url_string = ["http://example.com",
+#                                 "http://example.com/",
+#                                 "http://www.example.com",
+#                                 "http://www.example.com/",
+#                                 "http://www.google-analytics.com/collect",
+#                                 "http://www.google-analytics.com",
+#                                 "http://hostname/?",
+#                                 "http://hostname/"]
+#
+#         for line in all_strings:
+#             if re.match('http\:\/\/(.+)', line):  # ^https?\:\/\/(.+)$
+#                 all_urls_strip_duplicated.append(line)
+#
+#         all_urls_strip_non_duplicated = sorted(set(all_urls_strip_duplicated))
+#         all_urls_strip_non_duplicated_final = []
+#
+#         if all_urls_strip_non_duplicated:
+#             for url in all_urls_strip_non_duplicated:
+#                 if (url not in exception_url_string) and (not url.startswith("http://schemas.android.com/")) and \
+#                         (not url.startswith("http://www.w3.org/")) and \
+#                         (not url.startswith("http://apache.org/")) and \
+#                         (not url.startswith("http://xml.org/")) and \
+#                         (not url.startswith("http://localhost/")) and \
+#                         (not url.startswith("http://java.sun.com/")) and \
+#                         (not url.endswith("/namespace")) and \
+#                         (not url.endswith("-dtd")) and \
+#                         (not url.endswith(".dtd")) and \
+#                         (not url.endswith("-handler")) and \
+#                         (not url.endswith("-instance")):
+#                     # >>>>STRING_SEARCH<<<<
+#                     efficient_string_search_engine.addSearchItem(url, url, False)  # use url as "key"
+#                     all_urls_strip_non_duplicated_final.append(url)
+#
+# # TEST for Airpods app
+#         # efficient_string_search_engine.addSearchItem("android.intent.action.MY_PACKAGE_REPLACED", "android.intent.action.MY_PACKAGE_REPLACED", False)  # use url as "key"
         # ------------------------------------------------------------------------
 
         # Base64 String decoding:
@@ -92,48 +112,48 @@ class Vector(VectorBase):
         # ------------------------------------------------------------------------
 
         # start the search core engine
-        efficient_string_search_engine.search(self.dalvik, all_strings)
-
-        # ------------------------------------------------------------------------
-
-        # pre-run to avoid all the urls are in exclusion list but the results are shown
-        all_urls_strip_non_duplicated_final_prerun_count = 0
-        for url in all_urls_strip_non_duplicated_final:
-            dict_class_to_method_mapping = efficient_string_search_engine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
-                url)
-            if filtering_engine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
-                all_urls_strip_non_duplicated_final_prerun_count = all_urls_strip_non_duplicated_final_prerun_count + 1
-
-        if all_urls_strip_non_duplicated_final_prerun_count != 0:
-            self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_CRITICAL, "SSL Connection Checking",
-                                    "URLs that are NOT under SSL (Total:" + str(
-                                        all_urls_strip_non_duplicated_final_prerun_count) + "):", ["SSL_Security"])
-
-            for url in all_urls_strip_non_duplicated_final:
-
-                dict_class_to_method_mapping = efficient_string_search_engine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
-                    url)
-                if not filtering_engine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
-                    continue
-
-                self.writer.write(url)
-
-                try:
-                    if dict_class_to_method_mapping:  # Found the corresponding url in the code
-                        for _, result_method_list in list(dict_class_to_method_mapping.items()):
-                            for result_method in result_method_list:  # strip duplicated item
-                                if filtering_engine.is_class_name_not_in_exclusion(result_method.get_class_name()):
-                                    source_classes_and_functions = (
-                                            result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
-                                    self.writer.write("    => " + source_classes_and_functions)
-
-                except KeyError:
-                    pass
-
-        else:
-            self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_INFO, "SSL Connection Checking",
-                                    "Did not discover urls that are not under SSL (Notice: if you encrypt the url string, we can not discover that).",
-                                    ["SSL_Security"])
+        # efficient_string_search_engine.search(self.dalvik, all_strings)
+        #
+        # # ------------------------------------------------------------------------
+        #
+        # # pre-run to avoid all the urls are in exclusion list but the results are shown
+        # all_urls_strip_non_duplicated_final_prerun_count = 0
+        # for url in all_urls_strip_non_duplicated_final:
+        #     dict_class_to_method_mapping = efficient_string_search_engine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
+        #         url)
+        #     if filtering_engine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
+        #         all_urls_strip_non_duplicated_final_prerun_count = all_urls_strip_non_duplicated_final_prerun_count + 1
+        #
+        # if all_urls_strip_non_duplicated_final_prerun_count != 0:
+        #     self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_CRITICAL, "SSL Connection Checking",
+        #                             "URLs that are NOT under SSL (Total:" + str(
+        #                                 all_urls_strip_non_duplicated_final_prerun_count) + "):", ["SSL_Security"])
+        #
+        #     for url in all_urls_strip_non_duplicated_final:
+        #
+        #         dict_class_to_method_mapping = efficient_string_search_engine.get_search_result_dict_key_classname_value_methodlist_by_match_id(
+        #             url)
+        #         if not filtering_engine.is_all_of_key_class_in_dict_not_in_exclusion(dict_class_to_method_mapping):
+        #             continue
+        #
+        #         self.writer.write(url)
+        #
+        #         try:
+        #             if dict_class_to_method_mapping:  # Found the corresponding url in the code
+        #                 for _, result_method_list in list(dict_class_to_method_mapping.items()):
+        #                     for result_method in result_method_list:  # strip duplicated item
+        #                         if filtering_engine.is_class_name_not_in_exclusion(result_method.get_class_name()):
+        #                             source_classes_and_functions = (
+        #                                     result_method.get_class_name() + "->" + result_method.get_name() + result_method.get_descriptor())
+        #                             self.writer.write("    => " + source_classes_and_functions)
+        #
+        #         except KeyError:
+        #             pass
+        #
+        # else:
+        #     self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_INFO, "SSL Connection Checking",
+        #                             "Did not discover urls that are not under SSL (Notice: if you encrypt the url string, we can not discover that).",
+        #                             ["SSL_Security"])
 
         # Base64 String decoding:
         organized_list_base64_success_decoded_string_to_original_mapping = []
