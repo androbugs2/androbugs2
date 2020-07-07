@@ -97,6 +97,7 @@ LINE_MAX_OUTPUT_INDENT = 20
 
 """
 
+
 def parseArgument():
     parser = argparse.ArgumentParser(description='AndroBugs Framework - Android App Security Vulnerability Scanner')
     parser.add_argument("-f", "--apk_file", help="APK File to analyze", type=str, required=True)
@@ -117,6 +118,9 @@ def parseArgument():
     parser.add_argument("-v", "--show_vector_id",
                         help="Specify this argument if you want to see the Vector ID for each vector.",
                         action="store_true")
+    parser.add_argument("-d", "--debug_vector",
+                        help="Specify this argument if you want to only load a specific vector.",
+                        type=str, required=False, default=None)
 
     # When you want to use "report_output_dir", remember to use "os.path.join(args.report_output_dir, [filename])"
     parser.add_argument("-o", "--report_output_dir", help="Analysis Report Output Directory", type=str, required=False,
@@ -124,6 +128,7 @@ def parseArgument():
 
     args = parser.parse_args()
     return args
+
 
 def isNullOrEmptyString(input_string, strip_whitespaces=False):
     if input_string is None:
@@ -136,6 +141,7 @@ def isNullOrEmptyString(input_string, strip_whitespaces=False):
             return True
     return False
 
+
 def get_hash_scanning(writer):
     # signature = hash(package_name(default="") + "-" + file_sha256(default="") + "-" + timestamp_long + "-" + random_number_length8)
     # use "-" because aaa-bbb.com is not a valid domain name
@@ -144,12 +150,14 @@ def get_hash_scanning(writer):
     tmp_hash = hashlib.sha512(tmp_original.encode()).hexdigest()
     return tmp_hash
 
+
 def get_hash_exception(writer):
     # signature = hash(analyze_error_id(default="") + "-" + file_sha256(default="") + "-" + timestamp_long + "-" + random_number_length8)
     tmp_original = writer.getInf("analyze_error_id", "err") + "-" + writer.getInf("file_sha256", "sha256") + "-" + str(
         time.time()) + "-" + str(random.randrange(10000000, 99999999))
     tmp_hash = hashlib.sha512(tmp_original.encode()).hexdigest()
     return tmp_hash
+
 
 def get_hashes_by_filename(filename):
     with open(filename, 'r', encoding='ISO-8859-1') as f:
@@ -159,6 +167,7 @@ def get_hashes_by_filename(filename):
         sha256 = hashlib.sha256(data).hexdigest()
         sha512 = hashlib.sha512(data).hexdigest()
     return md5, sha1, sha256, sha512
+
 
 class ExpectedException(Exception):
     def __init__(self, err_id, message):
@@ -173,7 +182,6 @@ class ExpectedException(Exception):
 
     def get_err_message(self):
         return self.message
-
 
 
 def __analyze(writer, args):
@@ -318,10 +326,10 @@ def __analyze(writer, args):
     print("Loaded vectors:")
     file_list = os.listdir(os.path.dirname(vectors.__file__))
     for file_name in file_list:
-        if file_name.endswith('.py') and file_name != '__init__.py':
+        if file_name.endswith('.py') and file_name != '__init__.py' \
+                and (args.debug_vector is None or file_name.startswith(args.debug_vector)):
             loaded_vector_classes.append(importlib.import_module('vectors.' + file_name.replace('.py', '')))
             print(file_name.replace('.py', ''))
-
 
     writer.update_analyze_status("checking_vectors")
     for vector_class in loaded_vector_classes:
@@ -346,6 +354,7 @@ def __analyze(writer, args):
 
     writer.update_analyze_status("success")
     writer.writeInf_ForceNoPrint("time_finish_analyze", datetime.utcnow())
+
 
 def main():
     args = parseArgument()
@@ -439,6 +448,7 @@ def main():
         elif REPORT_OUTPUT == "print_and_file":
             writer.show(args)
             persist.__persist_file(writer, args)  # write report to "disk"
+
 
 if __name__ == "__main__":
     main()
