@@ -1,18 +1,16 @@
 import hashlib
-import vectors
-from writer import *
-import argparse
+import importlib
+import platform
 import random
+import time
+import traceback
 from datetime import datetime
 from zipfile import BadZipfile
-import platform
-import traceback
-import importlib
-from androguard.core.bytecodes import apk
-from androguard.core.bytecodes import dvm
-from androguard.core.analysis import analysis
-import time
+import argparse
+from androguard import misc
 import persist
+import vectors
+from writer import *
 
 ANALYZE_MODE_SINGLE = "single"
 ANALYZE_MODE_MASSIVE = "massive"
@@ -211,7 +209,7 @@ def __analyze(writer, args):
     APK_FILE_NAME_STRING = DIRECTORY_APK_FILES + args.apk_file
     apk_Path = APK_FILE_NAME_STRING  # + ".apk"
 
-    if (".." in args.apk_file):
+    if ".." in args.apk_file:
         raise ExpectedException("apk_file_name_slash_twodots_error",
                                 "APK file name should not contain slash(/) or two dots(..) (File: " + apk_Path + ").")
 
@@ -244,7 +242,8 @@ def __analyze(writer, args):
 
     writer.writeInf_ForceNoPrint("time_starting_analyze", datetime.utcnow())
 
-    a = apk.APK(apk_Path)
+    # a = apk.APK(apk_Path)
+    a, d, dx = misc.AnalyzeAPK(apk_Path)
 
     writer.update_analyze_status("starting_apk")
 
@@ -307,14 +306,6 @@ def __analyze(writer, args):
     writer.writeInf("file_sha256", sha256, "SHA256")
     writer.writeInf("file_sha512", sha512, "SHA512")
 
-    writer.update_analyze_status("starting_dvm")
-
-    d = dvm.DalvikVMFormat(a.get_dex())
-
-    writer.update_analyze_status("starting_analysis")
-
-    dx = analysis.Analysis(d)
-
     writer.update_analyze_status("starting_androbugs")
 
     analysis_start = datetime.now()
@@ -334,7 +325,7 @@ def __analyze(writer, args):
     writer.update_analyze_status("checking_vectors")
     for vector_class in loaded_vector_classes:
         print("Running " + vector_class.__name__ + " analysis.")
-        vector_class.Vector(writer, a, d, dx, args).analyze()
+        vector_class.Vector(writer, a, d[0], dx, args).analyze()
 
     # End of Checking
 

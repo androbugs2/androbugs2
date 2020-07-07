@@ -135,7 +135,7 @@ class Writer:
 				http://www.jb51.net/article/26543.htm
 				http://www.jb51.net/article/17560.htm
 		"""
-        return utf8_string.decode('unicode-escape').encode('utf8')
+        return utf8_string.decode('unicode_escape').encode('utf8')
 
     def write(self, detail_msg, indention_space_count=0):
         self.__cache_output_detail_stream.append(detail_msg + "\n")
@@ -264,16 +264,12 @@ class Writer:
 
                 output_string = ""
                 for line in self.__cache_output_detail_stream:
-                    output_string = output_string + str(line).encode(
-                        'string_escape')  # To escape the "\n" shown in the original string inside the APK
+                    output_string = output_string + str(line)  # To escape the "\n" shown in the original string inside the APK
 
-                self.__output_dict_vector_result_information[current_tag][
-                    "vector_details"] = self.get_valid_encoding_utf8_string(
-                    output_string.rstrip(str('\n').encode('string_escape')))
+                self.__output_dict_vector_result_information[current_tag]["vector_details"] = output_string
                 try:
                     self.__output_dict_vector_result_information[current_tag][
-                        "title"] = self.get_valid_encoding_utf8_string(
-                        self.__output_dict_vector_result_information[current_tag]["title"])
+                        "title"] = self.__output_dict_vector_result_information[current_tag]["title"]
                 except KeyError:
                     if DEBUG:
                         print("[KeyError on \"self.__output_dict_vector_result_information\"]")
