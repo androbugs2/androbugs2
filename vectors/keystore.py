@@ -1,3 +1,4 @@
+import staticDVM
 from vector_base import VectorBase
 from constants import *
 
@@ -10,12 +11,12 @@ class Vector(VectorBase):
         list_no_pwd_keystore = []
         list_protected_keystore = []
 
-        path_KeyStore = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; [C)V")
-        path_KeyStore = self.filtering_engine.filter_list_of_paths(self.dalvik, path_KeyStore)
+        path_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; [C)V")
+        path_key_store = self.filtering_engine.filter_list_of_paths(self.dalvik, path_key_store)
         # TODO: Implement method `trace_Register_value_by_Param_in_source_Paths` from modified AndroGuard framework.
-        for i in self.analysis.trace_Register_value_by_Param_in_source_Paths(self.dalvik, path_KeyStore):
+        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_key_store):
             if i.getResult()[2] == 0:  # null = 0 = Not using password
-                if (i.is_class_container(1)):
+                if i.is_class_container(1):
                     clz_invoked = i.getResult()[1]
                     if clz_invoked.get_class_name() == "Ljava/io/ByteArrayInputStream;":
                         list_no_pwd_probably_ssl_pinning_keystore.append(i.getPath())
