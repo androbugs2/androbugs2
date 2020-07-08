@@ -1675,135 +1675,135 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
 #                            "WebView addJavascriptInterface vulnerabilities not found.",
 #                            ["WebView", "Remote Code Execution"], "CVE-2013-4710")
 
-    # ------------------------------------------------------------------------
-    # KeyStore null PWD checking:
-
-    list_no_pwd_probably_ssl_pinning_keystore = []
-    list_no_pwd_keystore = []
-    list_protected_keystore = []
-
-    path_KeyStore = dx.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; [C)V")
-    path_KeyStore = filteringEngine.filter_list_of_paths(d, path_KeyStore)  # TODO maybe fix
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_KeyStore):
-        if i.getResult()[2] == 0:  # null = 0 = Not using password
-            if (i.is_class_container(1)):
-                clz_invoked = i.getResult()[1]
-                if clz_invoked.get_class_name() == "Ljava/io/ByteArrayInputStream;":
-                    list_no_pwd_probably_ssl_pinning_keystore.append(i.getPath())
-                else:
-                    list_no_pwd_keystore.append(i.getPath())
-            else:
-                if i.getResult()[1] == 0:  # null = 0
-                    list_no_pwd_probably_ssl_pinning_keystore.append(i.getPath())
-                else:
-                    list_no_pwd_keystore.append(i.getPath())
-        else:
-            list_protected_keystore.append(i.getPath())
-
-    if (not list_no_pwd_keystore) and (not list_protected_keystore) and (not list_no_pwd_probably_ssl_pinning_keystore):
-
-        writer.startWriter("HACKER_KEYSTORE_NO_PWD", LEVEL_INFO, "KeyStore Protection Checking",
-                           "Ignore checking KeyStore protected by password or not because you're not using KeyStore.",
-                           ["KeyStore", "Hacker"])
-
-    else:
-        if list_no_pwd_probably_ssl_pinning_keystore:
-
-            writer.startWriter("HACKER_KEYSTORE_SSL_PINNING", LEVEL_CRITICAL, "KeyStore Protection Checking",
-                               "The Keystores below seem using \"byte array\" or \"hard-coded cert info\" to do SSL pinning (Total: " + str(
-                                   len(list_no_pwd_probably_ssl_pinning_keystore)) + "). Please manually check:",
-                               ["KeyStore", "Hacker"])
-
-            for keystore in list_no_pwd_probably_ssl_pinning_keystore:
-                writer.show_Path(d, keystore)
-
-        if list_no_pwd_keystore:
-
-            writer.startWriter("HACKER_KEYSTORE_NO_PWD", LEVEL_CRITICAL, "KeyStore Protection Checking",
-                               "The Keystores below seem \"NOT\" protected by password (Total: " + str(
-                                   len(list_no_pwd_keystore)) + "). Please manually check:", ["KeyStore", "Hacker"])
-
-            for keystore in list_no_pwd_keystore:
-                writer.show_Path(d, keystore)
-
-        if list_protected_keystore:
-
-            writer.startWriter("HACKER_KEYSTORE_SSL_PINNING2", LEVEL_NOTICE, "KeyStore Protection Information",
-                               "The Keystores below are \"protected\" by password and seem using SSL-pinning (Total: " + str(
-                                   len(
-                                       list_protected_keystore)) + "). You can use \"Portecle\" tool to manage the certificates in the KeyStore:",
-                               ["KeyStore", "Hacker"])
-
-            for keystore in list_protected_keystore:
-                writer.show_Path(d, keystore)
-
-    # ------------------------------------------------------------------------
-    # Find all keystore
-
-    list_keystore_file_name = []
-    list_possible_keystore_file_name = []
-
-    for name, _, _ in a.get_files_information():
-        """
-			1.Name includes cert (search under /res/raw)
-			2.ends with .bks (search all)
-		"""
-        if name.endswith(".bks") or name.endswith(".jks"):
-            if (name.startswith("res/")) and (
-                    not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw"
-                continue
-            list_keystore_file_name.append(name)
-        elif ("keystore" in name) or ("cert" in name):
-            if (name.startswith("res/")) and (
-                    not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw
-                continue
-            list_possible_keystore_file_name.append(name)
-
-    if list_keystore_file_name or list_possible_keystore_file_name:
-        if list_keystore_file_name:
-            writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_NOTICE, "KeyStore File Location",
-                               "BKS Keystore file:", ["KeyStore", "Hacker"])
-            for i in list_keystore_file_name:
-                writer.write(i)
-
-        if list_possible_keystore_file_name:
-            writer.startWriter("HACKER_KEYSTORE_LOCATION2", LEVEL_NOTICE, "Possible KeyStore File Location",
-                               "BKS possible keystore file:", ["KeyStore", "Hacker"])
-            for i in list_possible_keystore_file_name:
-                writer.write(i)
-    else:
-        writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_INFO, "KeyStore File Location",
-                           "Did not find any possible BKS keystores or certificate keystore file (Notice: It does not mean this app does not use keysotre):",
-                           ["KeyStore", "Hacker"])
-
-    # ------------------------------------------------------------------------
-    # BKS KeyStore checking:
-
-    """
-		Example:
-	    const-string v11, "BKS"
-	    invoke-static {v11}, Ljava/security/KeyStore;->getInstance(Ljava/lang/String;)Ljava/security/KeyStore;
-	"""
-
-    list_Non_BKS_keystore = []
-    path_BKS_KeyStore = dx.find_methods("Ljava/security/KeyStore;", "getInstance",
-                                        "(Ljava/lang/String;)Ljava/security/KeyStore;")
-    path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore)  # TODO fix filtering
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_BKS_KeyStore):
-        if i.getResult()[0] is None:
-            continue
-        if (i.is_string(i.getResult()[0])) and ((i.getResult()[0]).upper() != "BKS"):
-            list_Non_BKS_keystore.append(i.getPath())
-
-    if list_Non_BKS_keystore:
-        writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_CRITICAL, "KeyStore Type Checking",
-                           "Android only accept 'BKS' type KeyStore. Please confirm you are using 'BKS' type KeyStore:",
-                           ["KeyStore"])
-        for keystore in list_Non_BKS_keystore:
-            writer.show_Path(d, keystore)
-    else:
-        writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_INFO, "KeyStore Type Checking", "KeyStore 'BKS' type check OK",
-                           ["KeyStore"])
+    # # ------------------------------------------------------------------------
+    # # KeyStore null PWD checking:
+    #
+    # list_no_pwd_probably_ssl_pinning_keystore = []
+    # list_no_pwd_keystore = []
+    # list_protected_keystore = []
+    #
+    # path_KeyStore = dx.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; [C)V")
+    # path_KeyStore = filteringEngine.filter_list_of_paths(d, path_KeyStore)  # TODO maybe fix
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_KeyStore):
+    #     if i.getResult()[2] == 0:  # null = 0 = Not using password
+    #         if (i.is_class_container(1)):
+    #             clz_invoked = i.getResult()[1]
+    #             if clz_invoked.get_class_name() == "Ljava/io/ByteArrayInputStream;":
+    #                 list_no_pwd_probably_ssl_pinning_keystore.append(i.getPath())
+    #             else:
+    #                 list_no_pwd_keystore.append(i.getPath())
+    #         else:
+    #             if i.getResult()[1] == 0:  # null = 0
+    #                 list_no_pwd_probably_ssl_pinning_keystore.append(i.getPath())
+    #             else:
+    #                 list_no_pwd_keystore.append(i.getPath())
+    #     else:
+    #         list_protected_keystore.append(i.getPath())
+    #
+    # if (not list_no_pwd_keystore) and (not list_protected_keystore) and (not list_no_pwd_probably_ssl_pinning_keystore):
+    #
+    #     writer.startWriter("HACKER_KEYSTORE_NO_PWD", LEVEL_INFO, "KeyStore Protection Checking",
+    #                        "Ignore checking KeyStore protected by password or not because you're not using KeyStore.",
+    #                        ["KeyStore", "Hacker"])
+    #
+    # else:
+    #     if list_no_pwd_probably_ssl_pinning_keystore:
+    #
+    #         writer.startWriter("HACKER_KEYSTORE_SSL_PINNING", LEVEL_CRITICAL, "KeyStore Protection Checking",
+    #                            "The Keystores below seem using \"byte array\" or \"hard-coded cert info\" to do SSL pinning (Total: " + str(
+    #                                len(list_no_pwd_probably_ssl_pinning_keystore)) + "). Please manually check:",
+    #                            ["KeyStore", "Hacker"])
+    #
+    #         for keystore in list_no_pwd_probably_ssl_pinning_keystore:
+    #             writer.show_Path(d, keystore)
+    #
+    #     if list_no_pwd_keystore:
+    #
+    #         writer.startWriter("HACKER_KEYSTORE_NO_PWD", LEVEL_CRITICAL, "KeyStore Protection Checking",
+    #                            "The Keystores below seem \"NOT\" protected by password (Total: " + str(
+    #                                len(list_no_pwd_keystore)) + "). Please manually check:", ["KeyStore", "Hacker"])
+    #
+    #         for keystore in list_no_pwd_keystore:
+    #             writer.show_Path(d, keystore)
+    #
+    #     if list_protected_keystore:
+    #
+    #         writer.startWriter("HACKER_KEYSTORE_SSL_PINNING2", LEVEL_NOTICE, "KeyStore Protection Information",
+    #                            "The Keystores below are \"protected\" by password and seem using SSL-pinning (Total: " + str(
+    #                                len(
+    #                                    list_protected_keystore)) + "). You can use \"Portecle\" tool to manage the certificates in the KeyStore:",
+    #                            ["KeyStore", "Hacker"])
+    #
+    #         for keystore in list_protected_keystore:
+    #             writer.show_Path(d, keystore)
+    #
+    # # ------------------------------------------------------------------------
+    # # Find all keystore
+    #
+    # list_keystore_file_name = []
+    # list_possible_keystore_file_name = []
+    #
+    # for name, _, _ in a.get_files_information():
+    #     """
+	# 		1.Name includes cert (search under /res/raw)
+	# 		2.ends with .bks (search all)
+	# 	"""
+    #     if name.endswith(".bks") or name.endswith(".jks"):
+    #         if (name.startswith("res/")) and (
+    #                 not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw"
+    #             continue
+    #         list_keystore_file_name.append(name)
+    #     elif ("keystore" in name) or ("cert" in name):
+    #         if (name.startswith("res/")) and (
+    #                 not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw
+    #             continue
+    #         list_possible_keystore_file_name.append(name)
+    #
+    # if list_keystore_file_name or list_possible_keystore_file_name:
+    #     if list_keystore_file_name:
+    #         writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_NOTICE, "KeyStore File Location",
+    #                            "BKS Keystore file:", ["KeyStore", "Hacker"])
+    #         for i in list_keystore_file_name:
+    #             writer.write(i)
+    #
+    #     if list_possible_keystore_file_name:
+    #         writer.startWriter("HACKER_KEYSTORE_LOCATION2", LEVEL_NOTICE, "Possible KeyStore File Location",
+    #                            "BKS possible keystore file:", ["KeyStore", "Hacker"])
+    #         for i in list_possible_keystore_file_name:
+    #             writer.write(i)
+    # else:
+    #     writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_INFO, "KeyStore File Location",
+    #                        "Did not find any possible BKS keystores or certificate keystore file (Notice: It does not mean this app does not use keysotre):",
+    #                        ["KeyStore", "Hacker"])
+    #
+    # # ------------------------------------------------------------------------
+    # # BKS KeyStore checking:
+    #
+    # """
+	# 	Example:
+	#     const-string v11, "BKS"
+	#     invoke-static {v11}, Ljava/security/KeyStore;->getInstance(Ljava/lang/String;)Ljava/security/KeyStore;
+	# """
+    #
+    # list_Non_BKS_keystore = []
+    # path_BKS_KeyStore = dx.find_methods("Ljava/security/KeyStore;", "getInstance",
+    #                                     "(Ljava/lang/String;)Ljava/security/KeyStore;")
+    # path_BKS_KeyStore = filteringEngine.filter_list_of_paths(d, path_BKS_KeyStore)  # TODO fix filtering
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_BKS_KeyStore):
+    #     if i.getResult()[0] is None:
+    #         continue
+    #     if (i.is_string(i.getResult()[0])) and ((i.getResult()[0]).upper() != "BKS"):
+    #         list_Non_BKS_keystore.append(i.getPath())
+    #
+    # if list_Non_BKS_keystore:
+    #     writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_CRITICAL, "KeyStore Type Checking",
+    #                        "Android only accept 'BKS' type KeyStore. Please confirm you are using 'BKS' type KeyStore:",
+    #                        ["KeyStore"])
+    #     for keystore in list_Non_BKS_keystore:
+    #         writer.show_Path(d, keystore)
+    # else:
+    #     writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_INFO, "KeyStore Type Checking", "KeyStore 'BKS' type check OK",
+    #                        ["KeyStore"])
 
     # ------------------------------------------------------------------------
     # # Android PackageInfo signatures checking:
@@ -1841,301 +1841,302 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     #                        "Did not detect this app is checking the signature in the code.", ["Signature", "Hacker"])
 
     # ------------------------------------------------------------------------
-    # Developers preventing screenshot capturing checking:
-
-    """
-		Example:
-		    const/16 v1, 0x2000
-		    invoke-super {p0, p1}, Landroid/support/v7/app/AppCompatActivity;->onCreate(Landroid/os/Bundle;)V
-		    invoke-virtual {p0}, Lcom/example/preventscreencapture/MainActivity;->getWindow()Landroid/view/Window;
-		    move-result-object v0
-		    invoke-virtual {v0, v1, v1}, Landroid/view/Window;->setFlags(II)V
-
-
-			getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
-	"""
-
-    list_code_for_preventing_screen_capture = []
-    path_code_for_preventing_screen_capture = dx.find_methods(
-        "Landroid/view/Window;", "setFlags",
-        "(I I)V")  # TODO might be changed due to Android Support library -> androidX
-    path_code_for_preventing_screen_capture = filteringEngine.filter_list_of_paths(d,
-                                                                                   path_code_for_preventing_screen_capture)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_code_for_preventing_screen_capture):
-        if (i.getResult()[1] is None) or (i.getResult()[2] is None):
-            continue
-        if (not isinstance(i.getResult()[1], int)) or (not isinstance(i.getResult()[2], int)):
-            continue
-        if (i.getResult()[1] & 0x2000) and (i.getResult()[2] & 0x2000):
-            list_code_for_preventing_screen_capture.append(i.getPath())
-
-    if list_code_for_preventing_screen_capture:
-        writer.startWriter("HACKER_PREVENT_SCREENSHOT_CHECK", LEVEL_NOTICE,
-                           "Code Setting Preventing Screenshot Capturing",
-                           """This app has code setting the preventing screenshot capturing.
-Example: getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
-It is used by the developers to protect the app:""", ["Hacker"])
-        for interesting_code in list_code_for_preventing_screen_capture:
-            writer.show_Path(d, interesting_code)
-    else:
-        writer.startWriter("HACKER_PREVENT_SCREENSHOT_CHECK", LEVEL_INFO,
-                           "Code Setting Preventing Screenshot Capturing",
-                           "Did not detect this app has code setting preventing screenshot capturing.", ["Hacker"])
-
-    # ------------------------------------------------------------------------
-    # Runtime exec checking:
-
-    """
-		Example Java code:
-			1. Runtime.getRuntime().exec("");
-			2. Runtime rr = Runtime.getRuntime(); Process p = rr.exec("ls -al");
-		    
-		Example Bytecode code (The same bytecode for those two Java code):
-			const-string v2, "ls -al"
-		    invoke-virtual {v1, v2}, Ljava/lang/Runtime;->exec(Ljava/lang/String;)Ljava/lang/Process;
-	"""
-
-    list_Runtime_exec = []
-
-    path_Runtime_exec = dx.find_methods("Ljava/lang/Runtime;", "exec",
-                                        "(Ljava/lang/String;)Ljava/lang/Process;")
-    path_Runtime_exec = filteringEngine.filter_list_of_paths(d, path_Runtime_exec)
-
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_Runtime_exec):
-        if i.getResult()[1] is None:
-            continue
-        if i.getResult()[1] == "su":
-            list_Runtime_exec.append(i.getPath())
-
-    if path_Runtime_exec:
-        writer.startWriter("COMMAND", LEVEL_CRITICAL, "Runtime Command Checking",
-                           "This app is using critical function 'Runtime.getRuntime().exec(\"...\")'.\nPlease confirm these following code secions are not harmful:",
-                           ["Command"])
-
-        writer.show_Paths(d, path_Runtime_exec)
-
-        if list_Runtime_exec:
-            writer.startWriter("COMMAND_SU", LEVEL_CRITICAL, "Runtime Critical Command Checking",
-                               "Requesting for \"root\" permission code sections 'Runtime.getRuntime().exec(\"su\")' found (Critical but maybe false positive):",
-                               ["Command"])
-
-            for path in list_Runtime_exec:
-                writer.show_Path(d, path)
-        else:
-            writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
-                               "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",
-                               ["Command"])
-
-    # -------------------------------------------------------
-
-    # HTTPS ALLOW_ALL_HOSTNAME_VERIFIER checking:
-
-    """
-		Example Java code:
-		    HttpsURLConnection.setDefaultHostnameVerifier(org.apache.http.conn.ssl.SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-
-		Example Bytecode code (The same bytecode for those two Java code):	
-			(1)
-			sget-object v11, Lorg/apache/http/conn/ssl/SSLSocketFactory;->ALLOW_ALL_HOSTNAME_VERIFIER:Lorg/apache/http/conn/ssl/X509HostnameVerifier;
-	    	invoke-static {v11}, Ljavax/net/ssl/HttpsURLConnection;->setDefaultHostnameVerifier(Ljavax/net/ssl/HostnameVerifier;)V
-	    	
-	    	(2)
-		   	new-instance v11, Lcom/example/androidsslconnecttofbtest/MainActivity$2;
-		    invoke-direct {v11, p0}, Lcom/example/androidsslconnecttofbtest/MainActivity$2;-><init>(Lcom/example/androidsslconnecttofbtest/MainActivity;)V
-		    invoke-static {v11}, Ljavax/net/ssl/HttpsURLConnection;->setDefaultHostnameVerifier(Ljavax/net/ssl/HostnameVerifier;)V
-
-		Scenario:
-			https://www.google.com/  => Google (SSL certificate is valid, CN: www.google.com)
-			https://60.199.175.18   => IP of Google (SSL certificate is invalid, See Chrome error message.
-	"""
-
-    # (1)inner class checking
-
-    # First, find out who calls it
-    path_HOSTNAME_INNER_VERIFIER = dx.find_methods(
-        "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "(Ljavax/net/ssl/HostnameVerifier;)V")
-    path_HOSTNAME_INNER_VERIFIER2 = dx.find_methods(
-        "Lorg/apache/http/conn/ssl/SSLSocketFactory;", "setHostnameVerifier",
-        "(Lorg/apache/http/conn/ssl/X509HostnameVerifier;)V")
-    path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
-
-    path_HOSTNAME_INNER_VERIFIER = filteringEngine.filter_list_of_paths(d, path_HOSTNAME_INNER_VERIFIER)
-
-    dic_path_HOSTNAME_INNER_VERIFIER_new_instance = filteringEngine.get_class_container_dict_by_new_instance_classname_in_paths(
-        d, analysis, path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
-
-    # Second, find the called custom classes
-    list_HOSTNAME_INNER_VERIFIER = []
-
-    methods_hostnameverifier = get_method_ins_by_implement_interface_and_method(d, ["Ljavax/net/ssl/HostnameVerifier;"],
-                                                                                TYPE_COMPARE_ANY, "verify",
-                                                                                "(Ljava/lang/String; Ljavax/net/ssl/SSLSession;)Z")
-    for method in methods_hostnameverifier:
-        register_analyzer = analysis.RegisterAnalyzerVM_ImmediateValue(method.get_instructions())
-        if register_analyzer.get_ins_return_boolean_value():  # Has security problem
-            list_HOSTNAME_INNER_VERIFIER.append(method)
-
-    list_HOSTNAME_INNER_VERIFIER = filteringEngine.filter_list_of_methods(list_HOSTNAME_INNER_VERIFIER)
-
-    if list_HOSTNAME_INNER_VERIFIER:
-
-        output_string = """This app allows Self-defined HOSTNAME VERIFIER to accept all Common Names(CN). 
-This is a critical vulnerability and allows attackers to do MITM attacks with his valid certificate without your knowledge. 
-Case example: 
-(1)http://osvdb.org/96411 
-(2)http://www.wooyun.org/bugs/wooyun-2010-042710 
-(3)http://www.wooyun.org/bugs/wooyun-2010-052339
-Also check Google doc: http://developer.android.com/training/articles/security-ssl.html (Caution: Replacing HostnameVerifier can be very dangerous). 
-OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
-Check this book to see how to solve this issue: http://goo.gl/BFb65r 
-
-To see what's the importance of Common Name(CN) verification.
-Use Google Chrome to navigate:
- - https://www.google.com   => SSL certificate is valid
- - https://60.199.175.158/  => This is the IP address of google.com, but the CN is not match, making the certificate invalid. You still can go Google.com but now you cannot distinguish attackers from normal users
-
-Please check the code inside these methods:"""
-
-        writer.startWriter("SSL_CN1", LEVEL_CRITICAL,
-                           "SSL Implementation Checking (Verifying Host Name in Custom Classes)", output_string,
-                           ["SSL_Security"])
-
-        for method in list_HOSTNAME_INNER_VERIFIER:
-            writer.write(method.easy_print())
-
-            # because one class may initialize by many new instances of it
-            method_class_name = method.get_class_name()
-            if method_class_name in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
-                writer.show_Paths(d, dic_path_HOSTNAME_INNER_VERIFIER_new_instance[method_class_name])
-    else:
-        writer.startWriter("SSL_CN1", LEVEL_INFO, "SSL Implementation Checking (Verifying Host Name in Custom Classes)",
-                           "Self-defined HOSTNAME VERIFIER checking OK.", ["SSL_Security"])
-
-    # (2)ALLOW_ALL_HOSTNAME_VERIFIER fields checking
-
-    if "Lorg/apache/http/conn/ssl/AllowAllHostnameVerifier;" in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
-        path_HOSTNAME_INNER_VERIFIER_new_instance = dic_path_HOSTNAME_INNER_VERIFIER_new_instance[
-            "Lorg/apache/http/conn/ssl/AllowAllHostnameVerifier;"]
-    else:
-        path_HOSTNAME_INNER_VERIFIER_new_instance = None
-
-    # "dx.get_tainted_field" will return "None" if nothing found
-    field_ALLOW_ALL_HOSTNAME_VERIFIER = dx.get_tainted_field("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
-                                                             "ALLOW_ALL_HOSTNAME_VERIFIER",
-                                                             "Lorg/apache/http/conn/ssl/X509HostnameVerifier;")
-
-    if field_ALLOW_ALL_HOSTNAME_VERIFIER:
-        filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = filteringEngine.filter_list_of_variables(d,
-                                                                                              field_ALLOW_ALL_HOSTNAME_VERIFIER.get_paths())
-    else:
-        filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = None
-
-    if path_HOSTNAME_INNER_VERIFIER_new_instance or filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
-
-        output_string = """This app does not check the validation of the CN(Common Name) of the SSL certificate ("ALLOW_ALL_HOSTNAME_VERIFIER" field or "AllowAllHostnameVerifier" class). 
-This is a critical vulnerability and allows attackers to do MITM attacks with his valid certificate without your knowledge. 
-Case example:
-(1)http://osvdb.org/96411 
-(2)http://www.wooyun.org/bugs/wooyun-2010-042710 
-(3)http://www.wooyun.org/bugs/wooyun-2010-052339
-Also check Google doc: http://developer.android.com/training/articles/security-ssl.html (Caution: Replacing HostnameVerifier can be very dangerous).
-OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
-Check this book to see how to solve this issue: http://goo.gl/BFb65r 
-
-To see what's the importance of Common Name(CN) verification.
-Use Google Chrome to navigate:
- - https://www.google.com   => SSL certificate is valid
- - https://60.199.175.158/  => This is the IP address of google.com, but the CN is not match, making the certificate invalid. You still can go Google.com but now you cannot distinguish attackers from normal users
-
-Please check the code inside these methods:"""
-
-        writer.startWriter("SSL_CN2", LEVEL_CRITICAL, "SSL Implementation Checking (Verifying Host Name in Fields)",
-                           output_string, ["SSL_Security"])
-
-        if filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
-            """
-				Example code: 
-				SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
-				factory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-			"""
-
-            for path in filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
-                writer.show_single_PathVariable(d, path)
-
-        if path_HOSTNAME_INNER_VERIFIER_new_instance:
-            """
-				Example code: 
-				SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
-				factory.setHostnameVerifier(new AllowAllHostnameVerifier());
-			"""
-            # For this one, the exclusion procedure is done on earlier
-            writer.show_Paths(d, path_HOSTNAME_INNER_VERIFIER_new_instance)
-    else:
-        writer.startWriter("SSL_CN2", LEVEL_INFO, "SSL Implementation Checking (Verifying Host Name in Fields)",
-                           "Critical vulnerability \"ALLOW_ALL_HOSTNAME_VERIFIER\" field setting or \"AllowAllHostnameVerifier\" class instance not found.",
-                           ["SSL_Security"])
-
-    # -------------------------------------------------------
-
-    # SSL getInsecure
-
-    list_getInsecure = []
-    path_getInsecure = dx.find_methods(
-        "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
-        "(I Landroid/net/SSLSessionCache;)Ljavax/net/ssl/SSLSocketFactory;")
-    path_getInsecure = filteringEngine.filter_list_of_paths(d, path_getInsecure)
-
-    if path_getInsecure:
-
-        output_string = """Sockets created using this factory(insecure method "getInsecure") are vulnerable to man-in-the-middle attacks. 
-Check the reference: http://developer.android.com/reference/android/net/SSLCertificateSocketFactory.html#getInsecure(int, android.net.SSLSessionCache). 
-Please remove the insecure code:"""
-
-        writer.startWriter("SSL_CN3", LEVEL_CRITICAL, "SSL Implementation Checking (Insecure component)", output_string,
-                           ["SSL_Security"])
-        writer.show_Paths(d, path_getInsecure)
-    else:
-        writer.startWriter("SSL_CN3", LEVEL_INFO, "SSL Implementation Checking (Insecure component)",
-                           "Did not detect SSLSocketFactory by insecure method \"getInsecure\".", ["SSL_Security"])
-
-    # -------------------------------------------------------
-
-    # HttpHost default scheme "http"
-
-    """
-		Check this paper to see why I designed this vector: "The Most Dangerous Code in the World: Validating SSL Certificates in Non-Browser Software"
-
-
-		Java Example code:
-	    	HttpHost target = new HttpHost(uri.getHost(), uri.getPort(), HttpHost.DEFAULT_SCHEME_NAME);
-
-	    Smali Example code:
-	    	const-string v4, "http"
-	    	invoke-direct {v0, v2, v3, v4}, Lorg/apache/http/HttpHost;-><init>(Ljava/lang/String; I Ljava/lang/String;)V
-	"""
-
-    list_HttpHost_scheme_http = []
-    path_HttpHost_scheme_http = dx.find_methods(
-        "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
-    path_HttpHost_scheme_http = filteringEngine.filter_list_of_paths(d, path_HttpHost_scheme_http)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_HttpHost_scheme_http):
-        if i.getResult()[3] is None:
-            continue
-        if (i.is_string(i.getResult()[3])) and ((i.getResult()[3]).lower() == "http"):
-            list_HttpHost_scheme_http.append(i.getPath())
-
-    if list_HttpHost_scheme_http:
-        writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_CRITICAL, "SSL Implementation Checking (HttpHost)",
-                           "This app uses \"HttpHost\", but the default scheme is \"http\" or \"HttpHost.DEFAULT_SCHEME_NAME(http)\". Please change to \"https\":",
-                           ["SSL_Security"])
-
-        for i in list_HttpHost_scheme_http:
-            writer.show_Path(d, i)
-    else:
-        writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_INFO, "SSL Implementation Checking (HttpHost)",
-                           "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])
+#     # Developers preventing screenshot capturing checking:
+#
+#     """
+# 		Example:
+# 		    const/16 v1, 0x2000
+# 		    invoke-super {p0, p1}, Landroid/support/v7/app/AppCompatActivity;->onCreate(Landroid/os/Bundle;)V
+# 		    invoke-virtual {p0}, Lcom/example/preventscreencapture/MainActivity;->getWindow()Landroid/view/Window;
+# 		    move-result-object v0
+# 		    invoke-virtual {v0, v1, v1}, Landroid/view/Window;->setFlags(II)V
+#
+#
+# 			getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
+# 	"""
+#
+#     list_code_for_preventing_screen_capture = []
+#     path_code_for_preventing_screen_capture = dx.find_methods(
+#         "Landroid/view/Window;", "setFlags",
+#         "(I I)V")  # TODO might be changed due to Android Support library -> androidX
+#     path_code_for_preventing_screen_capture = filteringEngine.filter_list_of_paths(d,
+#                                                                                    path_code_for_preventing_screen_capture)
+#     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_code_for_preventing_screen_capture):
+#         if (i.getResult()[1] is None) or (i.getResult()[2] is None):
+#             continue
+#         if (not isinstance(i.getResult()[1], int)) or (not isinstance(i.getResult()[2], int)):
+#             continue
+#         if (i.getResult()[1] & 0x2000) and (i.getResult()[2] & 0x2000):
+#             list_code_for_preventing_screen_capture.append(i.getPath())
+#
+#     if list_code_for_preventing_screen_capture:
+#         writer.startWriter("HACKER_PREVENT_SCREENSHOT_CHECK", LEVEL_NOTICE,
+#                            "Code Setting Preventing Screenshot Capturing",
+#                            """This app has code setting the preventing screenshot capturing.
+# Example: getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
+# It is used by the developers to protect the app:""", ["Hacker"])
+#         for interesting_code in list_code_for_preventing_screen_capture:
+#             writer.show_Path(d, interesting_code)
+#     else:
+#         writer.startWriter("HACKER_PREVENT_SCREENSHOT_CHECK", LEVEL_INFO,
+#                            "Code Setting Preventing Screenshot Capturing",
+#                            "Did not detect this app has code setting preventing screenshot capturing.", ["Hacker"])
 
     # ------------------------------------------------------------------------
+    # # Runtime exec checking:
+    #
+    # """
+	# 	Example Java code:
+	# 		1. Runtime.getRuntime().exec("");
+	# 		2. Runtime rr = Runtime.getRuntime(); Process p = rr.exec("ls -al");
+	#
+	# 	Example Bytecode code (The same bytecode for those two Java code):
+	# 		const-string v2, "ls -al"
+	# 	    invoke-virtual {v1, v2}, Ljava/lang/Runtime;->exec(Ljava/lang/String;)Ljava/lang/Process;
+	# """
+    #
+    # list_Runtime_exec = []
+    #
+    # path_Runtime_exec = dx.find_methods("Ljava/lang/Runtime;", "exec",
+    #                                     "(Ljava/lang/String;)Ljava/lang/Process;")
+    # path_Runtime_exec = filteringEngine.filter_list_of_paths(d, path_Runtime_exec)
+    #
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_Runtime_exec):
+    #     if i.getResult()[1] is None:
+    #         continue
+    #     if i.getResult()[1] == "su":
+    #         list_Runtime_exec.append(i.getPath())
+    #
+    # if path_Runtime_exec:
+    #     writer.startWriter("COMMAND", LEVEL_CRITICAL, "Runtime Command Checking",
+    #                        "This app is using critical function 'Runtime.getRuntime().exec(\"...\")'.\nPlease confirm these following code secions are not harmful:",
+    #                        ["Command"])
+    #
+    #     writer.show_Paths(d, path_Runtime_exec)
+    #
+    #     if list_Runtime_exec:
+    #         writer.startWriter("COMMAND_SU", LEVEL_CRITICAL, "Runtime Critical Command Checking",
+    #                            "Requesting for \"root\" permission code sections 'Runtime.getRuntime().exec(\"su\")' found (Critical but maybe false positive):",
+    #                            ["Command"])
+    #
+    #         for path in list_Runtime_exec:
+    #             writer.show_Path(d, path)
+    #     else:
+    #         writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
+    #                            "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",
+    #                            ["Command"])
+
+    # -------------------------------------------------------
+#
+#     # HTTPS ALLOW_ALL_HOSTNAME_VERIFIER checking:
+#
+#     """
+# 		Example Java code:
+# 		    HttpsURLConnection.setDefaultHostnameVerifier(org.apache.http.conn.ssl.SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+#
+# 		Example Bytecode code (The same bytecode for those two Java code):
+# 			(1)
+# 			sget-object v11, Lorg/apache/http/conn/ssl/SSLSocketFactory;->ALLOW_ALL_HOSTNAME_VERIFIER:Lorg/apache/http/conn/ssl/X509HostnameVerifier;
+# 	    	invoke-static {v11}, Ljavax/net/ssl/HttpsURLConnection;->setDefaultHostnameVerifier(Ljavax/net/ssl/HostnameVerifier;)V
+#
+# 	    	(2)
+# 		   	new-instance v11, Lcom/example/androidsslconnecttofbtest/MainActivity$2;
+# 		    invoke-direct {v11, p0}, Lcom/example/androidsslconnecttofbtest/MainActivity$2;-><init>(Lcom/example/androidsslconnecttofbtest/MainActivity;)V
+# 		    invoke-static {v11}, Ljavax/net/ssl/HttpsURLConnection;->setDefaultHostnameVerifier(Ljavax/net/ssl/HostnameVerifier;)V
+#
+# 		Scenario:
+# 			https://www.google.com/  => Google (SSL certificate is valid, CN: www.google.com)
+# 			https://60.199.175.18   => IP of Google (SSL certificate is invalid, See Chrome error message.
+# 	"""
+#
+#     # (1)inner class checking
+#
+#     # First, find out who calls it
+#     path_HOSTNAME_INNER_VERIFIER = dx.find_methods(
+#         "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "(Ljavax/net/ssl/HostnameVerifier;)V")
+#     path_HOSTNAME_INNER_VERIFIER2 = dx.find_methods(
+#         "Lorg/apache/http/conn/ssl/SSLSocketFactory;", "setHostnameVerifier",
+#         "(Lorg/apache/http/conn/ssl/X509HostnameVerifier;)V")
+#     path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
+#
+#     path_HOSTNAME_INNER_VERIFIER = filteringEngine.filter_list_of_paths(d, path_HOSTNAME_INNER_VERIFIER)
+#
+#     dic_path_HOSTNAME_INNER_VERIFIER_new_instance = filteringEngine.get_class_container_dict_by_new_instance_classname_in_paths(
+#         d, analysis, path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
+#
+#     # Second, find the called custom classes
+#     list_HOSTNAME_INNER_VERIFIER = []
+#
+#     methods_hostnameverifier = get_method_ins_by_implement_interface_and_method(d, ["Ljavax/net/ssl/HostnameVerifier;"],
+#                                                                                 TYPE_COMPARE_ANY, "verify",
+#                                                                                 "(Ljava/lang/String; Ljavax/net/ssl/SSLSession;)Z")
+#     for method in methods_hostnameverifier:
+#         register_analyzer = analysis.RegisterAnalyzerVM_ImmediateValue(method.get_instructions())
+#         if register_analyzer.get_ins_return_boolean_value():  # Has security problem
+#             list_HOSTNAME_INNER_VERIFIER.append(method)
+#
+#     list_HOSTNAME_INNER_VERIFIER = filteringEngine.filter_list_of_methods(list_HOSTNAME_INNER_VERIFIER)
+#
+#     if list_HOSTNAME_INNER_VERIFIER:
+#
+#         output_string = """This app allows Self-defined HOSTNAME VERIFIER to accept all Common Names(CN).
+# This is a critical vulnerability and allows attackers to do MITM attacks with his valid certificate without your knowledge.
+# Case example:
+# (1)http://osvdb.org/96411
+# (2)http://www.wooyun.org/bugs/wooyun-2010-042710
+# (3)http://www.wooyun.org/bugs/wooyun-2010-052339
+# Also check Google doc: http://developer.android.com/training/articles/security-ssl.html (Caution: Replacing HostnameVerifier can be very dangerous).
+# OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
+# Check this book to see how to solve this issue: http://goo.gl/BFb65r
+#
+# To see what's the importance of Common Name(CN) verification.
+# Use Google Chrome to navigate:
+#  - https://www.google.com   => SSL certificate is valid
+#  - https://60.199.175.158/  => This is the IP address of google.com, but the CN is not match, making the certificate invalid. You still can go Google.com but now you cannot distinguish attackers from normal users
+#
+# Please check the code inside these methods:"""
+#
+#         writer.startWriter("SSL_CN1", LEVEL_CRITICAL,
+#                            "SSL Implementation Checking (Verifying Host Name in Custom Classes)", output_string,
+#                            ["SSL_Security"])
+#
+#         for method in list_HOSTNAME_INNER_VERIFIER:
+#             writer.write(method.easy_print())
+#
+#             # because one class may initialize by many new instances of it
+#             method_class_name = method.get_class_name()
+#             if method_class_name in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
+#                 writer.show_Paths(d, dic_path_HOSTNAME_INNER_VERIFIER_new_instance[method_class_name])
+#     else:
+#         writer.startWriter("SSL_CN1", LEVEL_INFO, "SSL Implementation Checking (Verifying Host Name in Custom Classes)",
+#                            "Self-defined HOSTNAME VERIFIER checking OK.", ["SSL_Security"])
+#
+#     # (2)ALLOW_ALL_HOSTNAME_VERIFIER fields checking
+#
+#     if "Lorg/apache/http/conn/ssl/AllowAllHostnameVerifier;" in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
+#         path_HOSTNAME_INNER_VERIFIER_new_instance = dic_path_HOSTNAME_INNER_VERIFIER_new_instance[
+#             "Lorg/apache/http/conn/ssl/AllowAllHostnameVerifier;"]
+#     else:
+#         path_HOSTNAME_INNER_VERIFIER_new_instance = None
+#
+#     # "dx.get_tainted_field" will return "None" if nothing found
+#     field_ALLOW_ALL_HOSTNAME_VERIFIER = dx.get_tainted_field("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
+#                                                              "ALLOW_ALL_HOSTNAME_VERIFIER",
+#                                                              "Lorg/apache/http/conn/ssl/X509HostnameVerifier;")
+#
+#     if field_ALLOW_ALL_HOSTNAME_VERIFIER:
+#         filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = filteringEngine.filter_list_of_variables(d,
+#                                                                                               field_ALLOW_ALL_HOSTNAME_VERIFIER.get_paths())
+#     else:
+#         filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = None
+#
+#     if path_HOSTNAME_INNER_VERIFIER_new_instance or filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+#
+#         output_string = """This app does not check the validation of the CN(Common Name) of the SSL certificate ("ALLOW_ALL_HOSTNAME_VERIFIER" field or "AllowAllHostnameVerifier" class).
+# This is a critical vulnerability and allows attackers to do MITM attacks with his valid certificate without your knowledge.
+# Case example:
+# (1)http://osvdb.org/96411
+# (2)http://www.wooyun.org/bugs/wooyun-2010-042710
+# (3)http://www.wooyun.org/bugs/wooyun-2010-052339
+# Also check Google doc: http://developer.android.com/training/articles/security-ssl.html (Caution: Replacing HostnameVerifier can be very dangerous).
+# OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
+# Check this book to see how to solve this issue: http://goo.gl/BFb65r
+#
+# To see what's the importance of Common Name(CN) verification.
+# Use Google Chrome to navigate:
+#  - https://www.google.com   => SSL certificate is valid
+#  - https://60.199.175.158/  => This is the IP address of google.com, but the CN is not match, making the certificate invalid. You still can go Google.com but now you cannot distinguish attackers from normal users
+#
+# Please check the code inside these methods:"""
+#
+#         writer.startWriter("SSL_CN2", LEVEL_CRITICAL, "SSL Implementation Checking (Verifying Host Name in Fields)",
+#                            output_string, ["SSL_Security"])
+#
+#         if filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+#             """
+# 				Example code:
+# 				SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
+# 				factory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+# 			"""
+#
+#             for path in filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+#                 writer.show_single_PathVariable(d, path)
+#
+#         if path_HOSTNAME_INNER_VERIFIER_new_instance:
+#             """
+# 				Example code:
+# 				SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
+# 				factory.setHostnameVerifier(new AllowAllHostnameVerifier());
+# 			"""
+#             # For this one, the exclusion procedure is done on earlier
+#             writer.show_Paths(d, path_HOSTNAME_INNER_VERIFIER_new_instance)
+#     else:
+#         writer.startWriter("SSL_CN2", LEVEL_INFO, "SSL Implementation Checking (Verifying Host Name in Fields)",
+#                            "Critical vulnerability \"ALLOW_ALL_HOSTNAME_VERIFIER\" field setting or \"AllowAllHostnameVerifier\" class instance not found.",
+#                            ["SSL_Security"])
+#
+#     # -------------------------------------------------------
+#
+#     # SSL getInsecure
+#
+#     list_getInsecure = []
+#     path_getInsecure = dx.find_methods(
+#         "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
+#         "(I Landroid/net/SSLSessionCache;)Ljavax/net/ssl/SSLSocketFactory;")
+#     path_getInsecure = filteringEngine.filter_list_of_paths(d, path_getInsecure)
+#
+#     if path_getInsecure:
+#
+#         output_string = """Sockets created using this factory(insecure method "getInsecure") are vulnerable to man-in-the-middle attacks.
+# Check the reference: http://developer.android.com/reference/android/net/SSLCertificateSocketFactory.html#getInsecure(int, android.net.SSLSessionCache).
+# Please remove the insecure code:"""
+#
+#         writer.startWriter("SSL_CN3", LEVEL_CRITICAL, "SSL Implementation Checking (Insecure component)", output_string,
+#                            ["SSL_Security"])
+#         writer.show_Paths(d, path_getInsecure)
+#     else:
+#         writer.startWriter("SSL_CN3", LEVEL_INFO, "SSL Implementation Checking (Insecure component)",
+#                            "Did not detect SSLSocketFactory by insecure method \"getInsecure\".", ["SSL_Security"])
+
+    # -------------------------------------------------------
+    #
+    # # HttpHost default scheme "http"
+    #
+    # """
+	# 	Check this paper to see why I designed this vector: "The Most Dangerous Code in the World: Validating SSL Certificates in Non-Browser Software"
+    #
+    #
+	# 	Java Example code:
+	#     	HttpHost target = new HttpHost(uri.getHost(), uri.getPort(), HttpHost.DEFAULT_SCHEME_NAME);
+    #
+	#     Smali Example code:
+	#     	const-string v4, "http"
+	#     	invoke-direct {v0, v2, v3, v4}, Lorg/apache/http/HttpHost;-><init>(Ljava/lang/String; I Ljava/lang/String;)V
+	# """
+    #
+    # list_HttpHost_scheme_http = []
+    # path_HttpHost_scheme_http = dx.find_methods(
+    #     "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
+    # path_HttpHost_scheme_http = filteringEngine.filter_list_of_paths(d, path_HttpHost_scheme_http)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_HttpHost_scheme_http):
+    #     if i.getResult()[3] is None:
+    #         continue
+    #     if (i.is_string(i.getResult()[3])) and ((i.getResult()[3]).lower() == "http"):
+    #         list_HttpHost_scheme_http.append(i.getPath())
+    #
+    # if list_HttpHost_scheme_http:
+    #     writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_CRITICAL, "SSL Implementation Checking (HttpHost)",
+    #                        "This app uses \"HttpHost\", but the default scheme is \"http\" or \"HttpHost.DEFAULT_SCHEME_NAME(http)\". Please change to \"https\":",
+    #                        ["SSL_Security"])
+    #
+    #     for i in list_HttpHost_scheme_http:
+    #         writer.show_Path(d, i)
+    # else:
+    #     writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_INFO, "SSL Implementation Checking (HttpHost)",
+    #                        "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])
+
+    # ------------------------------------------------------------------------
+    # TODO we are here
     # WebViewClient onReceivedSslError errors
 
     # First, find out who calls setWebViewClient

@@ -13,7 +13,6 @@ class Vector(VectorBase):
 
         path_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; [C)V")
         path_key_store = self.filtering_engine.filter_list_of_paths(self.dalvik, path_key_store)
-        # TODO: Implement method `trace_Register_value_by_Param_in_source_Paths` from modified AndroGuard framework.
         for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_key_store):
             if i.getResult()[2] == 0:  # null = 0 = Not using password
                 if i.is_class_container(1):
@@ -66,3 +65,73 @@ class Vector(VectorBase):
                                         ["KeyStore", "Hacker"])
                 for keystore in list_protected_keystore:
                     self.writer.show_Path(self.dalvik, keystore)
+
+        # Find all keystore
+
+        list_keystore_file_name = []
+        list_possible_keystore_file_name = []
+
+        for name, _, _ in self.apk.get_files_information():
+            """
+                1.Name includes cert (search under /res/raw)
+                2.ends with .bks (search all)
+            """
+            if name.endswith(".bks") or name.endswith(".jks"):
+                if (name.startswith("res/")) and (
+                        not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw"
+                    continue
+                list_keystore_file_name.append(name)
+            elif ("keystore" in name) or ("cert" in name):
+                if (name.startswith("res/")) and (
+                        not name.startswith("res/raw/")):  # If any files found on "/res" dir, only get from "/res/raw
+                    continue
+                list_possible_keystore_file_name.append(name)
+
+        if list_keystore_file_name or list_possible_keystore_file_name:
+            if list_keystore_file_name:
+                self.writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_NOTICE, "KeyStore File Location",
+                                        "BKS Keystore file:", ["KeyStore", "Hacker"])
+                for i in list_keystore_file_name:
+                    self.writer.write(i)
+
+            if list_possible_keystore_file_name:
+                self.writer.startWriter("HACKER_KEYSTORE_LOCATION2", LEVEL_NOTICE, "Possible KeyStore File Location",
+                                        "BKS possible keystore file:", ["KeyStore", "Hacker"])
+                for i in list_possible_keystore_file_name:
+                    self.writer.write(i)
+        else:
+            self.writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_INFO, "KeyStore File Location",
+                                    "Did not find any possible BKS keystores or certificate keystore file (Notice: It does not mean this app does not use keysotre):",
+                                    ["KeyStore", "Hacker"])
+
+        # BKS KeyStore checking:
+
+        """
+            Example:
+            const-string v11, "BKS"
+            invoke-static {v11}, Ljava/security/KeyStore;->getInstance(Ljava/lang/String;)Ljava/security/KeyStore;
+        """
+
+        list_non_bks_keystore = []
+        path_bks_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "getInstance",
+                                                        "(Ljava/lang/String;)Ljava/security/KeyStore;")
+
+        path_bks_key_store = self.filtering_engine.filter_list_of_paths(self.dalvik, path_bks_key_store)
+
+        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis,
+                                                                         path_bks_key_store):
+            if i.getResult()[0] is None:
+                continue
+            if (i.is_string(i.getResult()[0])) and ((i.getResult()[0]).upper() != "BKS"):
+                list_non_bks_keystore.append(i.getPath())
+
+        if list_non_bks_keystore:
+            self.writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_CRITICAL, "KeyStore Type Checking",
+                                    "Android only accept 'BKS' type KeyStore. Please confirm you are using 'BKS' type KeyStore:",
+                                    ["KeyStore"])
+            for keystore in list_non_bks_keystore:
+                self.writer.show_Path(self.dalvik, keystore)
+        else:
+            self.writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_INFO, "KeyStore Type Checking",
+                                    "KeyStore 'BKS' type check OK",
+                                    ["KeyStore"])
