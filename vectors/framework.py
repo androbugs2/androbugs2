@@ -18,6 +18,8 @@ class Vector(VectorBase):
         mono_pm = self.analysis.get_method_analysis_by_name(self.xamarin_signature["class_name"],
                                                             self.xamarin_signature["method_name"],
                                                             self.xamarin_signature["method_descriptor"])
+        if mono_pm is None:
+            return
 
         em = mono_pm.get_method()
         for idx, ins in enumerate(em.get_instructions()):
