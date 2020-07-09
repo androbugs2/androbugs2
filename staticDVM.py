@@ -333,7 +333,7 @@ def trace_register_value_by_param_in_source_paths(vm: dvm, analysis: analysis, p
     paths = get_source_paths(vm, paths)  # transform 'PathP' to name and descriptor of 'src' and 'dst' dictionary
 
     if paths is None:
-        return None
+        return []
 
     results = []
 

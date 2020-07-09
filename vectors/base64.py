@@ -11,15 +11,6 @@ ENABLE_EXCLUDE_CLASSES = True
 class Vector(VectorBase):
     description = "Checks if there are any Base64 encoded strings present and decodes them"
 
-    def _print_xrefs(self, string_analysis):
-        """
-        Prints the xrefs from a StringAnalysis Object to the writer
-        """
-        for xref_class, xref_method in string_analysis.get_xref_from():
-            source_classes_and_functions = (
-                    xref_class.name + "->" + xref_method.get_name() + xref_method.get_descriptor())
-            self.writer.write("    ->From class: " + source_classes_and_functions)
-
     def analyze(self) -> None:
         strings_analysis = self.analysis.get_strings_analysis()
 

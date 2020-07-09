@@ -111,8 +111,8 @@ class Vector(VectorBase):
 
         # "self.analysis.get_tainted_field" will return "None" if nothing found TODO Might need further checking to see if this works properly
         fields_ALLOW_ALL_HOSTNAME_VERIFIER = list(self.analysis.find_fields("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
-                                       "ALLOW_ALL_HOSTNAME_VERIFIER",
-                                       "Lorg/apache/http/conn/ssl/X509HostnameVerifier;"))
+                                                                            "ALLOW_ALL_HOSTNAME_VERIFIER",
+                                                                            "Lorg/apache/http/conn/ssl/X509HostnameVerifier;"))
 
         if fields_ALLOW_ALL_HOSTNAME_VERIFIER:
             fields_ALLOW_ALL_HOSTNAME_VERIFIER = fields_ALLOW_ALL_HOSTNAME_VERIFIER[0].get_field()
@@ -229,3 +229,88 @@ class Vector(VectorBase):
         else:
             self.writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_INFO, "SSL Implementation Checking (HttpHost)",
                                     "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])
+
+        # SSL Verification Fail (To check whether the code verifies the certificate)
+        methods_X509TrustManager_list = helper_functions.get_method_ins_by_implement_interface_and_method_desc_dict(self.dalvik, [
+            "Ljavax/net/ssl/X509TrustManager;"], TYPE_COMPARE_ANY, [
+                                                                                                                        "getAcceptedIssuers()[Ljava/security/cert/X509Certificate;",
+                                                                                                                        "checkClientTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V",
+                                                                                                                        "checkServerTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V"])
+
+        list_X509Certificate_Critical_class = []
+        list_X509Certificate_Warning_class = []
+
+        for class_name, method_list in list(methods_X509TrustManager_list.items()):
+            ins_count = 0
+
+            for method in method_list:
+                for ins in method.get_instructions():
+                    ins_count = ins_count + 1
+
+            if ins_count <= 4:
+                # Critical
+                list_X509Certificate_Critical_class.append(class_name)
+            else:
+                # Warning
+                list_X509Certificate_Warning_class.append(class_name)
+
+        if list_X509Certificate_Critical_class or list_X509Certificate_Warning_class:
+
+            log_level = LEVEL_WARNING
+            log_partial_prefix_msg = "Please make sure this app has the conditions to check the validation of SSL Certificate. If it's not properly checked, it MAY allows self-signed, expired or mismatch CN certificates for SSL connection."
+
+            if list_X509Certificate_Critical_class:
+                log_level = LEVEL_CRITICAL
+                log_partial_prefix_msg = "This app DOES NOT check the validation of SSL Certificate. It allows self-signed, expired or mismatch CN certificates for SSL connection."
+
+            list_X509Certificate_merge_list = []
+            list_X509Certificate_merge_list.extend(list_X509Certificate_Critical_class)
+            list_X509Certificate_merge_list.extend(list_X509Certificate_Warning_class)
+
+            dict_X509Certificate_class_name_to_caller_mapping = {}
+
+            for method in self.dalvik.get_methods():
+                for i in method.get_instructions():  # method.get_instructions(): Instruction
+                    if i.get_op_value() == 0x22:  # 0x22 = "new-instance"
+                        if i.get_string() in list_X509Certificate_merge_list:
+                            referenced_class_name = i.get_string()
+                            if referenced_class_name not in dict_X509Certificate_class_name_to_caller_mapping:
+                                dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name] = []
+
+                            dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name].append(method)
+
+            self.writer.startWriter("SSL_X509", log_level, "SSL Certificate Verification Checking",
+                               log_partial_prefix_msg + """
+    This is a critical vulnerability and allows attackers to do MITM attacks without your knowledge.
+    If you are transmitting users' username or password, these sensitive information may be leaking.
+    Reference:
+    (1)OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
+    (2)Android Security book: http://goo.gl/BFb65r 
+    (3)https://www.securecoding.cert.org/confluence/pages/viewpage.action?pageId=134807561
+    This vulnerability is much more severe than Apple's "goto fail" vulnerability: http://goo.gl/eFlovw
+    Please do not try to create a "X509Certificate" and override "checkClientTrusted", "checkServerTrusted", and "getAcceptedIssuers" functions with blank implementation.
+    We strongly suggest you use the existing API instead of creating your own X509Certificate class. 
+    Please modify or remove these vulnerable code: 
+    """, ["SSL_Security"])
+            if list_X509Certificate_Critical_class:
+                self.writer.write("[Confirm Vulnerable]")
+                for name in list_X509Certificate_Critical_class:
+                    self.writer.write("=> " + name)
+                    if name in dict_X509Certificate_class_name_to_caller_mapping:
+                        for used_method in dict_X509Certificate_class_name_to_caller_mapping[name]:
+                            self.writer.write(
+                                "      -> used by: " + used_method.get_class_name() + "->" + used_method.get_name() + used_method.get_descriptor())
+
+            if list_X509Certificate_Warning_class:
+                self.writer.write("--------------------------------------------------")
+                self.writer.write("[Maybe Vulnerable (Please manually confirm)]")
+                for name in list_X509Certificate_Warning_class:
+                    self.writer.write("=> " + name)
+                    if name in dict_X509Certificate_class_name_to_caller_mapping:
+                        for used_method in dict_X509Certificate_class_name_to_caller_mapping[name]:
+                            self.writer.write(
+                                "      -> used by: " + used_method.get_class_name() + "->" + used_method.get_name() + used_method.get_descriptor())
+
+        else:
+            self.writer.startWriter("SSL_X509", LEVEL_INFO, "SSL Certificate Verification Checking",
+                                    "Did not find vulnerable X509Certificate code.", ["SSL_Security"])

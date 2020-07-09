@@ -31,6 +31,15 @@ class VectorBase(ABC):
         self.args = args
         self.filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
 
+    def _print_xrefs(self, string_analysis):
+        """
+        Prints the xrefs from a StringAnalysis Object to the writer
+        """
+        for xref_class, xref_method in string_analysis.get_xref_from():
+            source_classes_and_functions = (
+                    xref_class.name + "->" + xref_method.get_name() + xref_method.get_descriptor())
+            self.writer.write("    ->From class: " + source_classes_and_functions)
+
     @property
     @abstractmethod
     def description(self) -> str:

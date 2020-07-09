@@ -101,7 +101,7 @@ class Vector(VectorBase):
                     self.writer.write(i)
         else:
             self.writer.startWriter("HACKER_KEYSTORE_LOCATION1", LEVEL_INFO, "KeyStore File Location",
-                                    "Did not find any possible BKS keystores or certificate keystore file (Notice: It does not mean this app does not use keysotre):",
+                                    "Did not find any possible BKS keystores or certificate keystore file (Notice: It does not mean this app does not use keystore):",
                                     ["KeyStore", "Hacker"])
 
         # BKS KeyStore checking:

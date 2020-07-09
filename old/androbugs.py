@@ -2136,425 +2136,424 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     #                        "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])
 
     # ------------------------------------------------------------------------
-    # TODO we are here
-    # WebViewClient onReceivedSslError errors
+#     # WebViewClient onReceivedSslError errors
+#
+#     # First, find out who calls setWebViewClient
+#     path_webviewClient_new_instance = dx.find_methods(
+#         "Landroid/webkit/WebView;", "setWebViewClient", "(Landroid/webkit/WebViewClient;)V")
+#     dic_webviewClient_new_instance = filteringEngine.get_class_container_dict_by_new_instance_classname_in_paths(d,
+#                                                                                                                  analysis,
+#                                                                                                                  path_webviewClient_new_instance,
+#                                                                                                                  1)
+#
+#     # Second, find which class and method extends it
+#     list_webviewClient = []
+#     methods_webviewClient = get_method_ins_by_superclass_and_method(d, ["Landroid/webkit/WebViewClient;"],
+#                                                                     "onReceivedSslError",
+#                                                                     "(Landroid/webkit/WebView; Landroid/webkit/SslErrorHandler; Landroid/net/http/SslError;)V")
+#     for method in methods_webviewClient:
+#         if is_kind_string_in_ins_method(method, "Landroid/webkit/SslErrorHandler;->proceed()V"):
+#             list_webviewClient.append(method)
+#
+#     list_webviewClient = filteringEngine.filter_list_of_methods(list_webviewClient)
+#
+#     if list_webviewClient:
+#         writer.startWriter("SSL_WEBVIEW", LEVEL_CRITICAL, "SSL Implementation Checking (WebViewClient for WebView)",
+#                            """DO NOT use "handler.proceed();" inside those methods in extended "WebViewClient", which allows the connection even if the SSL Certificate is invalid (MITM Vulnerability).
+# References:
+# (1)A View To A Kill: WebView Exploitation: https://www.iseclab.org/papers/webview_leet13.pdf
+# (2)OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
+# (3)https://jira.appcelerator.org/browse/TIMOB-4488
+# Vulnerable codes:
+# """, ["SSL_Security"])
+#
+#         for method in list_webviewClient:
+#             writer.write(method.easy_print())
+#
+#             # because one class may initialize by many new instances of it
+#             method_class_name = method.get_class_name()
+#             if method_class_name in dic_webviewClient_new_instance:
+#                 writer.show_Paths(d, dic_webviewClient_new_instance[method_class_name])
+#
+#     else:
+#         writer.startWriter("SSL_WEBVIEW", LEVEL_INFO, "SSL Implementation Checking (WebViewClient for WebView)",
+#                            "Did not detect critical usage of \"WebViewClient\"(MITM Vulnerability).", ["SSL_Security"])
+#
+#     # ------------------------------------------------------------------------
+#     # WebView setJavaScriptEnabled - Potential XSS:
+#
+#     """
+# 		Java Example code:
+# 	    	webView1 = (WebView)findViewById(R.id.webView1);
+# 			webView1.setWebViewClient(new ExtendedWebView());
+# 			WebSettings webSettings = webView1.getSettings();
+# 			webSettings.setJavaScriptEnabled(true);
+#
+# 	    Smali Example code:
+# 			const/4 v1, 0x1
+#     		invoke-virtual {v0, v1}, Landroid/webkit/WebSettings;->setJavaScriptEnabled(Z)V
+# 	"""
+#
+#     list_setJavaScriptEnabled_XSS = []
+#     path_setJavaScriptEnabled_XSS = dx.find_methods(
+#         "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
+#     path_setJavaScriptEnabled_XSS = filteringEngine.filter_list_of_paths(d, path_setJavaScriptEnabled_XSS)
+#     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_setJavaScriptEnabled_XSS):
+#         if i.getResult()[1] is None:
+#             continue
+#         if i.getResult()[1] == 0x1:
+#             list_setJavaScriptEnabled_XSS.append(i.getPath())
+#
+#     if list_setJavaScriptEnabled_XSS:
+#         writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_WARNING, "WebView Potential XSS Attacks Checking",
+#                            "Found \"setJavaScriptEnabled(true)\" in WebView, which could exposed to potential XSS attacks. Please check the web page code carefully and sanitize the output:",
+#                            ["WebView"])
+#         for i in list_setJavaScriptEnabled_XSS:
+#             writer.show_Path(d, i)
+#     else:
+#         writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_INFO, "WebView Potential XSS Attacks Checking",
+#                            "Did not detect \"setJavaScriptEnabled(true)\" in WebView.", ["WebView"])
 
-    # First, find out who calls setWebViewClient
-    path_webviewClient_new_instance = dx.find_methods(
-        "Landroid/webkit/WebView;", "setWebViewClient", "(Landroid/webkit/WebViewClient;)V")
-    dic_webviewClient_new_instance = filteringEngine.get_class_container_dict_by_new_instance_classname_in_paths(d,
-                                                                                                                 analysis,
-                                                                                                                 path_webviewClient_new_instance,
-                                                                                                                 1)
-
-    # Second, find which class and method extends it
-    list_webviewClient = []
-    methods_webviewClient = get_method_ins_by_superclass_and_method(d, ["Landroid/webkit/WebViewClient;"],
-                                                                    "onReceivedSslError",
-                                                                    "(Landroid/webkit/WebView; Landroid/webkit/SslErrorHandler; Landroid/net/http/SslError;)V")
-    for method in methods_webviewClient:
-        if is_kind_string_in_ins_method(method, "Landroid/webkit/SslErrorHandler;->proceed()V"):
-            list_webviewClient.append(method)
-
-    list_webviewClient = filteringEngine.filter_list_of_methods(list_webviewClient)
-
-    if list_webviewClient:
-        writer.startWriter("SSL_WEBVIEW", LEVEL_CRITICAL, "SSL Implementation Checking (WebViewClient for WebView)",
-                           """DO NOT use "handler.proceed();" inside those methods in extended "WebViewClient", which allows the connection even if the SSL Certificate is invalid (MITM Vulnerability).
-References:
-(1)A View To A Kill: WebView Exploitation: https://www.iseclab.org/papers/webview_leet13.pdf 
-(2)OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
-(3)https://jira.appcelerator.org/browse/TIMOB-4488
-Vulnerable codes:
-""", ["SSL_Security"])
-
-        for method in list_webviewClient:
-            writer.write(method.easy_print())
-
-            # because one class may initialize by many new instances of it
-            method_class_name = method.get_class_name()
-            if method_class_name in dic_webviewClient_new_instance:
-                writer.show_Paths(d, dic_webviewClient_new_instance[method_class_name])
-
-    else:
-        writer.startWriter("SSL_WEBVIEW", LEVEL_INFO, "SSL Implementation Checking (WebViewClient for WebView)",
-                           "Did not detect critical usage of \"WebViewClient\"(MITM Vulnerability).", ["SSL_Security"])
-
-    # ------------------------------------------------------------------------
-    # WebView setJavaScriptEnabled - Potential XSS:
-
-    """
-		Java Example code:
-	    	webView1 = (WebView)findViewById(R.id.webView1);
-			webView1.setWebViewClient(new ExtendedWebView());
-			WebSettings webSettings = webView1.getSettings();
-			webSettings.setJavaScriptEnabled(true);
-
-	    Smali Example code:
-			const/4 v1, 0x1
-    		invoke-virtual {v0, v1}, Landroid/webkit/WebSettings;->setJavaScriptEnabled(Z)V
-	"""
-
-    list_setJavaScriptEnabled_XSS = []
-    path_setJavaScriptEnabled_XSS = dx.find_methods(
-        "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
-    path_setJavaScriptEnabled_XSS = filteringEngine.filter_list_of_paths(d, path_setJavaScriptEnabled_XSS)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_setJavaScriptEnabled_XSS):
-        if i.getResult()[1] is None:
-            continue
-        if i.getResult()[1] == 0x1:
-            list_setJavaScriptEnabled_XSS.append(i.getPath())
-
-    if list_setJavaScriptEnabled_XSS:
-        writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_WARNING, "WebView Potential XSS Attacks Checking",
-                           "Found \"setJavaScriptEnabled(true)\" in WebView, which could exposed to potential XSS attacks. Please check the web page code carefully and sanitize the output:",
-                           ["WebView"])
-        for i in list_setJavaScriptEnabled_XSS:
-            writer.show_Path(d, i)
-    else:
-        writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_INFO, "WebView Potential XSS Attacks Checking",
-                           "Did not detect \"setJavaScriptEnabled(true)\" in WebView.", ["WebView"])
-
-    # ------------------------------------------------------------------------
-    # HttpURLConnection bug checking:
-
-    """
-		Example Java code:
-			private void disableConnectionReuseIfNecessary() {
-				// Work around pre-Froyo bugs in HTTP connection reuse.
-				if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.FROYO) {
-					System.setProperty("http.keepAlive", "false");
-				}
-			}
-
-		Example Bytecode code:
-			const-string v0, "http.keepAlive"
-			const-string v1, "false"
-			invoke-static {v0, v1}, Ljava/lang/System;->setProperty(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-
-	"""
-
-    if (int_min_sdk is not None) and (int_min_sdk <= 8):
-
-        pkg_HttpURLConnection = dx.is_class_present("Ljava/net/HttpURLConnection;")
-        pkg_HttpURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpURLConnection)
-
-        # Check only when using the HttpURLConnection
-        if pkg_HttpURLConnection:
-
-            list_pre_Froyo_HttpURLConnection = []
-            path_pre_Froyo_HttpURLConnection = dx.find_methods(
-                "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
-            path_pre_Froyo_HttpURLConnection = filteringEngine.filter_list_of_paths(d, path_pre_Froyo_HttpURLConnection)
-
-            has_http_keepAlive_Name = False
-            has_http_keepAlive_Value = False
-
-            for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_pre_Froyo_HttpURLConnection):
-                if (i.getResult()[0] == "http.keepAlive"):
-                    has_http_keepAlive_Name = True
-                    list_pre_Froyo_HttpURLConnection.append(i.getPath())  # Only list the "false" one
-                    if (i.getResult()[1] == "false"):
-                        has_http_keepAlive_Value = True
-                        break
-
-            if has_http_keepAlive_Name:
-                if has_http_keepAlive_Value:
-                    writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
-                                       "System property \"http.keepAlive\" for \"HttpURLConnection\" sets correctly.")
-
-                else:
-                    output_string = """You should set System property "http.keepAlive" to "false"
-You're using "HttpURLConnection". Prior to Android 2.2 (Froyo), "HttpURLConnection" had some frustrating bugs. 
-In particular, calling close() on a readable InputStream could poison the connection pool. Work around this by disabling connection pooling:
-Please check the reference:
- (1)http://developer.android.com/reference/java/net/HttpURLConnection.html
- (2)http://android-developers.blogspot.tw/2011/09/androids-http-clients.html"""
-                    writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Android Bug Checking",
-                                       output_string)
-
-                    writer.show_Paths(d, list_pre_Froyo_HttpURLConnection)  # Notice: list_pre_Froyo_HttpURLConnection
-            else:
-                output_string = """You're using "HttpURLConnection". Prior to Android 2.2 (Froyo), "HttpURLConnection" had some frustrating bugs. 
-In particular, calling close() on a readable InputStream could poison the connection pool. Work around this by disabling connection pooling. 
-Please check the reference: 
- (1)http://developer.android.com/reference/java/net/HttpURLConnection.html
- (2)http://android-developers.blogspot.tw/2011/09/androids-http-clients.html"""
-
-                writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Android Bug Checking",
-                                   output_string)
-                # Make it optional to list library
-                writer.show_Paths(d, pkg_HttpURLConnection)  # Notice: pkg_HttpURLConnection
-
-        else:
-            writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
-                               "Ignore checking \"http.keepAlive\" because you're not using \"HttpURLConnection\".")
-
-    else:
-        writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
-                           "Ignore checking \"http.keepAlive\" because you're not using \"HttpURLConnection\" and min_Sdk > 8.")
-
-    # ------------------------------------------------------------------------
-    # SQLiteDatabase - beginTransactionNonExclusive() checking:
-
-    if (int_min_sdk is not None) and (int_min_sdk < 11):
-
-        path_SQLiteDatabase_beginTransactionNonExclusive = dx.find_methods(
-            "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "()V")
-        path_SQLiteDatabase_beginTransactionNonExclusive = filteringEngine.filter_list_of_paths(d,
-                                                                                                path_SQLiteDatabase_beginTransactionNonExclusive)
-
-        if path_SQLiteDatabase_beginTransactionNonExclusive:
-            output_string = StringHandler()
-            output_string.append(
-                "We detect you're using \"beginTransactionNonExclusive\" in your \"SQLiteDatabase\" but your minSdk supports down to " + str(
-                    int_min_sdk) + ".")
-            output_string.append(
-                "\"beginTransactionNonExclusive\" is not supported by API < 11. Please make sure you use \"beginTransaction\" in the earlier version of Android.")
-            output_string.append(
-                "Reference: http://developer.android.com/reference/android/database/sqlite/SQLiteDatabase.html#beginTransactionNonExclusive()")
-            writer.startWriter("DB_DEPRECATED_USE1", LEVEL_CRITICAL, "SQLiteDatabase Transaction Deprecated Checking",
-                               output_string.get(), ["Database"])
-
-            writer.show_Paths(d, path_SQLiteDatabase_beginTransactionNonExclusive)
-        else:
-            writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO, "SQLiteDatabase Transaction Deprecated Checking",
-                               "Ignore checking \"SQLiteDatabase:beginTransactionNonExclusive\" you're not using it.",
-                               ["Database"])
-    else:
-        writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO, "SQLiteDatabase Transaction Deprecated Checking",
-                           "Ignore checking \"SQLiteDatabase:beginTransactionNonExclusive\" because your set minSdk >= 11.",
-                           ["Database"])
-
-    # ------------------------------------------------------------------------
-
-    """
-		MODE_WORLD_READABLE or MODE_WORLD_WRITEABLE checking:
-
-		MODE_WORLD_READABLE = 1
-		MODE_WORLD_WRITEABLE = 2
-		MODE_WORLD_READABLE + MODE_WORLD_WRITEABLE = 3
-
-		http://jimmy319.blogspot.tw/2011/07/android-internal-storagefile-io.html
-
-		Example Java Code:
-			FileOutputStream outputStream = openFileOutput("Hello_World", Activity.MODE_WORLD_READABLE);
-
-		Example Smali Code:
-			const-string v3, "Hello_World"
-			const/4 v4, 0x1
-		    invoke-virtual {p0, v3, v4}, Lcom/example/android_mode_world_testing/MainActivity;->openFileOutput(Ljava/lang/String;I)Ljava/io/FileOutputStream;
-	"""
-
-    # Get a list of 'PathP' objects that are vulnerabilities
-    list_path_openOrCreateDatabase = []
-    list_path_openOrCreateDatabase2 = []
-    list_path_getDir = []
-    list_path_getSharedPreferences = []
-    list_path_openFileOutput = []
-
-    path_openOrCreateDatabase = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
-                                                                                     "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;)Landroid/database/sqlite/SQLiteDatabase;")
-    path_openOrCreateDatabase = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase):
-        if (0x1 <= i.getResult()[2] <= 0x3):
-            list_path_openOrCreateDatabase.append(i.getPath())
-
-    path_openOrCreateDatabase2 = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
-                                                                                      "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;")
-    path_openOrCreateDatabase2 = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase2)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase2):
-        if (0x1 <= i.getResult()[2] <= 0x3):
-            list_path_openOrCreateDatabase2.append(i.getPath())
-
-    path_getDir = dx.get_tainted_packages().search_methods_exact_match("getDir",
-                                                                       "(Ljava/lang/String; I)Ljava/io/File;")
-    path_getDir = filteringEngine.filter_list_of_paths(d, path_getDir)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getDir):
-        if (0x1 <= i.getResult()[2] <= 0x3):
-            list_path_getDir.append(i.getPath())
-
-    path_getSharedPreferences = dx.get_tainted_packages().search_methods_exact_match("getSharedPreferences",
-                                                                                     "(Ljava/lang/String; I)Landroid/content/SharedPreferences;")
-    path_getSharedPreferences = filteringEngine.filter_list_of_paths(d, path_getSharedPreferences)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getSharedPreferences):
-        if (0x1 <= i.getResult()[2] <= 0x3):
-            list_path_getSharedPreferences.append(i.getPath())
-
-    path_openFileOutput = dx.get_tainted_packages().search_methods_exact_match("openFileOutput",
-                                                                               "(Ljava/lang/String; I)Ljava/io/FileOutputStream;")
-    path_openFileOutput = filteringEngine.filter_list_of_paths(d, path_openFileOutput)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openFileOutput):
-        if (0x1 <= i.getResult()[2] <= 0x3):
-            list_path_openFileOutput.append(i.getPath())
-
-    if list_path_openOrCreateDatabase or list_path_openOrCreateDatabase2 or list_path_getDir or list_path_getSharedPreferences or list_path_openFileOutput:
-
-        writer.startWriter("MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", LEVEL_CRITICAL,
-                           "App Sandbox Permission Checking",
-                           "Security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found (Please check: https://www.owasp.org/index.php/Mobile_Top_10_2014-M2):")
-
-        if list_path_openOrCreateDatabase:
-            writer.write("[openOrCreateDatabase - 3 params]")
-            for i in list_path_openOrCreateDatabase:
-                writer.show_Path(d, i)
-            writer.write("--------------------------------------------------")
-        if list_path_openOrCreateDatabase2:
-            writer.write("[openOrCreateDatabase - 4 params]")
-            for i in list_path_openOrCreateDatabase2:
-                writer.show_Path(d, i)
-            writer.write("--------------------------------------------------")
-        if list_path_getDir:
-            writer.write("[getDir]")
-            for i in list_path_getDir:
-                writer.show_Path(d, i)
-            writer.write("--------------------------------------------------")
-        if list_path_getSharedPreferences:
-            writer.write("[getSharedPreferences]")
-            for i in list_path_getSharedPreferences:
-                writer.show_Path(d, i)
-            writer.write("--------------------------------------------------")
-        if list_path_openFileOutput:
-            writer.write("[openFileOutput]")
-            for i in list_path_openFileOutput:
-                writer.show_Path(d, i)
-            writer.write("--------------------------------------------------")
-
-    else:
-        writer.startWriter("MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", LEVEL_INFO, "App Sandbox Permission Checking",
-                           "No security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found on 'openOrCreateDatabase' or 'openOrCreateDatabase2' or 'getDir' or 'getSharedPreferences' or 'openFileOutput'")
+#     # ------------------------------------------------------------------------
+#     # HttpURLConnection bug checking:
+#
+#     """
+# 		Example Java code:
+# 			private void disableConnectionReuseIfNecessary() {
+# 				// Work around pre-Froyo bugs in HTTP connection reuse.
+# 				if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.FROYO) {
+# 					System.setProperty("http.keepAlive", "false");
+# 				}
+# 			}
+#
+# 		Example Bytecode code:
+# 			const-string v0, "http.keepAlive"
+# 			const-string v1, "false"
+# 			invoke-static {v0, v1}, Ljava/lang/System;->setProperty(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+#
+# 	"""
+#
+#     if (int_min_sdk is not None) and (int_min_sdk <= 8):
+#
+#         pkg_HttpURLConnection = dx.is_class_present("Ljava/net/HttpURLConnection;")
+#         pkg_HttpURLConnection = filteringEngine.filter_list_of_paths(d, pkg_HttpURLConnection)
+#
+#         # Check only when using the HttpURLConnection
+#         if pkg_HttpURLConnection:
+#
+#             list_pre_Froyo_HttpURLConnection = []
+#             path_pre_Froyo_HttpURLConnection = dx.find_methods(
+#                 "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
+#             path_pre_Froyo_HttpURLConnection = filteringEngine.filter_list_of_paths(d, path_pre_Froyo_HttpURLConnection)
+#
+#             has_http_keepAlive_Name = False
+#             has_http_keepAlive_Value = False
+#
+#             for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_pre_Froyo_HttpURLConnection):
+#                 if (i.getResult()[0] == "http.keepAlive"):
+#                     has_http_keepAlive_Name = True
+#                     list_pre_Froyo_HttpURLConnection.append(i.getPath())  # Only list the "false" one
+#                     if (i.getResult()[1] == "false"):
+#                         has_http_keepAlive_Value = True
+#                         break
+#
+#             if has_http_keepAlive_Name:
+#                 if has_http_keepAlive_Value:
+#                     writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
+#                                        "System property \"http.keepAlive\" for \"HttpURLConnection\" sets correctly.")
+#
+#                 else:
+#                     output_string = """You should set System property "http.keepAlive" to "false"
+# You're using "HttpURLConnection". Prior to Android 2.2 (Froyo), "HttpURLConnection" had some frustrating bugs.
+# In particular, calling close() on a readable InputStream could poison the connection pool. Work around this by disabling connection pooling:
+# Please check the reference:
+#  (1)http://developer.android.com/reference/java/net/HttpURLConnection.html
+#  (2)http://android-developers.blogspot.tw/2011/09/androids-http-clients.html"""
+#                     writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Android Bug Checking",
+#                                        output_string)
+#
+#                     writer.show_Paths(d, list_pre_Froyo_HttpURLConnection)  # Notice: list_pre_Froyo_HttpURLConnection
+#             else:
+#                 output_string = """You're using "HttpURLConnection". Prior to Android 2.2 (Froyo), "HttpURLConnection" had some frustrating bugs.
+# In particular, calling close() on a readable InputStream could poison the connection pool. Work around this by disabling connection pooling.
+# Please check the reference:
+#  (1)http://developer.android.com/reference/java/net/HttpURLConnection.html
+#  (2)http://android-developers.blogspot.tw/2011/09/androids-http-clients.html"""
+#
+#                 writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Android Bug Checking",
+#                                    output_string)
+#                 # Make it optional to list library
+#                 writer.show_Paths(d, pkg_HttpURLConnection)  # Notice: pkg_HttpURLConnection
+#
+#         else:
+#             writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
+#                                "Ignore checking \"http.keepAlive\" because you're not using \"HttpURLConnection\".")
+#
+#     else:
+#         writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
+#                            "Ignore checking \"http.keepAlive\" because you're not using \"HttpURLConnection\" and min_Sdk > 8.")
+#
+#     # ------------------------------------------------------------------------
+#     # SQLiteDatabase - beginTransactionNonExclusive() checking:
+#
+#     if (int_min_sdk is not None) and (int_min_sdk < 11):
+#
+#         path_SQLiteDatabase_beginTransactionNonExclusive = dx.find_methods(
+#             "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "()V")
+#         path_SQLiteDatabase_beginTransactionNonExclusive = filteringEngine.filter_list_of_paths(d,
+#                                                                                                 path_SQLiteDatabase_beginTransactionNonExclusive)
+#
+#         if path_SQLiteDatabase_beginTransactionNonExclusive:
+#             output_string = StringHandler()
+#             output_string.append(
+#                 "We detect you're using \"beginTransactionNonExclusive\" in your \"SQLiteDatabase\" but your minSdk supports down to " + str(
+#                     int_min_sdk) + ".")
+#             output_string.append(
+#                 "\"beginTransactionNonExclusive\" is not supported by API < 11. Please make sure you use \"beginTransaction\" in the earlier version of Android.")
+#             output_string.append(
+#                 "Reference: http://developer.android.com/reference/android/database/sqlite/SQLiteDatabase.html#beginTransactionNonExclusive()")
+#             writer.startWriter("DB_DEPRECATED_USE1", LEVEL_CRITICAL, "SQLiteDatabase Transaction Deprecated Checking",
+#                                output_string.get(), ["Database"])
+#
+#             writer.show_Paths(d, path_SQLiteDatabase_beginTransactionNonExclusive)
+#         else:
+#             writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO, "SQLiteDatabase Transaction Deprecated Checking",
+#                                "Ignore checking \"SQLiteDatabase:beginTransactionNonExclusive\" you're not using it.",
+#                                ["Database"])
+#     else:
+#         writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO, "SQLiteDatabase Transaction Deprecated Checking",
+#                            "Ignore checking \"SQLiteDatabase:beginTransactionNonExclusive\" because your set minSdk >= 11.",
+#                            ["Database"])
 
     # ------------------------------------------------------------------------
-    # List all native method
+    #
+    # """
+	# 	MODE_WORLD_READABLE or MODE_WORLD_WRITEABLE checking:
+    #
+	# 	MODE_WORLD_READABLE = 1
+	# 	MODE_WORLD_WRITEABLE = 2
+	# 	MODE_WORLD_READABLE + MODE_WORLD_WRITEABLE = 3
+    #
+	# 	http://jimmy319.blogspot.tw/2011/07/android-internal-storagefile-io.html
+    #
+	# 	Example Java Code:
+	# 		FileOutputStream outputStream = openFileOutput("Hello_World", Activity.MODE_WORLD_READABLE);
+    #
+	# 	Example Smali Code:
+	# 		const-string v3, "Hello_World"
+	# 		const/4 v4, 0x1
+	# 	    invoke-virtual {p0, v3, v4}, Lcom/example/android_mode_world_testing/MainActivity;->openFileOutput(Ljava/lang/String;I)Ljava/io/FileOutputStream;
+	# """
+    #
+    # # Get a list of 'PathP' objects that are vulnerabilities
+    # list_path_openOrCreateDatabase = []
+    # list_path_openOrCreateDatabase2 = []
+    # list_path_getDir = []
+    # list_path_getSharedPreferences = []
+    # list_path_openFileOutput = []
+    #
+    # path_openOrCreateDatabase = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
+    #                                                                                  "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;)Landroid/database/sqlite/SQLiteDatabase;")
+    # path_openOrCreateDatabase = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase):
+    #     if (0x1 <= i.getResult()[2] <= 0x3):
+    #         list_path_openOrCreateDatabase.append(i.getPath())
+    #
+    # path_openOrCreateDatabase2 = dx.get_tainted_packages().search_methods_exact_match("openOrCreateDatabase",
+    #                                                                                   "(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;")
+    # path_openOrCreateDatabase2 = filteringEngine.filter_list_of_paths(d, path_openOrCreateDatabase2)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openOrCreateDatabase2):
+    #     if (0x1 <= i.getResult()[2] <= 0x3):
+    #         list_path_openOrCreateDatabase2.append(i.getPath())
+    #
+    # path_getDir = dx.get_tainted_packages().search_methods_exact_match("getDir",
+    #                                                                    "(Ljava/lang/String; I)Ljava/io/File;")
+    # path_getDir = filteringEngine.filter_list_of_paths(d, path_getDir)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getDir):
+    #     if (0x1 <= i.getResult()[2] <= 0x3):
+    #         list_path_getDir.append(i.getPath())
+    #
+    # path_getSharedPreferences = dx.get_tainted_packages().search_methods_exact_match("getSharedPreferences",
+    #                                                                                  "(Ljava/lang/String; I)Landroid/content/SharedPreferences;")
+    # path_getSharedPreferences = filteringEngine.filter_list_of_paths(d, path_getSharedPreferences)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_getSharedPreferences):
+    #     if (0x1 <= i.getResult()[2] <= 0x3):
+    #         list_path_getSharedPreferences.append(i.getPath())
+    #
+    # path_openFileOutput = dx.get_tainted_packages().search_methods_exact_match("openFileOutput",
+    #                                                                            "(Ljava/lang/String; I)Ljava/io/FileOutputStream;")
+    # path_openFileOutput = filteringEngine.filter_list_of_paths(d, path_openFileOutput)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_openFileOutput):
+    #     if (0x1 <= i.getResult()[2] <= 0x3):
+    #         list_path_openFileOutput.append(i.getPath())
+    #
+    # if list_path_openOrCreateDatabase or list_path_openOrCreateDatabase2 or list_path_getDir or list_path_getSharedPreferences or list_path_openFileOutput:
+    #
+    #     writer.startWriter("MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", LEVEL_CRITICAL,
+    #                        "App Sandbox Permission Checking",
+    #                        "Security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found (Please check: https://www.owasp.org/index.php/Mobile_Top_10_2014-M2):")
+    #
+    #     if list_path_openOrCreateDatabase:
+    #         writer.write("[openOrCreateDatabase - 3 params]")
+    #         for i in list_path_openOrCreateDatabase:
+    #             writer.show_Path(d, i)
+    #         writer.write("--------------------------------------------------")
+    #     if list_path_openOrCreateDatabase2:
+    #         writer.write("[openOrCreateDatabase - 4 params]")
+    #         for i in list_path_openOrCreateDatabase2:
+    #             writer.show_Path(d, i)
+    #         writer.write("--------------------------------------------------")
+    #     if list_path_getDir:
+    #         writer.write("[getDir]")
+    #         for i in list_path_getDir:
+    #             writer.show_Path(d, i)
+    #         writer.write("--------------------------------------------------")
+    #     if list_path_getSharedPreferences:
+    #         writer.write("[getSharedPreferences]")
+    #         for i in list_path_getSharedPreferences:
+    #             writer.show_Path(d, i)
+    #         writer.write("--------------------------------------------------")
+    #     if list_path_openFileOutput:
+    #         writer.write("[openFileOutput]")
+    #         for i in list_path_openFileOutput:
+    #             writer.show_Path(d, i)
+    #         writer.write("--------------------------------------------------")
+    #
+    # else:
+    #     writer.startWriter("MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", LEVEL_INFO, "App Sandbox Permission Checking",
+    #                        "No security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found on 'openOrCreateDatabase' or 'openOrCreateDatabase2' or 'getDir' or 'getSharedPreferences' or 'openFileOutput'")
 
-    """
-		Example:
-	    	const-string v0, "AndroBugsNdk"
-	    	invoke-static {v0}, Ljava/lang/System;->loadLibrary(Ljava/lang/String;)V
-	"""
-
-    cm = d.get_class_manager()
-
-    dic_NDK_library_classname_to_ndkso_mapping = {}
-    list_NDK_library_classname_to_ndkso_mapping = []
-    path_NDK_library_classname_to_ndkso_mapping = dx.find_methods(
-        "Ljava/lang/System;", "loadLibrary", "(Ljava/lang/String;)V")
-    path_NDK_library_classname_to_ndkso_mapping = filteringEngine.filter_list_of_paths(d,
-                                                                                       path_NDK_library_classname_to_ndkso_mapping)
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_NDK_library_classname_to_ndkso_mapping):
-        if (i.getResult()[0] is None) or (not i.is_string(0)):
-            continue
-        so_file_name = i.getResult()[0]
-        src_class_name, src_method_name, src_descriptor = i.getPath().get_src(cm)
-        if src_class_name is None:
-            continue
-        if src_class_name not in dic_NDK_library_classname_to_ndkso_mapping:
-            dic_NDK_library_classname_to_ndkso_mapping[src_class_name] = []
-
-        dic_NDK_library_classname_to_ndkso_mapping[src_class_name].append(toNdkFileFormat(str(i.getResult()[0])))
-        list_NDK_library_classname_to_ndkso_mapping.append([toNdkFileFormat(str(i.getResult()[0])), i.getPath()])
-
-    if list_NDK_library_classname_to_ndkso_mapping:
-        writer.startWriter("NATIVE_LIBS_LOADING", LEVEL_NOTICE, "Native Library Loading Checking",
-                           "Native library loading codes(System.loadLibrary(...)) found:")
-
-        for ndk_location, path in list_NDK_library_classname_to_ndkso_mapping:
-            writer.write("[" + ndk_location + "]")
-            writer.show_Path(d, path)
-    else:
-        writer.startWriter("NATIVE_LIBS_LOADING", LEVEL_INFO, "Native Library Loading Checking",
-                           "No native library loaded.")
-
-    dic_native_methods = {}
-    regexp_sqlcipher_database_class = re.compile(".*/SQLiteDatabase;")
-    for method in d.get_methods():
-        if method.is_native():
-            class_name = method.get_class_name()
-            if filteringEngine.is_class_name_not_in_exclusion(class_name):
-                if class_name not in dic_native_methods:
-                    dic_native_methods[class_name] = []
-                dic_native_methods[class_name].append(method)
-
-            # <<Essential_Block_1>>
-            if regexp_sqlcipher_database_class.match(class_name):
-                if (method.get_name() == "dbopen") or (
-                        method.get_name() == "dbclose"):  # Make it to 2 conditions to add efficiency
-                    isUsingSQLCipher = True  # This is for later use
-
-    if dic_native_methods:
-
-        if args.extra == 2:  # The output may be too verbose, so make it an option
-
-            dic_native_methods_sorted = collections.OrderedDict(sorted(dic_native_methods.items()))
-
-            writer.startWriter("NATIVE_METHODS", LEVEL_NOTICE, "Native Methods Checking", "Native methods found:")
-
-            for class_name, method_names in list(dic_native_methods_sorted.items()):
-                if class_name in dic_NDK_library_classname_to_ndkso_mapping:
-                    writer.write("Class: %s (Loaded NDK files: %s)" % (
-                        class_name, dic_NDK_library_classname_to_ndkso_mapping[class_name]))
-                else:
-                    writer.write("Class: %s" % (class_name))
-                writer.write("   ->Methods:")
-                for method in method_names:
-                    writer.write("        %s%s" % (method.get_name(), method.get_descriptor()))
-
-    else:
-        if args.extra == 2:  # The output may be too verbose, so make it an option
-            writer.startWriter("NATIVE_METHODS", LEVEL_INFO, "Native Methods Checking", "No native method found.")
-
-    # Framework Detection: Bangcle
-
-    is_using_Framework_Bangcle = False
-    is_using_Framework_ijiami = False
-    is_using_Framework_MonoDroid = False
-
-    # Display only when using the Framework (Notice: This vector depends on "List all native method")
-    if list_NDK_library_classname_to_ndkso_mapping:
-
-        android_name_in_application_tag = a.get_android_name_in_application_tag()
-        list_NDK_library_classname_to_ndkso_mapping_only_ndk_location = dump_NDK_library_classname_to_ndkso_mapping_ndk_location_list(
-            list_NDK_library_classname_to_ndkso_mapping)
-
-        if ("libsecexe.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location):
-            if (android_name_in_application_tag == "com.secapk.wrapper.ApplicationWrapper"):
-                is_using_Framework_Bangcle = True
-            else:
-                path_secapk = dx.find_methods("Lcom/secapk/wrapper/ACall;",
-                                              "getACall",
-                                              "()Lcom/secapk/wrapper/ACall;")
-                if path_secapk:
-                    is_using_Framework_Bangcle = True
-
-        if (len(list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) == 2):
-            if ("libexec.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) and (
-                    "libexecmain.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location):
-                paths_ijiami_signature = dx.find_methods(
-                    "Lcom/shell/NativeApplication;", "load", "(Landroid/app/Application; Ljava/lang/String;)Z")
-                if paths_ijiami_signature:
-                    is_using_Framework_ijiami = True
-
-        if (android_name_in_application_tag == "mono.android.app.Application"):
-            for name, _, _ in a.get_files_information():
-                if (name == "lib/armeabi-v7a/libmonodroid.so") or (name == "lib/armeabi/libmonodroid.so"):
-                    is_using_Framework_MonoDroid = True
-                    break
-
-        if is_using_Framework_Bangcle:
-            writer.startWriter("FRAMEWORK_BANGCLE", LEVEL_NOTICE, "Encryption Framework - Bangcle",
-                               "This app is using Bangcle Encryption Framework (http://www.bangcle.com/). Please send your unencrypted apk instead so that we can check thoroughly.",
-                               ["Framework"])
-        if is_using_Framework_ijiami:
-            writer.startWriter("FRAMEWORK_IJIAMI", LEVEL_NOTICE, "Encryption Framework - Ijiami",
-                               "This app is using Ijiami Encryption Framework (http://www.ijiami.cn/). Please send your unencrypted apk instead so that we can check thoroughly.",
-                               ["Framework"])
-
-    if is_using_Framework_MonoDroid:
-        writer.startWriter("FRAMEWORK_MONODROID", LEVEL_NOTICE, "Framework - MonoDroid",
-                           "This app is using MonoDroid Framework (http://xamarin.com/android).", ["Framework"])
-    else:
-        writer.startWriter("FRAMEWORK_MONODROID", LEVEL_INFO, "Framework - MonoDroid",
-                           "This app is NOT using MonoDroid Framework (http://xamarin.com/android).", ["Framework"])
+    # # ------------------------------------------------------------------------
+    # # List all native method
+    #
+    # """
+	# 	Example:
+	#     	const-string v0, "AndroBugsNdk"
+	#     	invoke-static {v0}, Ljava/lang/System;->loadLibrary(Ljava/lang/String;)V
+	# """
+    #
+    # cm = d.get_class_manager()
+    #
+    # dic_NDK_library_classname_to_ndkso_mapping = {}
+    # list_NDK_library_classname_to_ndkso_mapping = []
+    # path_NDK_library_classname_to_ndkso_mapping = dx.find_methods(
+    #     "Ljava/lang/System;", "loadLibrary", "(Ljava/lang/String;)V")
+    # path_NDK_library_classname_to_ndkso_mapping = filteringEngine.filter_list_of_paths(d,
+    #                                                                                    path_NDK_library_classname_to_ndkso_mapping)
+    # for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_NDK_library_classname_to_ndkso_mapping):
+    #     if (i.getResult()[0] is None) or (not i.is_string(0)):
+    #         continue
+    #     so_file_name = i.getResult()[0]
+    #     src_class_name, src_method_name, src_descriptor = i.getPath().get_src(cm)
+    #     if src_class_name is None:
+    #         continue
+    #     if src_class_name not in dic_NDK_library_classname_to_ndkso_mapping:
+    #         dic_NDK_library_classname_to_ndkso_mapping[src_class_name] = []
+    #
+    #     dic_NDK_library_classname_to_ndkso_mapping[src_class_name].append(toNdkFileFormat(str(i.getResult()[0])))
+    #     list_NDK_library_classname_to_ndkso_mapping.append([toNdkFileFormat(str(i.getResult()[0])), i.getPath()])
+    #
+    # if list_NDK_library_classname_to_ndkso_mapping:
+    #     writer.startWriter("NATIVE_LIBS_LOADING", LEVEL_NOTICE, "Native Library Loading Checking",
+    #                        "Native library loading codes(System.loadLibrary(...)) found:")
+    #
+    #     for ndk_location, path in list_NDK_library_classname_to_ndkso_mapping:
+    #         writer.write("[" + ndk_location + "]")
+    #         writer.show_Path(d, path)
+    # else:
+    #     writer.startWriter("NATIVE_LIBS_LOADING", LEVEL_INFO, "Native Library Loading Checking",
+    #                        "No native library loaded.")
+    #
+    # dic_native_methods = {}
+    # regexp_sqlcipher_database_class = re.compile(".*/SQLiteDatabase;")
+    # for method in d.get_methods():
+    #     if method.is_native():
+    #         class_name = method.get_class_name()
+    #         if filteringEngine.is_class_name_not_in_exclusion(class_name):
+    #             if class_name not in dic_native_methods:
+    #                 dic_native_methods[class_name] = []
+    #             dic_native_methods[class_name].append(method)
+    #
+    #         # <<Essential_Block_1>>
+    #         if regexp_sqlcipher_database_class.match(class_name):
+    #             if (method.get_name() == "dbopen") or (
+    #                     method.get_name() == "dbclose"):  # Make it to 2 conditions to add efficiency
+    #                 isUsingSQLCipher = True  # This is for later use
+    #
+    # if dic_native_methods:
+    #
+    #     if args.extra == 2:  # The output may be too verbose, so make it an option
+    #
+    #         dic_native_methods_sorted = collections.OrderedDict(sorted(dic_native_methods.items()))
+    #
+    #         writer.startWriter("NATIVE_METHODS", LEVEL_NOTICE, "Native Methods Checking", "Native methods found:")
+    #
+    #         for class_name, method_names in list(dic_native_methods_sorted.items()):
+    #             if class_name in dic_NDK_library_classname_to_ndkso_mapping:
+    #                 writer.write("Class: %s (Loaded NDK files: %s)" % (
+    #                     class_name, dic_NDK_library_classname_to_ndkso_mapping[class_name]))
+    #             else:
+    #                 writer.write("Class: %s" % (class_name))
+    #             writer.write("   ->Methods:")
+    #             for method in method_names:
+    #                 writer.write("        %s%s" % (method.get_name(), method.get_descriptor()))
+    #
+    # else:
+    #     if args.extra == 2:  # The output may be too verbose, so make it an option
+    #         writer.startWriter("NATIVE_METHODS", LEVEL_INFO, "Native Methods Checking", "No native method found.")
+    #
+    # # Framework Detection: Bangcle
+    #
+    # is_using_Framework_Bangcle = False
+    # is_using_Framework_ijiami = False
+    # is_using_Framework_MonoDroid = False
+    #
+    # # Display only when using the Framework (Notice: This vector depends on "List all native method")
+    # if list_NDK_library_classname_to_ndkso_mapping:
+    #
+    #     android_name_in_application_tag = a.get_android_name_in_application_tag()
+    #     list_NDK_library_classname_to_ndkso_mapping_only_ndk_location = dump_NDK_library_classname_to_ndkso_mapping_ndk_location_list(
+    #         list_NDK_library_classname_to_ndkso_mapping)
+    #
+    #     if ("libsecexe.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location):
+    #         if (android_name_in_application_tag == "com.secapk.wrapper.ApplicationWrapper"):
+    #             is_using_Framework_Bangcle = True
+    #         else:
+    #             path_secapk = dx.find_methods("Lcom/secapk/wrapper/ACall;",
+    #                                           "getACall",
+    #                                           "()Lcom/secapk/wrapper/ACall;")
+    #             if path_secapk:
+    #                 is_using_Framework_Bangcle = True
+    #
+    #     if (len(list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) == 2):
+    #         if ("libexec.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location) and (
+    #                 "libexecmain.so" in list_NDK_library_classname_to_ndkso_mapping_only_ndk_location):
+    #             paths_ijiami_signature = dx.find_methods(
+    #                 "Lcom/shell/NativeApplication;", "load", "(Landroid/app/Application; Ljava/lang/String;)Z")
+    #             if paths_ijiami_signature:
+    #                 is_using_Framework_ijiami = True
+    #
+    #     if (android_name_in_application_tag == "mono.android.app.Application"):
+    #         for name, _, _ in a.get_files_information():
+    #             if (name == "lib/armeabi-v7a/libmonodroid.so") or (name == "lib/armeabi/libmonodroid.so"):
+    #                 is_using_Framework_MonoDroid = True
+    #                 break
+    #
+    #     if is_using_Framework_Bangcle:
+    #         writer.startWriter("FRAMEWORK_BANGCLE", LEVEL_NOTICE, "Encryption Framework - Bangcle",
+    #                            "This app is using Bangcle Encryption Framework (http://www.bangcle.com/). Please send your unencrypted apk instead so that we can check thoroughly.",
+    #                            ["Framework"])
+    #     if is_using_Framework_ijiami:
+    #         writer.startWriter("FRAMEWORK_IJIAMI", LEVEL_NOTICE, "Encryption Framework - Ijiami",
+    #                            "This app is using Ijiami Encryption Framework (http://www.ijiami.cn/). Please send your unencrypted apk instead so that we can check thoroughly.",
+    #                            ["Framework"])
+    #
+    # if is_using_Framework_MonoDroid:
+    #     writer.startWriter("FRAMEWORK_MONODROID", LEVEL_NOTICE, "Framework - MonoDroid",
+    #                        "This app is using MonoDroid Framework (http://xamarin.com/android).", ["Framework"])
+    # else:
+    #     writer.startWriter("FRAMEWORK_MONODROID", LEVEL_INFO, "Framework - MonoDroid",
+    #                        "This app is NOT using MonoDroid Framework (http://xamarin.com/android).", ["Framework"])
 
     # ------------------------------------------------------------------------
     # Detect dynamic code loading
@@ -3162,96 +3161,96 @@ Reference: http://developer.android.com/guide/components/intents-filters.html#Ty
 
     # ------------------------------------------------------------------------
     # SQLite databases
-
-    is_using_android_dbs = dx.get_tainted_packages().has_android_databases(filteringEngine.get_filtering_regexp())
-    if is_using_android_dbs:
-        if int_min_sdk < 15:
-            writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE, "Android SQLite Databases Vulnerability Checking",
-                               """This app is using Android SQLite databases. 
-Prior to Android 4.0, Android has SQLite Journal Information Disclosure Vulnerability. 
-But it can only be solved by users upgrading to Android > 4.0 and YOU CANNOT SOLVE IT BY YOURSELF (But you can use encrypt your databases and Journals by "SQLCipher" or other libs). 
-Proof-Of-Concept Reference: 
-(1) http://blog.watchfire.com/files/androidsqlitejournal.pdf 
-(2) http://www.youtube.com/watch?v=oCXLHjmH5rY """, ["Database"], "CVE-2011-3901")
-        else:
-            writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE, "Android SQLite Databases Vulnerability Checking",
-                               "This app is using Android SQLite databases but it's \"NOT\" suffering from SQLite Journal Information Disclosure Vulnerability.",
-                               ["Database"], "CVE-2011-3901")
-    else:
-        writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_INFO, "Android SQLite Databases Vulnerability Checking",
-                           "This app is \"NOT\" using Android SQLite databases.", ["Database"], "CVE-2011-3901")
+#
+#     is_using_android_dbs = dx.get_tainted_packages().has_android_databases(filteringEngine.get_filtering_regexp())
+#     if is_using_android_dbs:
+#         if int_min_sdk < 15:
+#             writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE, "Android SQLite Databases Vulnerability Checking",
+#                                """This app is using Android SQLite databases.
+# Prior to Android 4.0, Android has SQLite Journal Information Disclosure Vulnerability.
+# But it can only be solved by users upgrading to Android > 4.0 and YOU CANNOT SOLVE IT BY YOURSELF (But you can use encrypt your databases and Journals by "SQLCipher" or other libs).
+# Proof-Of-Concept Reference:
+# (1) http://blog.watchfire.com/files/androidsqlitejournal.pdf
+# (2) http://www.youtube.com/watch?v=oCXLHjmH5rY """, ["Database"], "CVE-2011-3901")
+#         else:
+#             writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE, "Android SQLite Databases Vulnerability Checking",
+#                                "This app is using Android SQLite databases but it's \"NOT\" suffering from SQLite Journal Information Disclosure Vulnerability.",
+#                                ["Database"], "CVE-2011-3901")
+#     else:
+#         writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_INFO, "Android SQLite Databases Vulnerability Checking",
+#                            "This app is \"NOT\" using Android SQLite databases.", ["Database"], "CVE-2011-3901")
 
     # ------------------------------------------------------------------------
     # Checking whether the app is using SQLCipher:
-    # Reference to <<Essential_Block_1>>
-    if isUsingSQLCipher:
-        writer.startWriter("DB_SQLCIPHER", LEVEL_NOTICE, "Android SQLite Databases Encryption (SQLCipher)",
-                           "This app is using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
-                           ["Database"])
-
-        path_sqlcipher_dbs = dx.get_tainted_packages().search_sqlcipher_databases()  # Don't do the exclusion checking on this one because it's not needed
-
-        if path_sqlcipher_dbs:
-            # Get versions:
-            has_version1or0 = False
-            has_version2 = False
-            for _, version in path_sqlcipher_dbs:
-                if version == 1:
-                    has_version1or0 = True
-                if version == 2:
-                    has_version2 = True
-
-            if has_version1or0:
-                writer.write(
-                    "It's using \"SQLCipher for Android\" (Library version: 1.X or 0.X), package name: \"info.guardianproject.database\"")
-            if has_version2:
-                writer.write(
-                    "It's using \"SQLCipher for Android\" (Library version: 2.X or higher), package name: \"net.sqlcipher.database\"")
-
-            # Dumping:
-            for db_path, version in path_sqlcipher_dbs:
-                writer.show_Path(d, db_path)
-
-    else:
-        writer.startWriter("DB_SQLCIPHER", LEVEL_INFO, "Android SQLite Databases Encryption (SQLCipher)",
-                           "This app is \"NOT\" using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
-                           ["Database"])
-
-    # ------------------------------------------------------------------------
-    # Find "SQLite Encryption Extension (SEE) on Android"
-    has_SSE_databases = False
-    for cls in d.get_classes():
-        if cls.get_name() == "Lorg/sqlite/database/sqlite/SQLiteDatabase;":  # Don't do the exclusion checking on this one because it's not needed
-            has_SSE_databases = True
-            break
-
-    if has_SSE_databases:
-        writer.startWriter("DB_SEE", LEVEL_NOTICE,
-                           "Android SQLite Databases Encryption (SQLite Encryption Extension (SEE))",
-                           "This app is using SQLite Encryption Extension (SEE) on Android (http://www.sqlite.org/android) to encrypt or decrpyt databases.",
-                           ["Database"])
-
-    else:
-        writer.startWriter("DB_SEE", LEVEL_INFO,
-                           "Android SQLite Databases Encryption (SQLite Encryption Extension (SEE))",
-                           "This app is \"NOT\" using SQLite Encryption Extension (SEE) on Android (http://www.sqlite.org/android) to encrypt or decrpyt databases.",
-                           ["Database"])
+    # # Reference to <<Essential_Block_1>>
+    # if isUsingSQLCipher:
+    #     writer.startWriter("DB_SQLCIPHER", LEVEL_NOTICE, "Android SQLite Databases Encryption (SQLCipher)",
+    #                        "This app is using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
+    #                        ["Database"])
+    #
+    #     path_sqlcipher_dbs = dx.get_tainted_packages().search_sqlcipher_databases()  # Don't do the exclusion checking on this one because it's not needed
+    #
+    #     if path_sqlcipher_dbs:
+    #         # Get versions:
+    #         has_version1or0 = False
+    #         has_version2 = False
+    #         for _, version in path_sqlcipher_dbs:
+    #             if version == 1:
+    #                 has_version1or0 = True
+    #             if version == 2:
+    #                 has_version2 = True
+    #
+    #         if has_version1or0:
+    #             writer.write(
+    #                 "It's using \"SQLCipher for Android\" (Library version: 1.X or 0.X), package name: \"info.guardianproject.database\"")
+    #         if has_version2:
+    #             writer.write(
+    #                 "It's using \"SQLCipher for Android\" (Library version: 2.X or higher), package name: \"net.sqlcipher.database\"")
+    #
+    #         # Dumping:
+    #         for db_path, version in path_sqlcipher_dbs:
+    #             writer.show_Path(d, db_path)
+    #
+    # else:
+    #     writer.startWriter("DB_SQLCIPHER", LEVEL_INFO, "Android SQLite Databases Encryption (SQLCipher)",
+    #                        "This app is \"NOT\" using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
+    #                        ["Database"])
 
     # ------------------------------------------------------------------------
-    # Searching SQLite "PRAGMA key" encryption:
-    result_sqlite_encryption = efficientStringSearchEngine.get_search_result_by_match_id("$__sqlite_encryption__")
-    result_sqlite_encryption = filteringEngine.filter_efficient_search_result_value(result_sqlite_encryption)
-    if result_sqlite_encryption:
-        writer.startWriter("HACKER_DB_KEY", LEVEL_NOTICE, "Key for Android SQLite Databases Encryption",
-                           "Found using the symmetric key(PRAGMA key) to encrypt the SQLite databases. \nRelated code:",
-                           ["Database", "Hacker"])
+    # # Find "SQLite Encryption Extension (SEE) on Android"
+    # has_SSE_databases = False
+    # for cls in d.get_classes():
+    #     if cls.get_name() == "Lorg/sqlite/database/sqlite/SQLiteDatabase;":  # Don't do the exclusion checking on this one because it's not needed
+    #         has_SSE_databases = True
+    #         break
+    #
+    # if has_SSE_databases:
+    #     writer.startWriter("DB_SEE", LEVEL_NOTICE,
+    #                        "Android SQLite Databases Encryption (SQLite Encryption Extension (SEE))",
+    #                        "This app is using SQLite Encryption Extension (SEE) on Android (http://www.sqlite.org/android) to encrypt or decrpyt databases.",
+    #                        ["Database"])
+    #
+    # else:
+    #     writer.startWriter("DB_SEE", LEVEL_INFO,
+    #                        "Android SQLite Databases Encryption (SQLite Encryption Extension (SEE))",
+    #                        "This app is \"NOT\" using SQLite Encryption Extension (SEE) on Android (http://www.sqlite.org/android) to encrypt or decrpyt databases.",
+    #                        ["Database"])
 
-        for found_string, method in result_sqlite_encryption:
-            writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
-    else:
-        writer.startWriter("HACKER_DB_KEY", LEVEL_INFO, "Key for Android SQLite Databases Encryption",
-                           "Did not find using the symmetric key(PRAGMA key) to encrypt the SQLite databases (It's still possible that it might use but we did not find out).",
-                           ["Database", "Hacker"])
+    # ------------------------------------------------------------------------
+    # # Searching SQLite "PRAGMA key" encryption:
+    # result_sqlite_encryption = efficientStringSearchEngine.get_search_result_by_match_id("$__sqlite_encryption__")
+    # result_sqlite_encryption = filteringEngine.filter_efficient_search_result_value(result_sqlite_encryption)
+    # if result_sqlite_encryption:
+    #     writer.startWriter("HACKER_DB_KEY", LEVEL_NOTICE, "Key for Android SQLite Databases Encryption",
+    #                        "Found using the symmetric key(PRAGMA key) to encrypt the SQLite databases. \nRelated code:",
+    #                        ["Database", "Hacker"])
+    #
+    #     for found_string, method in result_sqlite_encryption:
+    #         writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
+    # else:
+    #     writer.startWriter("HACKER_DB_KEY", LEVEL_INFO, "Key for Android SQLite Databases Encryption",
+    #                        "Did not find using the symmetric key(PRAGMA key) to encrypt the SQLite databases (It's still possible that it might use but we did not find out).",
+    #                        ["Database", "Hacker"])
 
     # ------------------------------------------------------------------------
     # Searching checking root or not:
@@ -3548,90 +3547,90 @@ Reference: http://developer.android.com/guide/topics/manifest/application-elemen
     # ------------------------------------------------------------------------
     # SSL Verification Fail (To check whether the code verifies the certificate)
 
-    methods_X509TrustManager_list = get_method_ins_by_implement_interface_and_method_desc_dict(d, [
-        "Ljavax/net/ssl/X509TrustManager;"], TYPE_COMPARE_ANY,
-                                                                                               [
-                                                                                                   "getAcceptedIssuers()[Ljava/security/cert/X509Certificate;",
-                                                                                                   "checkClientTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V",
-                                                                                                   "checkServerTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V"])
-
-    list_X509Certificate_Critical_class = []
-    list_X509Certificate_Warning_class = []
-
-    for class_name, method_list in list(methods_X509TrustManager_list.items()):
-        ins_count = 0
-
-        for method in method_list:
-            for ins in method.get_instructions():
-                ins_count = ins_count + 1
-
-        if ins_count <= 4:
-            # Critical
-            list_X509Certificate_Critical_class.append(class_name)
-        else:
-            # Warning
-            list_X509Certificate_Warning_class.append(class_name)
-
-    if list_X509Certificate_Critical_class or list_X509Certificate_Warning_class:
-
-        log_level = LEVEL_WARNING
-        log_partial_prefix_msg = "Please make sure this app has the conditions to check the validation of SSL Certificate. If it's not properly checked, it MAY allows self-signed, expired or mismatch CN certificates for SSL connection."
-
-        if list_X509Certificate_Critical_class:
-            log_level = LEVEL_CRITICAL
-            log_partial_prefix_msg = "This app DOES NOT check the validation of SSL Certificate. It allows self-signed, expired or mismatch CN certificates for SSL connection."
-
-        list_X509Certificate_merge_list = []
-        list_X509Certificate_merge_list.extend(list_X509Certificate_Critical_class)
-        list_X509Certificate_merge_list.extend(list_X509Certificate_Warning_class)
-
-        dict_X509Certificate_class_name_to_caller_mapping = {}
-
-        for method in d.get_methods():
-            for i in method.get_instructions():  # method.get_instructions(): Instruction
-                if i.get_op_value() == 0x22:  # 0x22 = "new-instance"
-                    if i.get_string() in list_X509Certificate_merge_list:
-                        referenced_class_name = i.get_string()
-                        if referenced_class_name not in dict_X509Certificate_class_name_to_caller_mapping:
-                            dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name] = []
-
-                        dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name].append(method)
-
-        writer.startWriter("SSL_X509", log_level, "SSL Certificate Verification Checking",
-                           log_partial_prefix_msg + """
-This is a critical vulnerability and allows attackers to do MITM attacks without your knowledge.
-If you are transmitting users' username or password, these sensitive information may be leaking.
-Reference:
-(1)OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
-(2)Android Security book: http://goo.gl/BFb65r 
-(3)https://www.securecoding.cert.org/confluence/pages/viewpage.action?pageId=134807561
-This vulnerability is much more severe than Apple's "goto fail" vulnerability: http://goo.gl/eFlovw
-Please do not try to create a "X509Certificate" and override "checkClientTrusted", "checkServerTrusted", and "getAcceptedIssuers" functions with blank implementation.
-We strongly suggest you use the existing API instead of creating your own X509Certificate class. 
-Please modify or remove these vulnerable code: 
-""", ["SSL_Security"])
-        if list_X509Certificate_Critical_class:
-            writer.write("[Confirm Vulnerable]")
-            for name in list_X509Certificate_Critical_class:
-                writer.write("=> " + name)
-                if name in dict_X509Certificate_class_name_to_caller_mapping:
-                    for used_method in dict_X509Certificate_class_name_to_caller_mapping[name]:
-                        writer.write(
-                            "      -> used by: " + used_method.get_class_name() + "->" + used_method.get_name() + used_method.get_descriptor())
-
-        if list_X509Certificate_Warning_class:
-            writer.write("--------------------------------------------------")
-            writer.write("[Maybe Vulnerable (Please manually confirm)]")
-            for name in list_X509Certificate_Warning_class:
-                writer.write("=> " + name)
-                if name in dict_X509Certificate_class_name_to_caller_mapping:
-                    for used_method in dict_X509Certificate_class_name_to_caller_mapping[name]:
-                        writer.write(
-                            "      -> used by: " + used_method.get_class_name() + "->" + used_method.get_name() + used_method.get_descriptor())
-
-    else:
-        writer.startWriter("SSL_X509", LEVEL_INFO, "SSL Certificate Verification Checking",
-                           "Did not find vulnerable X509Certificate code.", ["SSL_Security"])
+#     methods_X509TrustManager_list = get_method_ins_by_implement_interface_and_method_desc_dict(d, [
+#         "Ljavax/net/ssl/X509TrustManager;"], TYPE_COMPARE_ANY,
+#                                                                                                [
+#                                                                                                    "getAcceptedIssuers()[Ljava/security/cert/X509Certificate;",
+#                                                                                                    "checkClientTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V",
+#                                                                                                    "checkServerTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V"])
+#
+#     list_X509Certificate_Critical_class = []
+#     list_X509Certificate_Warning_class = []
+#
+#     for class_name, method_list in list(methods_X509TrustManager_list.items()):
+#         ins_count = 0
+#
+#         for method in method_list:
+#             for ins in method.get_instructions():
+#                 ins_count = ins_count + 1
+#
+#         if ins_count <= 4:
+#             # Critical
+#             list_X509Certificate_Critical_class.append(class_name)
+#         else:
+#             # Warning
+#             list_X509Certificate_Warning_class.append(class_name)
+#
+#     if list_X509Certificate_Critical_class or list_X509Certificate_Warning_class:
+#
+#         log_level = LEVEL_WARNING
+#         log_partial_prefix_msg = "Please make sure this app has the conditions to check the validation of SSL Certificate. If it's not properly checked, it MAY allows self-signed, expired or mismatch CN certificates for SSL connection."
+#
+#         if list_X509Certificate_Critical_class:
+#             log_level = LEVEL_CRITICAL
+#             log_partial_prefix_msg = "This app DOES NOT check the validation of SSL Certificate. It allows self-signed, expired or mismatch CN certificates for SSL connection."
+#
+#         list_X509Certificate_merge_list = []
+#         list_X509Certificate_merge_list.extend(list_X509Certificate_Critical_class)
+#         list_X509Certificate_merge_list.extend(list_X509Certificate_Warning_class)
+#
+#         dict_X509Certificate_class_name_to_caller_mapping = {}
+#
+#         for method in d.get_methods():
+#             for i in method.get_instructions():  # method.get_instructions(): Instruction
+#                 if i.get_op_value() == 0x22:  # 0x22 = "new-instance"
+#                     if i.get_string() in list_X509Certificate_merge_list:
+#                         referenced_class_name = i.get_string()
+#                         if referenced_class_name not in dict_X509Certificate_class_name_to_caller_mapping:
+#                             dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name] = []
+#
+#                         dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name].append(method)
+#
+#         writer.startWriter("SSL_X509", log_level, "SSL Certificate Verification Checking",
+#                            log_partial_prefix_msg + """
+# This is a critical vulnerability and allows attackers to do MITM attacks without your knowledge.
+# If you are transmitting users' username or password, these sensitive information may be leaking.
+# Reference:
+# (1)OWASP Mobile Top 10 doc: https://www.owasp.org/index.php/Mobile_Top_10_2014-M3
+# (2)Android Security book: http://goo.gl/BFb65r
+# (3)https://www.securecoding.cert.org/confluence/pages/viewpage.action?pageId=134807561
+# This vulnerability is much more severe than Apple's "goto fail" vulnerability: http://goo.gl/eFlovw
+# Please do not try to create a "X509Certificate" and override "checkClientTrusted", "checkServerTrusted", and "getAcceptedIssuers" functions with blank implementation.
+# We strongly suggest you use the existing API instead of creating your own X509Certificate class.
+# Please modify or remove these vulnerable code:
+# """, ["SSL_Security"])
+#         if list_X509Certificate_Critical_class:
+#             writer.write("[Confirm Vulnerable]")
+#             for name in list_X509Certificate_Critical_class:
+#                 writer.write("=> " + name)
+#                 if name in dict_X509Certificate_class_name_to_caller_mapping:
+#                     for used_method in dict_X509Certificate_class_name_to_caller_mapping[name]:
+#                         writer.write(
+#                             "      -> used by: " + used_method.get_class_name() + "->" + used_method.get_name() + used_method.get_descriptor())
+#
+#         if list_X509Certificate_Warning_class:
+#             writer.write("--------------------------------------------------")
+#             writer.write("[Maybe Vulnerable (Please manually confirm)]")
+#             for name in list_X509Certificate_Warning_class:
+#                 writer.write("=> " + name)
+#                 if name in dict_X509Certificate_class_name_to_caller_mapping:
+#                     for used_method in dict_X509Certificate_class_name_to_caller_mapping[name]:
+#                         writer.write(
+#                             "      -> used by: " + used_method.get_class_name() + "->" + used_method.get_name() + used_method.get_descriptor())
+#
+#     else:
+#         writer.startWriter("SSL_X509", LEVEL_INFO, "SSL Certificate Verification Checking",
+#                            "Did not find vulnerable X509Certificate code.", ["SSL_Security"])
 
     # ----------------------------------------------------------------
     # Must complete the last writer
