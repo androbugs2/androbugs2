@@ -28,8 +28,8 @@ class Vector(VectorBase):
         permissions_with_empty_permission_group = list()
         permissionGroupRe = re.compile(".*:permissionGroup=\"\".*")
         for permission in permissions:
-            for attribute in permissions.attrib:
-                if permissionGroupRe.match(attribute) and permissions.attrib[attribute] is not None:
+            for attribute in permission.attrib:
+                if permissionGroupRe.match(attribute) and permission.attrib[attribute] is not None:
                     permissions_with_empty_permission_group.append(permission)  # TODO get name of permission
 
         if permissions_with_empty_permission_group:  # If the list is not empty
