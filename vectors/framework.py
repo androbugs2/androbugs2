@@ -12,14 +12,23 @@ class Vector(VectorBase):
     }
 
     def analyze(self) -> None:
-        self.check_xamarin()
+        if any([self.check_xamarin(),
+                self.check_flutter(),
+                self.check_react_native()]):
+            return
+        else:
+            self.writer.startWriter("FRAMEWORK",
+                                    LEVEL_INFO,
+                                    "App framework identification",
+                                    "No frameworks detected (checking for Xamarin, Flutter, React Native).",
+                                    ['Framework'])
 
-    def check_xamarin(self) -> None:
+    def check_xamarin(self) -> bool:
         mono_pm = self.analysis.get_method_analysis_by_name(self.xamarin_signature["class_name"],
                                                             self.xamarin_signature["method_name"],
                                                             self.xamarin_signature["method_descriptor"])
         if mono_pm is None:
-            return
+            return False
 
         em = mono_pm.get_method()
         for idx, ins in enumerate(em.get_instructions()):
@@ -34,4 +43,11 @@ class Vector(VectorBase):
                                             "For more information about Xamarin, see: "
                                             "https://dotnet.microsoft.com/apps/xamarin.",
                                             ['Framework'])
-                    return
+                    return True
+        return False
+
+    def check_flutter(self) -> None:
+        pass
+
+    def check_react_native(self) -> None:
+        pass

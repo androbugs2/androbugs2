@@ -31,7 +31,7 @@ class VectorBase(ABC):
         self.args = args
         self.filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
 
-    def _print_xrefs(self, string_analysis):
+    def _print_xrefs(self, string_analysis) -> None:
         """
         Prints the xrefs from a StringAnalysis Object to the writer
         """
