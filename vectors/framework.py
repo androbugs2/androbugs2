@@ -14,7 +14,9 @@ class Vector(VectorBase):
     def analyze(self) -> None:
         if any([self.check_xamarin(),
                 self.check_flutter(),
-                self.check_react_native()]):
+                self.check_react_native(),
+                self.check_ijiami(),
+                self.check_bangcle()]):
             return
         else:
             self.writer.startWriter("FRAMEWORK",
@@ -51,3 +53,29 @@ class Vector(VectorBase):
 
     def check_react_native(self) -> None:
         pass
+
+    def check_ijiami(self) -> bool:
+        if any(self.analysis.find_methods("Lcom/shell/NativeApplication;", "load",
+                                          "(Landroid/app/Application; Ljava/lang/String;)Z")):
+            self.writer.startWriter("FRAMEWORK",
+                                    LEVEL_NOTICE,
+                                    "App framework identification",
+                                    "This app is using Ijiami Encryption Framework (http://www.ijiami.cn/)."
+                                    "Please send your unencrypted apk instead so that we can check thoroughly.",
+                                    ['Framework'])
+            return True
+        return False
+
+    def check_bangcle(self) -> bool:
+        if any(self.analysis.find_methods("Lcom/secapk/wrapper/ACall;",
+                                          "getACall",
+                                          "()Lcom/secapk/wrapper/ACall;")):
+            self.writer.startWriter("FRAMEWORK",
+                                    LEVEL_NOTICE,
+                                    "App framework identification",
+                                    "This app is using Bangcle Encryption Framework (http://www.bangcle.com/)."
+                                    "Please send your unencrypted apk instead so that we can check thoroughly.",
+                                    ['Framework'])
+            return True
+        return False
+
