@@ -12,7 +12,7 @@ class Vector(VectorBase):
         if (int_min_sdk is not None) and (int_min_sdk < 11):
             path_sq_lite_database_begin_transaction_non_exclusive = self.analysis.find_methods(
                 "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "()V")
-            path_sq_lite_database_begin_transaction_non_exclusive = self.filtering_engine.filter_list_of_paths(self.dalvik,
+            path_sq_lite_database_begin_transaction_non_exclusive = self.filtering_engine.filter_method_class_analysis_list(
                                                                                                     path_sq_lite_database_begin_transaction_non_exclusive)
 
             if path_sq_lite_database_begin_transaction_non_exclusive:

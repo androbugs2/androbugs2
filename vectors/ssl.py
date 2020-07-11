@@ -43,7 +43,7 @@ class Vector(VectorBase):
             "(Lorg/apache/http/conn/ssl/X509HostnameVerifier;)V"))
         path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
 
-        path_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_list_of_paths(self.dalvik,
+        path_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_class_analysis_list(
                                                                                   path_HOSTNAME_INNER_VERIFIER)
 
         dic_path_HOSTNAME_INNER_VERIFIER_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_paths(
@@ -62,7 +62,7 @@ class Vector(VectorBase):
             if register_analyzer.get_ins_return_boolean_value():  # Has security problem
                 list_HOSTNAME_INNER_VERIFIER.append(method)
 
-        list_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_list_of_methods(list_HOSTNAME_INNER_VERIFIER)
+        list_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_class_analysis_list(list_HOSTNAME_INNER_VERIFIER)
 
         if list_HOSTNAME_INNER_VERIFIER:
 
@@ -177,7 +177,7 @@ class Vector(VectorBase):
         path_get_insecure = self.analysis.find_methods(
             "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
             "(I Landroid/net/SSLSessionCache;)Ljavax/net/ssl/SSLSocketFactory;")
-        path_get_insecure = self.filtering_engine.filter_list_of_paths(self.dalvik, path_get_insecure)
+        path_get_insecure = self.filtering_engine.filter_method_class_analysis_list(path_get_insecure)
 
         if path_get_insecure:
 
@@ -211,8 +211,8 @@ class Vector(VectorBase):
         list_http_host_scheme_http = []
         path_http_host_scheme_http = self.analysis.find_methods(
             "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
-        path_http_host_scheme_http = self.filtering_engine.filter_list_of_paths(self.dalvik, path_http_host_scheme_http)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis,
+        path_http_host_scheme_http = self.filtering_engine.filter_method_class_analysis_list(path_http_host_scheme_http)
+        for i in staticDVM.trace_register_value_by_param_in_source_paths(
                                                                          path_http_host_scheme_http):
             if i.getResult()[3] is None:
                 continue

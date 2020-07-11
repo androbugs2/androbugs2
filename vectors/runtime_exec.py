@@ -23,9 +23,9 @@ class Vector(VectorBase):
 
         path_runtime_exec = self.analysis.find_methods("Ljava/lang/Runtime;", "exec",
                                                        "(Ljava/lang/String;)Ljava/lang/Process;")
-        path_runtime_exec = self.filtering_engine.filter_list_of_paths(self.dalvik, path_runtime_exec)
+        path_runtime_exec = self.filtering_engine.filter_method_class_analysis_list(path_runtime_exec)
 
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_runtime_exec):
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_runtime_exec):
             if i.getResult()[1] is None:
                 continue
             if i.getResult()[1] == "su":
@@ -45,7 +45,7 @@ class Vector(VectorBase):
 
                 for path in list_runtime_exec:
                     self.writer.show_Path(self.dalvik, path)
-            else:
-                self.writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
-                                        "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",
-                                        ["Command"])
+        else:
+            self.writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
+                                    "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",
+                                    ["Command"])

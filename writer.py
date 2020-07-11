@@ -28,46 +28,57 @@ class Writer:
 			Different from analysis.show_Path, this "show_Path" writes to the tmp writer
 		"""
 
-        cm = vm.get_class_manager()
-
-        if isinstance(path, analysis.PathVar):
-            dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-            info_var = path.get_var_info()
-
-            self.write("=> %s (0x%x) ---> %s->%s%s" % (info_var,
-                                                       path.get_idx(),
-                                                       dst_class_name,
-                                                       dst_method_name,
-                                                       dst_descriptor),
-                       indention_space_count)
-
-        else:
-            if path.get_access_flag() == analysis.TAINTED_PACKAGE_CALL:
-                src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-                dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-
-                self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (src_class_name,
-                                                                 src_method_name,
-                                                                 src_descriptor,
-                                                                 path.get_idx(),
-                                                                 dst_class_name,
-                                                                 dst_method_name,
-                                                                 dst_descriptor),
-                           indention_space_count)
-
-            else:
-                src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-
-                self.write("=> %s->%s%s (0x%x)" % (src_class_name,
-                                                   src_method_name,
-                                                   src_descriptor,
-                                                   path.get_idx()),
-                           indention_space_count)
+        self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (path['src_method'].get_class_name(),
+                                                         path['src_method'].get_name(),
+                                                         path['src_method'].get_descriptor(),
+                                                         path['idx'],
+                                                         path['dst_method'].get_class_name(),
+                                                         path['dst_method'].get_name(),
+                                                         path['dst_method'].get_descriptor()),
+                   indention_space_count)
+        # cm = vm.get_class_manager()
+        #
+        # if isinstance(path, analysis.PathVar):
+        #     dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
+        #     info_var = path.get_var_info()
+        #
+        #     self.write("=> %s (0x%x) ---> %s->%s%s" % (info_var,
+        #                                                path.get_idx(),
+        #                                                dst_class_name,
+        #                                                dst_method_name,
+        #                                                dst_descriptor),
+        #                indention_space_count)
+        #
+        # else:
+        #     if path.get_access_flag() == analysis.TAINTED_PACKAGE_CALL:
+        #         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+        #         dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
+        #
+        #         self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (src_class_name,
+        #                                                          src_method_name,
+        #                                                          src_descriptor,
+        #                                                          path.get_idx(),
+        #                                                          dst_class_name,
+        #                                                          dst_method_name,
+        #                                                          dst_descriptor),
+        #                    indention_space_count)
+        #
+        #     else:
+        #         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+        #
+        #         self.write("=> %s->%s%s (0x%x)" % (src_class_name,
+        #                                            src_method_name,
+        #                                            src_descriptor,
+        #                                            path.get_idx()),
+        #                    indention_space_count)
 
     def show_Path_only_source(self, vm, path, indention_space_count=0):
-        cm = vm.get_class_manager()
-        src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        self.write("=> %s->%s%s" % (src_class_name, src_method_name, src_descriptor), indention_space_count)
+        # cm = vm.get_class_manager()
+        # src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+        # self.write("=> %s->%s%s" % (src_class_name, src_method_name, src_descriptor), indention_space_count)
+        self.write("=> %s->%s%s" % (path['src_method'].get_class_name(),
+                                                         path['src_method'].get_name(),
+                                                         path['src_method'].get_descriptor()), indention_space_count)
 
     def show_Paths(self, vm, paths, indention_space_count=0):
         """
@@ -87,11 +98,13 @@ class Writer:
 			method[1] : function name
 			method[2][0] + method[2][1]) : description
 		"""
-        access, idx = path[0]
-        m_idx = path[1]
-        method = vm.get_cm_method(m_idx)
-
-        self.write("=> %s->%s %s" % (method[0], method[1], method[2][0] + method[2][1]), indention_space_count)
+        #TODO fix this
+        print(path)
+        # access, idx = path[0]
+        # m_idx = path[1]
+        # method = vm.get_cm_method(m_idx)
+        #
+        # self.write("=> %s->%s %s" % (method[0], method[1], method[2][0] + method[2][1]), indention_space_count)
 
     # Output: stoping
 
@@ -264,7 +277,8 @@ class Writer:
 
                 output_string = ""
                 for line in self.__cache_output_detail_stream:
-                    output_string = output_string + str(line)  # To escape the "\n" shown in the original string inside the APK
+                    output_string = output_string + str(
+                        line)  # To escape the "\n" shown in the original string inside the APK
 
                 self.__output_dict_vector_result_information[current_tag]["vector_details"] = output_string
                 try:

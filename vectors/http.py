@@ -27,7 +27,7 @@ class Vector(VectorBase):
         if (int_min_sdk is not None) and (int_min_sdk <= 8):
 
             pkg_http_url_connection = self.analysis.is_class_present("Ljava/net/HttpURLConnection;")
-            pkg_http_url_connection = self.filtering_engine.filter_list_of_paths(self.dalvik, pkg_http_url_connection)
+            pkg_http_url_connection = self.filtering_engine.filter_method_class_analysis_list(pkg_http_url_connection)
 
             # Check only when using the HttpURLConnection
             if pkg_http_url_connection:
@@ -35,13 +35,13 @@ class Vector(VectorBase):
                 list_pre_froyo_http_url_connection = []
                 path_pre_froyo_http_url_connection = self.analysis.find_methods(
                     "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
-                path_pre_froyo_http_url_connection = self.filtering_engine.filter_list_of_paths(self.dalvik,
+                path_pre_froyo_http_url_connection = self.filtering_engine.filter_method_class_analysis_list(
                                                                                         path_pre_froyo_http_url_connection)
 
                 has_http_keepAlive_Name = False
                 has_http_keep_alive_value = False
 
-                for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_pre_froyo_http_url_connection):
+                for i in staticDVM.trace_register_value_by_param_in_source_paths( path_pre_froyo_http_url_connection):
                     if i.getResult()[0] == "http.keepAlive":
                         has_http_keepAlive_Name = True
                         list_pre_froyo_http_url_connection.append(i.getPath())  # Only list the "false" one

@@ -12,8 +12,8 @@ class Vector(VectorBase):
         list_protected_keystore = []
 
         path_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; \[C)V")
-        path_key_store = self.filtering_engine.filter_list_of_paths(self.dalvik, path_key_store)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_key_store):
+        path_key_store = self.filtering_engine.filter_method_class_analysis_list(path_key_store)
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_key_store):
             if i.getResult()[2] == 0:  # null = 0 = Not using password
                 if i.is_class_container(1):
                     clz_invoked = i.getResult()[1]
@@ -116,9 +116,9 @@ class Vector(VectorBase):
         path_bks_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "getInstance",
                                                         "(Ljava/lang/String;)Ljava/security/KeyStore;")
 
-        path_bks_key_store = self.filtering_engine.filter_list_of_paths(self.dalvik, path_bks_key_store)
+        path_bks_key_store = self.filtering_engine.filter_method_class_analysis_list(path_bks_key_store)
 
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis,
+        for i in staticDVM.trace_register_value_by_param_in_source_paths(
                                                                          path_bks_key_store):
             if i.getResult()[0] is None:
                 continue

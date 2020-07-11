@@ -11,7 +11,7 @@ class Vector(VectorBase):
         # Don't match class name because it might use the subclass of WebView
         path_WebView_addJavascriptInterface = self.analysis.find_methods(
             methodname="addJavascriptInterface", descriptor="(Ljava/lang/Object; Ljava/lang/String;)V")
-        path_WebView_addJavascriptInterface = self.filtering_engine.filter_list_of_paths(self.dalvik,
+        path_WebView_addJavascriptInterface = self.filtering_engine.filter_method_class_analysis_list(
                                                                                     path_WebView_addJavascriptInterface)
 
         if path_WebView_addJavascriptInterface:

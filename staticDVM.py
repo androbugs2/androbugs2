@@ -297,68 +297,37 @@ class RegisterAnalyzerVMImmediateValue(object):
             return None
 
 
-def get_source_path(vm, path):
-    cm = vm.get_class_manager()
-
-    src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-    dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-
-    x = {
-        "src_class_name": src_class_name,
-        "src_method_name": src_method_name,
-        "src_descriptor": src_descriptor,
-        "idx": path.get_idx(),
-        "dst_class_name": dst_class_name,
-        "dst_method_name": dst_method_name,
-        "dst_descriptor": dst_descriptor,
-        "path": path
-    }
-
-    return x
+def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
+    results = []
+    for method_class_analysis in method_class_analysis_list:
+        for __, source_method, idx in method_class_analysis.get_xref_to():
+            if not isinstance(source_method, analysis.ExternalMethod):
+                results.append({
+                    "src_method": source_method,
+                    "dst_method": method_class_analysis.get_method(),
+                    "idx": idx
+                })
+    return results
 
 
-def get_source_paths(vm, paths):
-    """
-        Show paths of packages
-        :param paths: a list of :class:`PathP` objects
-    """
-    l = []
-    for path in paths:
-        l.append(get_source_path(vm, path))
-
-    return l
-
-
-def trace_register_value_by_param_in_source_paths(vm: dvm, analysis: analysis, paths):
-    paths = get_source_paths(vm, paths)  # transform 'PathP' to name and descriptor of 'src' and 'dst' dictionary
-
-    if paths is None:
-        return []
-
+def trace_register_value_by_param_in_source_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
+    paths = get_paths(method_class_analysis_list)
     results = []
 
-    for path in paths:
+    for source_path in paths:
+        method = source_path['src_method']
+        max_trace = source_path['idx']
 
-        src_class_name = path["src_class_name"]
-        src_method_name = path["src_method_name"]
-        src_descriptor = path["src_descriptor"]
-        max_trace = path["idx"]
-        path = path["path"]
-
-        if (src_class_name is None) or (src_method_name is None) or (src_descriptor is None) or (max_trace is None):
-            continue
-
-        # Get all instructions for the specific method inside the current Path
-        # method = vm.get_specific_class_method_descriptor(src_class_name, src_method_name, src_descriptor)
-        # TODO might be a better solution
-        method = list(analysis.find_methods(src_class_name, src_method_name, src_descriptor))[0].get_method()
-
-        if method is None:  # do not find method
+        if (method.get_class_name() is None) \
+                or (method.get_name() is None) \
+                or (method.get_descriptor() is None) \
+                or (max_trace is None):
             continue
 
         register_analyzer = RegisterAnalyzerVMImmediateValue()
         register_analyzer.load_instructions(method.get_instructions(), max_trace)
-        result = RegisterAnalyzerVMResult(path, register_analyzer.get_register_number_to_register_value_mapping())
+        result = RegisterAnalyzerVMResult(source_path,
+                                          register_analyzer.get_register_number_to_register_value_mapping())
         results.append(result)
 
     return results

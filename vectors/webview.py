@@ -27,7 +27,7 @@ class Vector(VectorBase):
             if helper_functions.is_kind_string_in_ins_method(method, "Landroid/webkit/SslErrorHandler;->proceed()V"):
                 list_webview_client.append(method)
 
-        list_webview_client = self.filtering_engine.filter_list_of_methods(list_webview_client)
+        list_webview_client = self.filtering_engine.filter_method_class_analysis_list(list_webview_client)
 
         if list_webview_client:
             self.writer.startWriter("SSL_WEBVIEW", LEVEL_CRITICAL, "SSL Implementation Checking (WebViewClient for WebView)",
@@ -69,8 +69,8 @@ class Vector(VectorBase):
         list_set_java_script_enabled_xss = []
         path_set_java_script_enabled_xss = self.analysis.find_methods(
             "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
-        path_set_java_script_enabled_xss = self.filtering_engine.filter_list_of_paths(self.dalvik, path_set_java_script_enabled_xss)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_set_java_script_enabled_xss):
+        path_set_java_script_enabled_xss = self.filtering_engine.filter_method_class_analysis_list(path_set_java_script_enabled_xss)
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_set_java_script_enabled_xss):
             if i.getResult()[1] is None:
                 continue
             if i.getResult()[1] == 0x1:

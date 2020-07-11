@@ -34,36 +34,36 @@ class Vector(VectorBase):
 
         path_openOrCreateDatabase = self.analysis.find_methods(methodname="openOrCreateDatabase",
                                                                descriptor="(Ljava/landescriptor=g/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;)Landroid/database/sqlite/SQLiteDatabase;")
-        path_openOrCreateDatabase = self.filtering_engine.filter_list_of_paths(self.dalvik, next(path_openOrCreateDatabase)) if any(path_openOrCreateDatabase) else []
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_openOrCreateDatabase):
+        path_openOrCreateDatabase = self.filtering_engine.filter_method_class_analysis_list(next(path_openOrCreateDatabase)) if any(path_openOrCreateDatabase) else []
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_openOrCreateDatabase):
             if (0x1 <= i.getResult()[2] <= 0x3):
                 list_path_openOrCreateDatabase.append(i.getPath())
 
         path_openOrCreateDatabase2 = self.analysis.find_methods(methodname="openOrCreateDatabase",
                                                                 descriptor="(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;)Landroid/database/sqlite/SQLiteDatabase;")
-        path_openOrCreateDatabase2 = self.filtering_engine.filter_list_of_paths(self.dalvik, next(path_openOrCreateDatabase2)) if any(path_openOrCreateDatabase2) else []
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_openOrCreateDatabase2):
+        path_openOrCreateDatabase2 = self.filtering_engine.filter_method_class_analysis_list(next(path_openOrCreateDatabase2)) if any(path_openOrCreateDatabase2) else []
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_openOrCreateDatabase2):
             if (0x1 <= i.getResult()[2] <= 0x3):
                 list_path_openOrCreateDatabase2.append(i.getPath())
 
         path_getDir = self.analysis.find_methods(methodname="getDir",
                                                  descriptor="(Ljava/lang/String; I)Ljava/io/File;")
-        path_getDir =  self.filtering_engine.filter_list_of_paths(self.dalvik, next(path_getDir)) if any(path_getDir) else []
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_getDir):
+        path_getDir =  self.filtering_engine.filter_method_class_analysis_list(next(path_getDir)) if any(path_getDir) else []
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_getDir):
             if (0x1 <= i.getResult()[2] <= 0x3):
                 list_path_getDir.append(i.getPath())
 
         path_getSharedPreferences = self.analysis.find_methods(methodname="getSharedPreferences",
                                                                descriptor="(Ljava/lang/String; I)Landroid/content/SharedPreferences;")
-        path_getSharedPreferences = self.filtering_engine.filter_list_of_paths(self.dalvik, next(path_getSharedPreferences)) if any(path_getSharedPreferences) else []
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_getSharedPreferences):
+        path_getSharedPreferences = self.filtering_engine.filter_method_class_analysis_list(next(path_getSharedPreferences)) if any(path_getSharedPreferences) else []
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_getSharedPreferences):
             if (0x1 <= i.getResult()[2] <= 0x3):
                 list_path_getSharedPreferences.append(i.getPath())
 
         path_openFileOutput = self.analysis.find_methods(methodname="openFileOutput",
                                                          descriptor="(Ljava/lang/String; I)Ljava/io/FileOutputStream;")
-        path_openFileOutput = self.filtering_engine.filter_list_of_paths(self.dalvik, next(path_openFileOutput)) if any(path_openFileOutput) else []
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(self.dalvik, self.analysis, path_openFileOutput):
+        path_openFileOutput = self.filtering_engine.filter_method_class_analysis_list(next(path_openFileOutput)) if any(path_openFileOutput) else []
+        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_openFileOutput):
             if (0x1 <= i.getResult()[2] <= 0x3):
                 list_path_openFileOutput.append(i.getPath())
 
@@ -103,3 +103,17 @@ class Vector(VectorBase):
             self.writer.startWriter("MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", LEVEL_INFO,
                                "App Sandbox Permission Checking",
                                "No security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found on 'openOrCreateDatabase' or 'openOrCreateDatabase2' or 'getDir' or 'getSharedPreferences' or 'openFileOutput'")
+
+        # Get External Storage Directory access invoke
+
+        paths_external_storage_access = self.analysis.find_methods(
+            "Landroid/os/Environment;", "getExternalStorageDirectory", "()Ljava/io/File;")
+        paths_external_storage_access = self.filtering_engine.filter_method_class_analysis_list(paths_external_storage_access)
+
+        if paths_external_storage_access:
+            self.writer.startWriter("EXTERNAL_STORAGE", LEVEL_WARNING, "External Storage Accessing",
+                               "External storage access found (Remember DO NOT write important files to external storages):")
+            self.writer.show_Paths(self.dalvik, paths_external_storage_access)
+        else:
+            self.writer.startWriter("EXTERNAL_STORAGE", LEVEL_INFO, "External Storage Accessing",
+                               "External storage access not found.")
