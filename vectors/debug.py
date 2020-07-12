@@ -7,7 +7,7 @@ class Vector(VectorBase):
 
     def analyze(self) -> None:
         # DEBUGGABLE checking:
-        is_debug_open = self.apk.get_attribute_value('application', 'debuggable') not in [None, "false"]
+        is_debug_open = self.apk.get_attribute_value('application', 'debuggable') is not (None or "false")
         if is_debug_open:
             self.writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
                                     "DEBUG mode is ON(android:debuggable=\"true\") in AndroidManifest.xml. This is very dangerous. The attackers will be able to sniffer the debug messages by Logcat. Please disable the DEBUG mode if it is a released application.",

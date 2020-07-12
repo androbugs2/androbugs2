@@ -242,7 +242,6 @@ def __analyze(writer, args):
 
     writer.writeInf_ForceNoPrint("time_starting_analyze", datetime.utcnow())
 
-    # a = apk.APK(apk_Path)
     a, d, dx = misc.AnalyzeAPK(apk_Path)
 
     writer.update_analyze_status("starting_apk")

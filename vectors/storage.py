@@ -117,3 +117,18 @@ class Vector(VectorBase):
         else:
             self.writer.startWriter("EXTERNAL_STORAGE", LEVEL_INFO, "External Storage Accessing",
                                "External storage access not found.")
+
+        # File delete alert
+
+        path_FileDelete = self.analysis.find_methods("Ljava/io/File;", "delete")
+        path_FileDelete = self.filtering_engine.filter_method_class_analysis_list(path_FileDelete)
+
+        if path_FileDelete:
+            self.writer.startWriter("FILE_DELETE", LEVEL_NOTICE, "File Unsafe Delete Checking",
+                               """Everything you delete may be recovered by any user or attacker, especially rooted devices.
+    Please make sure do not use "file.delete()" to delete essential files.
+    Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
+            self.writer.show_Paths(self.dalvik, path_FileDelete)
+        else:
+            self.writer.startWriter("FILE_DELETE", LEVEL_INFO, "File Unsafe Delete Checking",
+                               "Did not detect that you are unsafely deleting files.")

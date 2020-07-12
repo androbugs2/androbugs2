@@ -27,15 +27,24 @@ class Writer:
         """
 			Different from analysis.show_Path, this "show_Path" writes to the tmp writer
 		"""
-
-        self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (path['src_method'].get_class_name(),
+        if isinstance(path, analysis.MethodClassAnalysis):
+            for __, source_method, idx in path.get_xref_to():
+                self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (source_method.get_class_name(),
+                                                                 source_method.get_name(),
+                                                                 source_method.get_descriptor(),
+                                                                 idx,
+                                                                 path.get_method().get_class_name(),
+                                                                 path.get_method().get_name(),
+                                                                 path.get_method().get_descriptor()), indention_space_count)
+        else:
+            self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (path['src_method'].get_class_name(),
                                                          path['src_method'].get_name(),
                                                          path['src_method'].get_descriptor(),
                                                          path['idx'],
                                                          path['dst_method'].get_class_name(),
                                                          path['dst_method'].get_name(),
                                                          path['dst_method'].get_descriptor()),
-                   indention_space_count)
+                indention_space_count)
         # cm = vm.get_class_manager()
         #
         # if isinstance(path, analysis.PathVar):

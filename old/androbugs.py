@@ -1496,22 +1496,22 @@ def __analyze(writer, args):
 
     # ----------------------------------------------------------------------------------
 
-    isSuggestGCM = False
-    if int_min_sdk is not None:
-        if int_min_sdk < 8:  # Android 2.2=SDK 8
-            isSuggestGCM = True
-
-    if isSuggestGCM:
-
-        output_string = """Your supporting minSdk is """ + str(int_min_sdk) + """
-You are now allowing minSdk to less than 8. Please check: http://developer.android.com/about/dashboards/index.html
-Google Cloud Messaging (Push Message) service only allows Android SDK >= 8 (Android 2.2). Pleae check: http://developer.android.com/google/gcm/gcm.html
-You may have the change to use GCM in the future, so please set minSdk to at least 9."""
-        writer.startWriter("MANIFEST_GCM", LEVEL_NOTICE, "Google Cloud Messaging Suggestion", output_string)
-
-    else:
-
-        writer.startWriter("MANIFEST_GCM", LEVEL_INFO, "Google Cloud Messaging Suggestion", "Nothing to suggest.")
+#     isSuggestGCM = False
+#     if int_min_sdk is not None:
+#         if int_min_sdk < 8:  # Android 2.2=SDK 8
+#             isSuggestGCM = True
+#
+#     if isSuggestGCM:
+#
+#         output_string = """Your supporting minSdk is """ + str(int_min_sdk) + """
+# You are now allowing minSdk to less than 8. Please check: http://developer.android.com/about/dashboards/index.html
+# Google Cloud Messaging (Push Message) service only allows Android SDK >= 8 (Android 2.2). Pleae check: http://developer.android.com/google/gcm/gcm.html
+# You may have the change to use GCM in the future, so please set minSdk to at least 9."""
+#         writer.startWriter("MANIFEST_GCM", LEVEL_NOTICE, "Google Cloud Messaging Suggestion", output_string)
+#
+#     else:
+#
+#         writer.startWriter("MANIFEST_GCM", LEVEL_INFO, "Google Cloud Messaging Suggestion", "Nothing to suggest.")
 
     # ------------------------------------------------------------------------------------------------------
     # Find network methods:
@@ -2556,32 +2556,32 @@ You may have the change to use GCM in the future, so please set minSdk to at lea
     #                        "This app is NOT using MonoDroid Framework (http://xamarin.com/android).", ["Framework"])
 
     # ------------------------------------------------------------------------
-    # Detect dynamic code loading
-
-    paths_DexClassLoader = dx.get_tainted_packages().search_methods("Ldalvik/system/DexClassLoader;", ".", ".")
-    paths_DexClassLoader = filteringEngine.filter_list_of_paths(d, paths_DexClassLoader)
-    if paths_DexClassLoader:
-        writer.startWriter("DYNAMIC_CODE_LOADING", LEVEL_WARNING, "Dynamic Code Loading",
-                           "Dynamic code loading(DexClassLoader) found:")
-        writer.show_Paths(d, paths_DexClassLoader)
-    else:
-        writer.startWriter("DYNAMIC_CODE_LOADING", LEVEL_INFO, "Dynamic Code Loading",
-                           "No dynamic code loading(DexClassLoader) found.")
+    # # Detect dynamic code loading
+    #
+    # paths_DexClassLoader = dx.get_tainted_packages().search_methods("Ldalvik/system/DexClassLoader;", ".", ".")
+    # paths_DexClassLoader = filteringEngine.filter_list_of_paths(d, paths_DexClassLoader)
+    # if paths_DexClassLoader:
+    #     writer.startWriter("DYNAMIC_CODE_LOADING", LEVEL_WARNING, "Dynamic Code Loading",
+    #                        "Dynamic code loading(DexClassLoader) found:")
+    #     writer.show_Paths(d, paths_DexClassLoader)
+    # else:
+    #     writer.startWriter("DYNAMIC_CODE_LOADING", LEVEL_INFO, "Dynamic Code Loading",
+    #                        "No dynamic code loading(DexClassLoader) found.")
 
     # ------------------------------------------------------------------------
-    # Get External Storage Directory access invoke
-
-    paths_ExternalStorageAccess = dx.find_methods(
-        "Landroid/os/Environment;", "getExternalStorageDirectory", "()Ljava/io/File;")
-    paths_ExternalStorageAccess = filteringEngine.filter_list_of_paths(d, paths_ExternalStorageAccess)
-    if paths_ExternalStorageAccess:
-        writer.startWriter("EXTERNAL_STORAGE", LEVEL_WARNING, "External Storage Accessing",
-                           "External storage access found (Remember DO NOT write important files to external storages):")
-        writer.show_Paths(d, paths_ExternalStorageAccess)
-    else:
-        writer.startWriter("EXTERNAL_STORAGE", LEVEL_INFO, "External Storage Accessing",
-                           "External storage access not found.")
-
+    # # Get External Storage Directory access invoke
+    #
+    # paths_ExternalStorageAccess = dx.find_methods(
+    #     "Landroid/os/Environment;", "getExternalStorageDirectory", "()Ljava/io/File;")
+    # paths_ExternalStorageAccess = filteringEngine.filter_list_of_paths(d, paths_ExternalStorageAccess)
+    # if paths_ExternalStorageAccess:
+    #     writer.startWriter("EXTERNAL_STORAGE", LEVEL_WARNING, "External Storage Accessing",
+    #                        "External storage access found (Remember DO NOT write important files to external storages):")
+    #     writer.show_Paths(d, paths_ExternalStorageAccess)
+    # else:
+    #     writer.startWriter("EXTERNAL_STORAGE", LEVEL_INFO, "External Storage Accessing",
+    #                        "External storage access not found.")
+    #
 
     # ------------------------------------------------------------------------
     # Find all "dangerous" permission
@@ -3152,111 +3152,111 @@ Reference: http://developer.android.com/guide/components/intents-filters.html#Ty
     #                        ["Database", "Hacker"])
 
     # ------------------------------------------------------------------------
-    # Searching checking root or not:
-    result_possibly_check_root = efficientStringSearchEngine.get_search_result_by_match_id("$__possibly_check_root__")
-    result_possibly_check_su = efficientStringSearchEngine.get_search_result_by_match_id("$__possibly_check_su__")
-    result_possibly_root_total = []
-
-    if result_possibly_check_root:
-        result_possibly_root_total.extend(result_possibly_check_root)
-
-    if result_possibly_check_su:
-        result_possibly_root_total.extend(result_possibly_check_su)
-
-    result_possibly_root_total = filteringEngine.filter_efficient_search_result_value(result_possibly_root_total)
-
-    if result_possibly_root_total:
-        writer.startWriter("COMMAND_MAYBE_SYSTEM", LEVEL_NOTICE, "Executing \"root\" or System Privilege Checking",
-                           "The app may has the code checking for \"root\" permission, mounting filesystem operations or monitoring system:",
-                           ["Command"])
-
-        list_possible_root = []
-        list_possible_remount_fs = []
-        list_possible_normal = []
-
-        for found_string, method in set(result_possibly_root_total):  # strip the duplicated items
-            if ("'su'" == found_string) or ("/su" in found_string):
-                list_possible_root.append((found_string, method, True))  # 3rd parameter: show string or not
-            elif "mount" in found_string:  # mount, remount
-                list_possible_remount_fs.append((found_string, method, True))
-            else:
-                list_possible_normal.append((found_string, method, True))
-
-        lst_ordered_finding = []
-        lst_ordered_finding.extend(list_possible_root)
-        lst_ordered_finding.extend(list_possible_remount_fs)
-        lst_ordered_finding.extend(list_possible_normal)
-
-        for found_string, method, show_string in lst_ordered_finding:
-            if show_string:
-                writer.write(
-                    method.get_class_name() + "->" + method.get_name() + method.get_descriptor() + "  => " + found_string)
-            else:
-                writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
-    else:
-
-        writer.startWriter("COMMAND_MAYBE_SYSTEM", LEVEL_INFO, "Executing \"root\" or System Privilege Checking",
-                           "Did not find codes checking \"root\" permission(su) or getting system permission (It's still possible we did not find out).",
-                           ["Command"])
-
-    # ------------------------------------------------------------------------
-    # Android getting IMEI, Android_ID, UUID problem
-
-    path_Device_id = dx.find_methods("Landroid/telephony/TelephonyManager;",
-                                     "getDeviceId", "()Ljava/lang/String;")
-    path_Device_id = filteringEngine.filter_list_of_paths(d, path_Device_id)
-
-    if path_Device_id:
-
-        writer.startWriter("SENSITIVE_DEVICE_ID", LEVEL_WARNING, "Getting IMEI and Device ID",
-                           """This app has code getting the "device id(IMEI)" but there are problems with this "TelephonyManager.getDeviceId()" approach.
-1.Non-phones: Wifi-only devices or music players that don't have telephony hardware just don't have this kind of unique identifier.
-2.Persistence: On devices which do have this, it persists across device data wipes and factory resets. It's not clear at all if, in this situation, your app should regard this as the same device.
-3.Privilege:It requires READ_PHONE_STATE permission, which is irritating if you don't otherwise use or need telephony.
-4.Bugs: We have seen a few instances of production phones for which the implementation is buggy and returns garbage, for example zeros or asterisks.
-If you want to get an unique id for the device, we suggest you use "Installation" framework in the following article.
-Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
-""", ["Sensitive_Information"])
-
-        writer.show_Paths(d, path_Device_id)
-
-    else:
-
-        writer.startWriter("SENSITIVE_DEVICE_ID", LEVEL_INFO, "Getting IMEI and Device ID",
-                           "Did not detect this app is getting the \"device id(IMEI)\" by \"TelephonyManager.getDeviceId()\" approach.",
-                           ["Sensitive_Information"])
+    # # Searching checking root or not:
+    # result_possibly_check_root = efficientStringSearchEngine.get_search_result_by_match_id("$__possibly_check_root__")
+    # result_possibly_check_su = efficientStringSearchEngine.get_search_result_by_match_id("$__possibly_check_su__")
+    # result_possibly_root_total = []
+    #
+    # if result_possibly_check_root:
+    #     result_possibly_root_total.extend(result_possibly_check_root)
+    #
+    # if result_possibly_check_su:
+    #     result_possibly_root_total.extend(result_possibly_check_su)
+    #
+    # result_possibly_root_total = filteringEngine.filter_efficient_search_result_value(result_possibly_root_total)
+    #
+    # if result_possibly_root_total:
+    #     writer.startWriter("COMMAND_MAYBE_SYSTEM", LEVEL_NOTICE, "Executing \"root\" or System Privilege Checking",
+    #                        "The app may has the code checking for \"root\" permission, mounting filesystem operations or monitoring system:",
+    #                        ["Command"])
+    #
+    #     list_possible_root = []
+    #     list_possible_remount_fs = []
+    #     list_possible_normal = []
+    #
+    #     for found_string, method in set(result_possibly_root_total):  # strip the duplicated items
+    #         if ("'su'" == found_string) or ("/su" in found_string):
+    #             list_possible_root.append((found_string, method, True))  # 3rd parameter: show string or not
+    #         elif "mount" in found_string:  # mount, remount
+    #             list_possible_remount_fs.append((found_string, method, True))
+    #         else:
+    #             list_possible_normal.append((found_string, method, True))
+    #
+    #     lst_ordered_finding = []
+    #     lst_ordered_finding.extend(list_possible_root)
+    #     lst_ordered_finding.extend(list_possible_remount_fs)
+    #     lst_ordered_finding.extend(list_possible_normal)
+    #
+    #     for found_string, method, show_string in lst_ordered_finding:
+    #         if show_string:
+    #             writer.write(
+    #                 method.get_class_name() + "->" + method.get_name() + method.get_descriptor() + "  => " + found_string)
+    #         else:
+    #             writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
+    # else:
+    #
+    #     writer.startWriter("COMMAND_MAYBE_SYSTEM", LEVEL_INFO, "Executing \"root\" or System Privilege Checking",
+    #                        "Did not find codes checking \"root\" permission(su) or getting system permission (It's still possible we did not find out).",
+    #                        ["Command"])
 
     # ------------------------------------------------------------------------
-    # Android "android_id"
+#     # Android getting IMEI, Android_ID, UUID problem
+#
+#     path_Device_id = dx.find_methods("Landroid/telephony/TelephonyManager;",
+#                                      "getDeviceId", "()Ljava/lang/String;")
+#     path_Device_id = filteringEngine.filter_list_of_paths(d, path_Device_id)
+#
+#     if path_Device_id:
+#
+#         writer.startWriter("SENSITIVE_DEVICE_ID", LEVEL_WARNING, "Getting IMEI and Device ID",
+#                            """This app has code getting the "device id(IMEI)" but there are problems with this "TelephonyManager.getDeviceId()" approach.
+# 1.Non-phones: Wifi-only devices or music players that don't have telephony hardware just don't have this kind of unique identifier.
+# 2.Persistence: On devices which do have this, it persists across device data wipes and factory resets. It's not clear at all if, in this situation, your app should regard this as the same device.
+# 3.Privilege:It requires READ_PHONE_STATE permission, which is irritating if you don't otherwise use or need telephony.
+# 4.Bugs: We have seen a few instances of production phones for which the implementation is buggy and returns garbage, for example zeros or asterisks.
+# If you want to get an unique id for the device, we suggest you use "Installation" framework in the following article.
+# Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
+# """, ["Sensitive_Information"])
+#
+#         writer.show_Paths(d, path_Device_id)
+#
+#     else:
+#
+#         writer.startWriter("SENSITIVE_DEVICE_ID", LEVEL_INFO, "Getting IMEI and Device ID",
+#                            "Did not detect this app is getting the \"device id(IMEI)\" by \"TelephonyManager.getDeviceId()\" approach.",
+#                            ["Sensitive_Information"])
 
-    path_android_id = dx.find_methods("Landroid/provider/Settings$Secure;",
-                                      "getString",
-                                      "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
-    path_android_id = filteringEngine.filter_list_of_paths(d, path_android_id)
-
-    list_android_id = []
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_android_id):
-        if i.getResult()[1] is None:
-            continue
-        if i.getResult()[1] == "android_id":
-            list_android_id.append(i.getPath())
-
-    if list_android_id:
-        writer.startWriter("SENSITIVE_SECURE_ANDROID_ID", LEVEL_WARNING, "Getting ANDROID_ID",
-                           """This app has code getting the 64-bit number "Settings.Secure.ANDROID_ID". 
-ANDROID_ID seems a good choice for a unique device identifier. There are downsides: First, it is not 100% reliable on releases of Android prior to 2.2 (Froyo). 
-Also, there has been at least one widely-observed bug in a popular handset from a major manufacturer, where every instance has the same ANDROID_ID. 
-If you want to get an unique id for the device, we suggest you use "Installation" framework in the following article. 
-Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html 
-""", ["Sensitive_Information"])
-
-        for path in list_android_id:
-            writer.show_Path(d, path)
-    else:
-
-        writer.startWriter("SENSITIVE_SECURE_ANDROID_ID", LEVEL_INFO, "Getting ANDROID_ID",
-                           "Did not detect this app is getting the 64-bit number \"Settings.Secure.ANDROID_ID\".",
-                           ["Sensitive_Information"])
+    # ------------------------------------------------------------------------
+#     # Android "android_id"
+#
+#     path_android_id = dx.find_methods("Landroid/provider/Settings$Secure;",
+#                                       "getString",
+#                                       "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
+#     path_android_id = filteringEngine.filter_list_of_paths(d, path_android_id)
+#
+#     list_android_id = []
+#     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d, path_android_id):
+#         if i.getResult()[1] is None:
+#             continue
+#         if i.getResult()[1] == "android_id":
+#             list_android_id.append(i.getPath())
+#
+#     if list_android_id:
+#         writer.startWriter("SENSITIVE_SECURE_ANDROID_ID", LEVEL_WARNING, "Getting ANDROID_ID",
+#                            """This app has code getting the 64-bit number "Settings.Secure.ANDROID_ID".
+# ANDROID_ID seems a good choice for a unique device identifier. There are downsides: First, it is not 100% reliable on releases of Android prior to 2.2 (Froyo).
+# Also, there has been at least one widely-observed bug in a popular handset from a major manufacturer, where every instance has the same ANDROID_ID.
+# If you want to get an unique id for the device, we suggest you use "Installation" framework in the following article.
+# Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
+# """, ["Sensitive_Information"])
+#
+#         for path in list_android_id:
+#             writer.show_Path(d, path)
+#     else:
+#
+#         writer.startWriter("SENSITIVE_SECURE_ANDROID_ID", LEVEL_INFO, "Getting ANDROID_ID",
+#                            "Did not detect this app is getting the 64-bit number \"Settings.Secure.ANDROID_ID\".",
+#                            ["Sensitive_Information"])
 
     # ------------------------------------------------------------------------
     # Checking sending SMS code
@@ -3312,20 +3312,20 @@ Please check the reference: http://android-developers.blogspot.tw/2011/03/identi
                            "This app is a malware, which requests \"system(uid=1000)\" privilege with Master Key vulnerability, leading the devices to be rooted.")
 
     # ------------------------------------------------------------------------
-    # File delete alert
-
-    path_FileDelete = dx.find_methods("Ljava/io/File;", "delete", "()Z")
-    path_FileDelete = filteringEngine.filter_list_of_paths(d, path_FileDelete)
-
-    if path_FileDelete:
-        writer.startWriter("FILE_DELETE", LEVEL_NOTICE, "File Unsafe Delete Checking",
-                           """Everything you delete may be recovered by any user or attacker, especially rooted devices.
-Please make sure do not use "file.delete()" to delete essential files.
-Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
-        writer.show_Paths(d, path_FileDelete)
-    else:
-        writer.startWriter("FILE_DELETE", LEVEL_INFO, "File Unsafe Delete Checking",
-                           "Did not detect that you are unsafely deleting files.")
+#     # File delete alert
+#
+#     path_FileDelete = dx.find_methods("Ljava/io/File;", "delete", "()Z")
+#     path_FileDelete = filteringEngine.filter_list_of_paths(d, path_FileDelete)
+#
+#     if path_FileDelete:
+#         writer.startWriter("FILE_DELETE", LEVEL_NOTICE, "File Unsafe Delete Checking",
+#                            """Everything you delete may be recovered by any user or attacker, especially rooted devices.
+# Please make sure do not use "file.delete()" to delete essential files.
+# Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
+#         writer.show_Paths(d, path_FileDelete)
+#     else:
+#         writer.startWriter("FILE_DELETE", LEVEL_INFO, "File Unsafe Delete Checking",
+#                            "Did not detect that you are unsafely deleting files.")
 
     # ------------------------------------------------------------------------
     # Check if app check for installing from Google Play
@@ -3344,104 +3344,104 @@ Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
                            "Did not detect this app checks for APK installer sources.", ["Hacker"])
 
     # ------------------------------------------------------------------------
-    # WebView setAllowFileAccess:
-
-    """
-		Get all "dst" class: Landroid/webkit/WebSettings;
-		  => Categorized by src function,
-		     If the src function:
-		       1.setAllowFileAccess does not exist    OR
-		       2.setAllowFileAccess(true)
-		           =>src function may be vulnerable
-
-		**Why check WebSettings? It's because WebView almost always uses the method: WebView->getSettings()
-
-		**Even if the below example, it will finally call WebSettings:
-		  class TestWebView extends WebView {
-		    public TestWebView(Context context) {
-		      super(context);
-		    }
-		  }
-	"""
-
-    pkg_WebView_WebSettings = dx.is_class_present("Landroid/webkit/WebSettings;")
-    pkg_WebView_WebSettings = filteringEngine.filter_list_of_paths(d, pkg_WebView_WebSettings)
-
-    dict_WebSettings_ClassMethod_to_Path = {}
-
-    for path in pkg_WebView_WebSettings:
-        src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-
-        dict_name = src_class_name + "->" + src_method_name + src_descriptor
-        if dict_name not in dict_WebSettings_ClassMethod_to_Path:
-            dict_WebSettings_ClassMethod_to_Path[dict_name] = []
-
-        dict_WebSettings_ClassMethod_to_Path[dict_name].append((dst_method_name + dst_descriptor, path))
-
-    path_setAllowFileAccess_vulnerable_ready_to_test = []
-    path_setAllowFileAccess_confirm_vulnerable_src_class_func = []
-
-    for class_fun_descriptor, value in list(dict_WebSettings_ClassMethod_to_Path.items()):
-        has_Settings = False
-        for func_name_descriptor, path in value:
-            if func_name_descriptor == "setAllowFileAccess(Z)V":
-                has_Settings = True
-
-                # Add ready-to-test Path list
-                path_setAllowFileAccess_vulnerable_ready_to_test.append(path)
-                break
-
-        if not has_Settings:
-            # Add vulnerable Path list
-            path_setAllowFileAccess_confirm_vulnerable_src_class_func.append(class_fun_descriptor)
-
-    for i in analysis.trace_Register_value_by_Param_in_source_Paths(d,
-                                                                    path_setAllowFileAccess_vulnerable_ready_to_test):
-        if (i.getResult()[1] == 0x1):  # setAllowFileAccess is true
-
-            path = i.getPath()
-            src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-            dict_name = src_class_name + "->" + src_method_name + src_descriptor
-
-            if dict_name not in path_setAllowFileAccess_confirm_vulnerable_src_class_func:
-                path_setAllowFileAccess_confirm_vulnerable_src_class_func.append(dict_name)
-
-    if path_setAllowFileAccess_confirm_vulnerable_src_class_func:
-
-        path_setAllowFileAccess_confirm_vulnerable_src_class_func = sorted(
-            set(path_setAllowFileAccess_confirm_vulnerable_src_class_func))
-
-        writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_WARNING, "WebView Local File Access Attacks Checking",
-                           """Found "setAllowFileAccess(true)" or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default)
-Note that this enables or disables file system access only. Assets and resources are still accessible using file:///android_asset and file:///android_res.
-The attackers can use "mWebView.loadUrl("file:///data/data/[Your_Package_Name]/[File]");" to access app's local file.
-Reference: (1)https://labs.mwrinfosecurity.com/blog/2012/04/23/adventures-with-android-webviews/
-           (2)http://developer.android.com/reference/android/webkit/WebSettings.html#setAllowFileAccess(boolean)
-Please add or modify "yourWebView.getSettings().setAllowFileAccess(false)" to your WebView:
-""", ["WebView"])
-        for i in path_setAllowFileAccess_confirm_vulnerable_src_class_func:
-            writer.write(i)
-
-    else:
-        writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_INFO, "WebView Local File Access Attacks Checking",
-                           "Did not find potentially critical local file access settings.", ["WebView"])
+#     # WebView setAllowFileAccess:
+#
+#     """
+# 		Get all "dst" class: Landroid/webkit/WebSettings;
+# 		  => Categorized by src function,
+# 		     If the src function:
+# 		       1.setAllowFileAccess does not exist    OR
+# 		       2.setAllowFileAccess(true)
+# 		           =>src function may be vulnerable
+#
+# 		**Why check WebSettings? It's because WebView almost always uses the method: WebView->getSettings()
+#
+# 		**Even if the below example, it will finally call WebSettings:
+# 		  class TestWebView extends WebView {
+# 		    public TestWebView(Context context) {
+# 		      super(context);
+# 		    }
+# 		  }
+# 	"""
+#
+#     pkg_WebView_WebSettings = dx.is_class_present("Landroid/webkit/WebSettings;")
+#     pkg_WebView_WebSettings = filteringEngine.filter_list_of_paths(d, pkg_WebView_WebSettings)
+#
+#     dict_WebSettings_ClassMethod_to_Path = {}
+#
+#     for path in pkg_WebView_WebSettings:
+#         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+#         dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
+#
+#         dict_name = src_class_name + "->" + src_method_name + src_descriptor
+#         if dict_name not in dict_WebSettings_ClassMethod_to_Path:
+#             dict_WebSettings_ClassMethod_to_Path[dict_name] = []
+#
+#         dict_WebSettings_ClassMethod_to_Path[dict_name].append((dst_method_name + dst_descriptor, path))
+#
+#     path_setAllowFileAccess_vulnerable_ready_to_test = []
+#     path_setAllowFileAccess_confirm_vulnerable_src_class_func = []
+#
+#     for class_fun_descriptor, value in list(dict_WebSettings_ClassMethod_to_Path.items()):
+#         has_Settings = False
+#         for func_name_descriptor, path in value:
+#             if func_name_descriptor == "setAllowFileAccess(Z)V":
+#                 has_Settings = True
+#
+#                 # Add ready-to-test Path list
+#                 path_setAllowFileAccess_vulnerable_ready_to_test.append(path)
+#                 break
+#
+#         if not has_Settings:
+#             # Add vulnerable Path list
+#             path_setAllowFileAccess_confirm_vulnerable_src_class_func.append(class_fun_descriptor)
+#
+#     for i in analysis.trace_Register_value_by_Param_in_source_Paths(d,
+#                                                                     path_setAllowFileAccess_vulnerable_ready_to_test):
+#         if (i.getResult()[1] == 0x1):  # setAllowFileAccess is true
+#
+#             path = i.getPath()
+#             src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+#             dict_name = src_class_name + "->" + src_method_name + src_descriptor
+#
+#             if dict_name not in path_setAllowFileAccess_confirm_vulnerable_src_class_func:
+#                 path_setAllowFileAccess_confirm_vulnerable_src_class_func.append(dict_name)
+#
+#     if path_setAllowFileAccess_confirm_vulnerable_src_class_func:
+#
+#         path_setAllowFileAccess_confirm_vulnerable_src_class_func = sorted(
+#             set(path_setAllowFileAccess_confirm_vulnerable_src_class_func))
+#
+#         writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_WARNING, "WebView Local File Access Attacks Checking",
+#                            """Found "setAllowFileAccess(true)" or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default)
+# Note that this enables or disables file system access only. Assets and resources are still accessible using file:///android_asset and file:///android_res.
+# The attackers can use "mWebView.loadUrl("file:///data/data/[Your_Package_Name]/[File]");" to access app's local file.
+# Reference: (1)https://labs.mwrinfosecurity.com/blog/2012/04/23/adventures-with-android-webviews/
+#            (2)http://developer.android.com/reference/android/webkit/WebSettings.html#setAllowFileAccess(boolean)
+# Please add or modify "yourWebView.getSettings().setAllowFileAccess(false)" to your WebView:
+# """, ["WebView"])
+#         for i in path_setAllowFileAccess_confirm_vulnerable_src_class_func:
+#             writer.write(i)
+#
+#     else:
+#         writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_INFO, "WebView Local File Access Attacks Checking",
+#                            "Did not find potentially critical local file access settings.", ["WebView"])
 
     # ------------------------------------------------------------------------
-    # Adb Backup check
-
-    if a.get_element("application", "allowBackup") is (True or None):
-        writer.startWriter("ALLOW_BACKUP", LEVEL_NOTICE, "AndroidManifest Adb Backup Checking",
-                           """ADB Backup is ENABLED for this app (default: ENABLED). ADB Backup is a good tool for backing up all of your files. If it's open for this app, people who have your phone can copy all of the sensitive data for this app in your phone (Prerequisite: 1.Unlock phone's screen 2.Open the developer mode). The sensitive data may include lifetime access token, username or password, etc.
-Security case related to ADB Backup:
-1.http://www.securityfocus.com/archive/1/530288/30/0/threaded
-2.http://blog.c22.cc/advisories/cve-2013-5112-evernote-android-insecure-storage-of-pin-data-bypass-of-pin-protection/
-3.http://nelenkov.blogspot.co.uk/2012/06/unpacking-android-backups.html
-Reference: http://developer.android.com/guide/topics/manifest/application-element.html#allowbackup
-""")
-    else:
-        writer.startWriter("ALLOW_BACKUP", LEVEL_INFO, "AndroidManifest Adb Backup Checking",
-                           "This app has disabled Adb Backup.")
+#     # Adb Backup check
+#
+#     if a.get_element("application", "allowBackup") is (True or None):
+#         writer.startWriter("ALLOW_BACKUP", LEVEL_NOTICE, "AndroidManifest Adb Backup Checking",
+#                            """ADB Backup is ENABLED for this app (default: ENABLED). ADB Backup is a good tool for backing up all of your files. If it's open for this app, people who have your phone can copy all of the sensitive data for this app in your phone (Prerequisite: 1.Unlock phone's screen 2.Open the developer mode). The sensitive data may include lifetime access token, username or password, etc.
+# Security case related to ADB Backup:
+# 1.http://www.securityfocus.com/archive/1/530288/30/0/threaded
+# 2.http://blog.c22.cc/advisories/cve-2013-5112-evernote-android-insecure-storage-of-pin-data-bypass-of-pin-protection/
+# 3.http://nelenkov.blogspot.co.uk/2012/06/unpacking-android-backups.html
+# Reference: http://developer.android.com/guide/topics/manifest/application-element.html#allowbackup
+# """)
+#     else:
+#         writer.startWriter("ALLOW_BACKUP", LEVEL_INFO, "AndroidManifest Adb Backup Checking",
+#                            "This app has disabled Adb Backup.")
 
     # ------------------------------------------------------------------------
     # SSL Verification Fail (To check whether the code verifies the certificate)
