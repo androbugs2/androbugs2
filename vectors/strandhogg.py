@@ -16,7 +16,7 @@ class Vector(VectorBase):
         found = False
         activities_launch_mode = self.apk.get_all_attribute_value("activitiy", "launchMode")
         for activity in activities_launch_mode:
-            if activity.endswith(self.LAUNCH_MODES["standard"] or self.LAUNCH_MODES["singleTop"]):
+            if not activity.endswith((self.LAUNCH_MODES["standard"], self.LAUNCH_MODES["singleTop"])):
                 found = True
                 break
 
