@@ -5,17 +5,17 @@ from constants import *
 class Vector(VectorBase):
     description = "Checks if a framework was used to develop the app, and if so, which one."
 
-    xamarin_signature = {
+    XAMARIN_SIGNATURE = {
         "class_name": "Lmono/MonoPackageManager;",
         "method_name": "LoadApplication",
         "method_descriptor": "(Landroid/content/Context; Landroid/content/pm/ApplicationInfo; [Ljava/lang/String;)V",
     }
 
-    react_native_signature = {
+    REACT_NATIVE_SIGNATURE = {
         "class_name": "Lcom/facebook/react/a;"
     }
 
-    flutter_signature = {
+    FLUTTER_SIGNATURE = {
         "class_name": "Lio/flutter/app/a;"
     }
 
@@ -35,9 +35,9 @@ class Vector(VectorBase):
                                     ['Framework'])
 
     def check_xamarin(self) -> bool:
-        mono_pm = self.analysis.get_method_analysis_by_name(self.xamarin_signature["class_name"],
-                                                            self.xamarin_signature["method_name"],
-                                                            self.xamarin_signature["method_descriptor"])
+        mono_pm = self.analysis.get_method_analysis_by_name(self.XAMARIN_SIGNATURE["class_name"],
+                                                            self.XAMARIN_SIGNATURE["method_name"],
+                                                            self.XAMARIN_SIGNATURE["method_descriptor"])
         if mono_pm is None:
             return False
 
@@ -58,7 +58,7 @@ class Vector(VectorBase):
         return False
 
     def check_flutter(self) -> bool:
-        if self.analysis.is_class_present(self.flutter_signature["class_name"]):
+        if self.analysis.is_class_present(self.FLUTTER_SIGNATURE["class_name"]):
             self.writer.startWriter("FRAMEWORK",
                                     LEVEL_NOTICE,
                                     "App framework identification",
@@ -70,7 +70,7 @@ class Vector(VectorBase):
         return False
 
     def check_react_native(self) -> bool:
-        if self.analysis.is_class_present(self.react_native_signature["class_name"]):
+        if self.analysis.is_class_present(self.REACT_NATIVE_SIGNATURE["class_name"]):
             self.writer.startWriter("FRAMEWORK",
                                     LEVEL_NOTICE,
                                     "App framework identification",
