@@ -11,6 +11,14 @@ class Vector(VectorBase):
         "method_descriptor": "(Landroid/content/Context; Landroid/content/pm/ApplicationInfo; [Ljava/lang/String;)V",
     }
 
+    react_native_signature = {
+        "class_name": "Lcom/facebook/react/a;"
+    }
+
+    flutter_signature = {
+        "class_name": "Lio/flutter/app/a;"
+    }
+
     def analyze(self) -> None:
         if any([self.check_xamarin(),
                 self.check_flutter(),
@@ -41,18 +49,36 @@ class Vector(VectorBase):
                     self.writer.startWriter("FRAMEWORK",
                                             LEVEL_NOTICE,
                                             "App framework identification",
-                                            "Application depends on Xamarin framework (library detected). "
+                                            "Application depends on the Xamarin framework (library detected). "
                                             "For more information about Xamarin, see: "
                                             "https://dotnet.microsoft.com/apps/xamarin.",
                                             ['Framework'])
                     return True
         return False
 
-    def check_flutter(self) -> None:
-        pass
+    def check_flutter(self) -> bool:
+        if self.analysis.is_class_present(self.flutter_signature["class_name"]):
+            self.writer.startWriter("FRAMEWORK",
+                                    LEVEL_NOTICE,
+                                    "App framework identification",
+                                    "Application depends on the Flutter framework (library detected). "
+                                    "For more information about Flutter, see: "
+                                    "https://flutter.dev.",
+                                    ['Framework'])
+            return True
+        return False
 
-    def check_react_native(self) -> None:
-        pass
+    def check_react_native(self) -> bool:
+        if self.analysis.is_class_present(self.react_native_signature["class_name"]):
+            self.writer.startWriter("FRAMEWORK",
+                                    LEVEL_NOTICE,
+                                    "App framework identification",
+                                    "Application depends on the React Native framework (library detected). "
+                                    "For more information about React Native, see: "
+                                    "https://reactnative.dev.",
+                                    ['Framework'])
+            return True
+        return False
 
     def check_ijiami(self) -> bool:
         if any(self.analysis.find_methods("Lcom/shell/NativeApplication;", "load",
@@ -78,4 +104,3 @@ class Vector(VectorBase):
                                     ['Framework'])
             return True
         return False
-
