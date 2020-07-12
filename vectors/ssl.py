@@ -89,7 +89,7 @@ class Vector(VectorBase):
                                     ["SSL_Security"])
 
             for method in list_HOSTNAME_INNER_VERIFIER:
-                self.writer.write(method.easy_print())
+                self.writer.write(method.get_class_name() + "->" + method.get_name() + method.get_descriptor())
 
                 # because one class may initialize by many new instances of it
                 method_class_name = method.get_class_name()
