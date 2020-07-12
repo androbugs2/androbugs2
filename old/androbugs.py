@@ -3261,33 +3261,33 @@ Reference: http://developer.android.com/guide/components/intents-filters.html#Ty
     # ------------------------------------------------------------------------
     # Checking sending SMS code
 
-    """
-	  Example:
-		Landroid/telephony/SmsManager;->sendDataMessage(Ljava/lang/String; Ljava/lang/String; S [B Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V
-		Landroid/telephony/SmsManager;->sendMultipartTextMessage(Ljava/lang/String; Ljava/lang/String; Ljava/util/ArrayList; Ljava/util/ArrayList; Ljava/util/ArrayList;)V
-		Landroid/telephony/SmsManager;->sendTextMessage(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V
-	"""
-
-    list_sms_signatures = [
-        ("sendDataMessage",
-         "(Ljava/lang/String; Ljava/lang/String; S [B Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V"),
-        ("sendMultipartTextMessage",
-         "(Ljava/lang/String; Ljava/lang/String; Ljava/util/ArrayList; Ljava/util/ArrayList; Ljava/util/ArrayList;)V"),
-        ("sendTextMessage",
-         "(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V")
-    ]
-
-    path_sms_sending = dx.get_tainted_packages().search_class_methodlist_exact_match("Landroid/telephony/SmsManager;",
-                                                                                     list_sms_signatures)
-    path_sms_sending = filteringEngine.filter_list_of_paths(d, path_sms_sending)
-
-    if path_sms_sending:
-        writer.startWriter("SENSITIVE_SMS", LEVEL_WARNING, "Codes for Sending SMS",
-                           "This app has code for sending SMS messages (sendDataMessage, sendMultipartTextMessage or sendTextMessage):")
-        writer.show_Paths(d, path_sms_sending)
-    else:
-        writer.startWriter("SENSITIVE_SMS", LEVEL_INFO, "Codes for Sending SMS",
-                           "Did not detect this app has code for sending SMS messages (sendDataMessage, sendMultipartTextMessage or sendTextMessage).")
+    # """
+	#   Example:
+	# 	Landroid/telephony/SmsManager;->sendDataMessage(Ljava/lang/String; Ljava/lang/String; S [B Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V
+	# 	Landroid/telephony/SmsManager;->sendMultipartTextMessage(Ljava/lang/String; Ljava/lang/String; Ljava/util/ArrayList; Ljava/util/ArrayList; Ljava/util/ArrayList;)V
+	# 	Landroid/telephony/SmsManager;->sendTextMessage(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V
+	# """
+    #
+    # list_sms_signatures = [
+    #     ("sendDataMessage",
+    #      "(Ljava/lang/String; Ljava/lang/String; S [B Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V"),
+    #     ("sendMultipartTextMessage",
+    #      "(Ljava/lang/String; Ljava/lang/String; Ljava/util/ArrayList; Ljava/util/ArrayList; Ljava/util/ArrayList;)V"),
+    #     ("sendTextMessage",
+    #      "(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V")
+    # ]
+    #
+    # path_sms_sending = dx.get_tainted_packages().search_class_methodlist_exact_match("Landroid/telephony/SmsManager;",
+    #                                                                                  list_sms_signatures)
+    # path_sms_sending = filteringEngine.filter_list_of_paths(d, path_sms_sending)
+    #
+    # if path_sms_sending:
+    #     writer.startWriter("SENSITIVE_SMS", LEVEL_WARNING, "Codes for Sending SMS",
+    #                        "This app has code for sending SMS messages (sendDataMessage, sendMultipartTextMessage or sendTextMessage):")
+    #     writer.show_Paths(d, path_sms_sending)
+    # else:
+    #     writer.startWriter("SENSITIVE_SMS", LEVEL_INFO, "Codes for Sending SMS",
+    #                        "Did not detect this app has code for sending SMS messages (sendDataMessage, sendMultipartTextMessage or sendTextMessage).")
 
     # ------------------------------------------------------------------------
     # Checking shared_user_id
