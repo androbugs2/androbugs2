@@ -71,6 +71,18 @@ class FilteringEngine:
         else:
             return method_class_analysis_list
 
+    def filter_method_list(self, method_list):
+        if self.__enable_exclude_classes and method_list:
+            filtered_methods = []
+            for method_class_analysis in method_list:
+                class_name = method_class_analysis.get_class_name()
+                if not self.__regexp_excluded_classes.match(class_name):
+                    filtered_methods.append(method_class_analysis)
+
+            return filtered_methods
+        else:
+            return method_list
+
     def filter_dst_class_in_paths(self, vm, paths, excluded_class_list):
         cm = vm.get_class_manager()
 

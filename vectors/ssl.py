@@ -62,7 +62,7 @@ class Vector(VectorBase):
             if register_analyzer.get_ins_return_boolean_value():  # Has security problem
                 list_HOSTNAME_INNER_VERIFIER.append(method)
 
-        list_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_class_analysis_list(list_HOSTNAME_INNER_VERIFIER)
+        list_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_list(list_HOSTNAME_INNER_VERIFIER)
 
         if list_HOSTNAME_INNER_VERIFIER:
 
