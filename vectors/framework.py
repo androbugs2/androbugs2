@@ -30,7 +30,8 @@ class Vector(VectorBase):
             self.writer.startWriter("FRAMEWORK",
                                     LEVEL_INFO,
                                     "App framework identification",
-                                    "No frameworks detected (checking for Xamarin, Flutter, React Native).",
+                                    "No frameworks detected (checking for Xamarin, Flutter, React Native). "
+                                    "Furthermore, no encryption frameworks were detected (checking for iJiami, Bangcle)",
                                     ['Framework'])
 
     def check_xamarin(self) -> bool:
