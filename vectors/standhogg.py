@@ -24,7 +24,7 @@ class Vector(VectorBase):
                                         ["Strandhogg"])
                 return
         self.writer.startWriter("STRANDHOGG_2",
-                                LEVEL_NOTICE,
+                                LEVEL_INFO,
                                 "Standhogg 2.0",
                                 "This application does not seem to be vulnerable to the Standhogg 2.0 vulnerability",
                                 ["Strandhogg"])
