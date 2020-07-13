@@ -2584,73 +2584,73 @@ def __analyze(writer, args):
     #
 
     # ------------------------------------------------------------------------
-    # Find all "dangerous" permission
-
-    """
-		android:permission
-		android:readPermission (for ContentProvider)
-		android:writePermission (for ContentProvider)
-	"""
-
-    # Get a mapping dictionary
-    PermissionName_to_ProtectionLevel = a.get_PermissionName_to_ProtectionLevel_mapping()
-
-    dangerous_custom_permissions = []
-    for name, protectionLevel in list(PermissionName_to_ProtectionLevel.items()):
-        if protectionLevel == PROTECTION_DANGEROUS:  # 1:"dangerous"
-            dangerous_custom_permissions.append(name)
-
-    if dangerous_custom_permissions:
-
-        writer.startWriter("PERMISSION_DANGEROUS", LEVEL_CRITICAL,
-                           "AndroidManifest Dangerous ProtectionLevel of Permission Checking",
-                           """The protection level of the below classes is "dangerous", allowing any other apps to access this permission (AndroidManifest.xml). 
-The app should declare the permission with the "android:protectionLevel" of "signature" or "signatureOrSystem" so that other apps cannot register and receive message for this app. 
-android:protectionLevel="signature" ensures that apps with request a permission must be signed with same certificate as the application that declared the permission. 
-Please check some related cases: http://www.wooyun.org/bugs/wooyun-2010-039697  
-Please change these permissions:""")
-
-        for class_name in dangerous_custom_permissions:
-            writer.write(class_name)
-
-            who_use_this_permission = get_all_components_by_permission(a.get_AndroidManifest(), class_name)
-            who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
-            if who_use_this_permission:
-                for key, valuelist in list(who_use_this_permission.items()):
-                    for list_item in valuelist:
-                        writer.write("    -> used by (" + key + ") " + a.format_value(list_item))
-    else:
-        writer.startWriter("PERMISSION_DANGEROUS", LEVEL_INFO,
-                           "AndroidManifest Dangerous ProtectionLevel of Permission Checking",
-                           "No \"dangerous\" protection level customized permission found (AndroidManifest.xml).")
-
-    # ------------------------------------------------------------------------
-    # Find all "normal" or default permission
-
-    normal_or_default_custom_permissions = []
-    for name, protectionLevel in list(PermissionName_to_ProtectionLevel.items()):
-        if protectionLevel == PROTECTION_NORMAL:  # 0:"normal" or not set
-            normal_or_default_custom_permissions.append(name)
-
-    if normal_or_default_custom_permissions:
-        writer.startWriter("PERMISSION_NORMAL", LEVEL_WARNING,
-                           "AndroidManifest Normal ProtectionLevel of Permission Checking",
-                           """The protection level of the below classes is "normal" or default (AndroidManifest.xml). 
-The app should declare the permission with the "android:protectionLevel" of "signature" or "signatureOrSystem" so that other apps cannot register and receive message for this app. 
-android:protectionLevel="signature" ensures that apps with request a permission must be signed with same certificate as the application that declared the permission. 
-Please make sure these permission are all really need to be exported or otherwise change to "signature" or "signatureOrSystem" protection level.""")
-        for class_name in normal_or_default_custom_permissions:
-            writer.write(class_name)
-            who_use_this_permission = get_all_components_by_permission(a.get_AndroidManifest(), class_name)
-            who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
-            if who_use_this_permission:
-                for key, valuelist in list(who_use_this_permission.items()):
-                    for list_item in valuelist:
-                        writer.write("    -> used by (" + key + ") " + a.format_value(list_item))
-    else:
-        writer.startWriter("PERMISSION_NORMAL", LEVEL_INFO,
-                           "AndroidManifest Normal ProtectionLevel of Permission Checking",
-                           "No default or \"normal\" protection level customized permission found (AndroidManifest.xml).")
+#     # Find all "dangerous" permission
+#
+#     """
+# 		android:permission
+# 		android:readPermission (for ContentProvider)
+# 		android:writePermission (for ContentProvider)
+# 	"""
+#
+#     # Get a mapping dictionary
+#     PermissionName_to_ProtectionLevel = a.get_PermissionName_to_ProtectionLevel_mapping()
+#
+#     dangerous_custom_permissions = []
+#     for name, protectionLevel in list(PermissionName_to_ProtectionLevel.items()):
+#         if protectionLevel == PROTECTION_DANGEROUS:  # 1:"dangerous"
+#             dangerous_custom_permissions.append(name)
+#
+#     if dangerous_custom_permissions:
+#
+#         writer.startWriter("PERMISSION_DANGEROUS", LEVEL_CRITICAL,
+#                            "AndroidManifest Dangerous ProtectionLevel of Permission Checking",
+#                            """The protection level of the below classes is "dangerous", allowing any other apps to access this permission (AndroidManifest.xml).
+# The app should declare the permission with the "android:protectionLevel" of "signature" or "signatureOrSystem" so that other apps cannot register and receive message for this app.
+# android:protectionLevel="signature" ensures that apps with request a permission must be signed with same certificate as the application that declared the permission.
+# Please check some related cases: http://www.wooyun.org/bugs/wooyun-2010-039697
+# Please change these permissions:""")
+#
+#         for class_name in dangerous_custom_permissions:
+#             writer.write(class_name)
+#
+#             who_use_this_permission = get_all_components_by_permission(a.get_AndroidManifest(), class_name)
+#             who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
+#             if who_use_this_permission:
+#                 for key, valuelist in list(who_use_this_permission.items()):
+#                     for list_item in valuelist:
+#                         writer.write("    -> used by (" + key + ") " + a.format_value(list_item))
+#     else:
+#         writer.startWriter("PERMISSION_DANGEROUS", LEVEL_INFO,
+#                            "AndroidManifest Dangerous ProtectionLevel of Permission Checking",
+#                            "No \"dangerous\" protection level customized permission found (AndroidManifest.xml).")
+#
+#     # ------------------------------------------------------------------------
+#     # Find all "normal" or default permission
+#
+#     normal_or_default_custom_permissions = []
+#     for name, protectionLevel in list(PermissionName_to_ProtectionLevel.items()):
+#         if protectionLevel == PROTECTION_NORMAL:  # 0:"normal" or not set
+#             normal_or_default_custom_permissions.append(name)
+#
+#     if normal_or_default_custom_permissions:
+#         writer.startWriter("PERMISSION_NORMAL", LEVEL_WARNING,
+#                            "AndroidManifest Normal ProtectionLevel of Permission Checking",
+#                            """The protection level of the below classes is "normal" or default (AndroidManifest.xml).
+# The app should declare the permission with the "android:protectionLevel" of "signature" or "signatureOrSystem" so that other apps cannot register and receive message for this app.
+# android:protectionLevel="signature" ensures that apps with request a permission must be signed with same certificate as the application that declared the permission.
+# Please make sure these permission are all really need to be exported or otherwise change to "signature" or "signatureOrSystem" protection level.""")
+#         for class_name in normal_or_default_custom_permissions:
+#             writer.write(class_name)
+#             who_use_this_permission = get_all_components_by_permission(a.get_AndroidManifest(), class_name)
+#             who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
+#             if who_use_this_permission:
+#                 for key, valuelist in list(who_use_this_permission.items()):
+#                     for list_item in valuelist:
+#                         writer.write("    -> used by (" + key + ") " + a.format_value(list_item))
+#     else:
+#         writer.startWriter("PERMISSION_NORMAL", LEVEL_INFO,
+#                            "AndroidManifest Normal ProtectionLevel of Permission Checking",
+#                            "No default or \"normal\" protection level customized permission found (AndroidManifest.xml).")
 
     # ------------------------------------------------------------------------
 
@@ -3291,25 +3291,25 @@ Reference: http://developer.android.com/guide/components/intents-filters.html#Ty
 
     # ------------------------------------------------------------------------
     # Checking shared_user_id
-
-    sharedUserId = a.get_shared_user_id()
-    sharedUserId_in_system = False
-
-    if (sharedUserId == "android.uid.system"):
-        sharedUserId_in_system = True
-
-    if sharedUserId_in_system:
-        writer.startWriter("SHARED_USER_ID", LEVEL_NOTICE, "AndroidManifest sharedUserId Checking",
-                           "This app uses \"android.uid.system\" sharedUserId, which requires the \"system(uid=1000)\" permission. It must be signed with manufacturer's keystore or Google's keystore to be successfully installed on users' devices.",
-                           ["System"])
-    else:
-        writer.startWriter("SHARED_USER_ID", LEVEL_INFO, "AndroidManifest sharedUserId Checking",
-                           "This app does not use \"android.uid.system\" sharedUserId.", ["System"])
-
-    # System shared_user_id + Master Key Vulnerability checking: (Depends on "Master Key Vulnerability checking")
-    if sharedUserId_in_system and isMasterKeyVulnerability:
-        writer.startWriter("MASTER_KEY_SYSTEM_APP", LEVEL_CRITICAL, "Rooting System with Master Key Vulnerability",
-                           "This app is a malware, which requests \"system(uid=1000)\" privilege with Master Key vulnerability, leading the devices to be rooted.")
+    #
+    # sharedUserId = a.get_shared_user_id()
+    # sharedUserId_in_system = False
+    #
+    # if (sharedUserId == "android.uid.system"):
+    #     sharedUserId_in_system = True
+    #
+    # if sharedUserId_in_system:
+    #     writer.startWriter("SHARED_USER_ID", LEVEL_NOTICE, "AndroidManifest sharedUserId Checking",
+    #                        "This app uses \"android.uid.system\" sharedUserId, which requires the \"system(uid=1000)\" permission. It must be signed with manufacturer's keystore or Google's keystore to be successfully installed on users' devices.",
+    #                        ["System"])
+    # else:
+    #     writer.startWriter("SHARED_USER_ID", LEVEL_INFO, "AndroidManifest sharedUserId Checking",
+    #                        "This app does not use \"android.uid.system\" sharedUserId.", ["System"])
+    #
+    # # System shared_user_id + Master Key Vulnerability checking: (Depends on "Master Key Vulnerability checking")
+    # if sharedUserId_in_system and isMasterKeyVulnerability:
+    #     writer.startWriter("MASTER_KEY_SYSTEM_APP", LEVEL_CRITICAL, "Rooting System with Master Key Vulnerability",
+    #                        "This app is a malware, which requests \"system(uid=1000)\" privilege with Master Key vulnerability, leading the devices to be rooted.")
 
     # ------------------------------------------------------------------------
 #     # File delete alert
@@ -3328,20 +3328,20 @@ Reference: http://developer.android.com/guide/components/intents-filters.html#Ty
 #                            "Did not detect that you are unsafely deleting files.")
 
     # ------------------------------------------------------------------------
-    # Check if app check for installing from Google Play
-
-    path_getInstallerPackageName = dx.find_methods(
-        "Landroid/content/pm/PackageManager;", "getInstallerPackageName", "(Ljava/lang/String;)Ljava/lang/String;")
-    path_getInstallerPackageName = filteringEngine.filter_list_of_paths(d, path_getInstallerPackageName)
-
-    if path_getInstallerPackageName:
-        writer.startWriter("HACKER_INSTALL_SOURCE_CHECK", LEVEL_NOTICE, "APK Installing Source Checking",
-                           "This app has code checking APK installer sources(e.g. from Google Play, from Amazon, etc.). It might be used to check for whether the app is hacked by the attackers.",
-                           ["Hacker"])
-        writer.show_Paths(d, path_getInstallerPackageName)
-    else:
-        writer.startWriter("HACKER_INSTALL_SOURCE_CHECK", LEVEL_INFO, "APK Installing Source Checking",
-                           "Did not detect this app checks for APK installer sources.", ["Hacker"])
+    # # Check if app check for installing from Google Play
+    #
+    # path_getInstallerPackageName = dx.find_methods(
+    #     "Landroid/content/pm/PackageManager;", "getInstallerPackageName", "(Ljava/lang/String;)Ljava/lang/String;")
+    # path_getInstallerPackageName = filteringEngine.filter_list_of_paths(d, path_getInstallerPackageName)
+    #
+    # if path_getInstallerPackageName:
+    #     writer.startWriter("HACKER_INSTALL_SOURCE_CHECK", LEVEL_NOTICE, "APK Installing Source Checking",
+    #                        "This app has code checking APK installer sources(e.g. from Google Play, from Amazon, etc.). It might be used to check for whether the app is hacked by the attackers.",
+    #                        ["Hacker"])
+    #     writer.show_Paths(d, path_getInstallerPackageName)
+    # else:
+    #     writer.startWriter("HACKER_INSTALL_SOURCE_CHECK", LEVEL_INFO, "APK Installing Source Checking",
+    #                        "Did not detect this app checks for APK installer sources.", ["Hacker"])
 
     # ------------------------------------------------------------------------
 #     # WebView setAllowFileAccess:

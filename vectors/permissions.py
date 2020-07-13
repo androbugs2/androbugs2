@@ -7,6 +7,7 @@ from constants import *
 class Vector(VectorBase):
     description = "Checks if app has correct permissions"
 
+
     def analyze(self) -> None:
 
         all_permissions = self.apk.get_permissions()
@@ -101,4 +102,64 @@ class Vector(VectorBase):
             self.writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
                                     "No HTTP-related connection codes found.")
 
+        # Find all "dangerous" and normal permissions
+
+        """
+            android:permission
+            android:readPermission (for ContentProvider)
+            android:writePermission (for ContentProvider)
+        """
+
+        permissions = self.apk.get_details_permissions()
+        package_name = self.apk.get_package()
+
+        dangerous_custom_permissions = []
+        normal_or_default_custom_permissions = []
+
+        for name, details in permissions.items():
+            if package_name in name:
+                if details[0] is "dangerous":
+                    dangerous_custom_permissions.append(name)
+
+                if details[0] is ("normal" or None):
+                    normal_or_default_custom_permissions.append(name)
+
+        if dangerous_custom_permissions:
+            self.writer.startWriter("PERMISSION_DANGEROUS", LEVEL_CRITICAL,
+                                    "AndroidManifest Dangerous ProtectionLevel of Permission Checking",
+                                    "The protection level of the below classes is \"dangerous\", allowing any other "
+                                    "apps to access this permission (AndroidManifest.xml). The app should declare the "
+                                    "permission with the \"android:protectionLevel\" of \"signature\" or "
+                                    "\"signatureOrSystem\" so that other apps cannot register and receive message for "
+                                    "this app. android:protectionLevel=\"signature\" ensures that apps with request a "
+                                    "permission must be signed with same certificate as the application that declared "
+                                    "the permission. Please check some related cases: "
+                                    "http://www.wooyun.org/bugs/wooyun-2010-039697 Please change these permissions:")
+
+            for class_name in dangerous_custom_permissions:
+                self.writer.write(class_name)
+
+        else:
+            self.writer.startWriter("PERMISSION_DANGEROUS", LEVEL_INFO,
+                                    "AndroidManifest Dangerous ProtectionLevel of Permission Checking",
+                                    "No \"dangerous\" protection level customized permission found (AndroidManifest.xml).")
+
+        if normal_or_default_custom_permissions:
+            self.writer.startWriter("PERMISSION_NORMAL", LEVEL_WARNING,
+                                    "AndroidManifest Normal ProtectionLevel of Permission Checking",
+                                    "The protection level of the below classes is \"normal\" or default ("
+                                    "AndroidManifest.xml). The app should declare the permission with the "
+                                    "\"android:protectionLevel\" of \"signature\" or \"signatureOrSystem\" so that other "
+                                    "apps cannot register and receive message for this app."
+                                    "android:protectionLevel=\"signature\" ensures that apps with request a permission "
+                                    "must be signed with same certificate as the application that declared the "
+                                    "permission. Please make sure these permission are all really need to be exported "
+                                    "or otherwise change to \"signature\" or \"signatureOrSystem\" protection level.")
+            for class_name in normal_or_default_custom_permissions:
+                self.writer.write(class_name)
+        else:
+            self.writer.startWriter("PERMISSION_NORMAL", LEVEL_INFO,
+                                    "AndroidManifest Normal ProtectionLevel of Permission Checking",
+                                    "No default or \"normal\" protection level customized permission found ("
+                                    "AndroidManifest.xml).")
 
