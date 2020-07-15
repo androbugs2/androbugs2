@@ -26,7 +26,7 @@ class Vector(VectorBase):
             "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
         path_package_info_signatures = self.filtering_engine.filter_method_class_analysis_list(
                                                                                   path_package_info_signatures)  # TODO fix filtering
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(
                                                                          path_package_info_signatures):
             if i.getResult()[2] is None:
                 continue

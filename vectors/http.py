@@ -41,7 +41,7 @@ class Vector(VectorBase):
                 has_http_keepAlive_Name = False
                 has_http_keep_alive_value = False
 
-                for i in staticDVM.trace_register_value_by_param_in_source_paths( path_pre_froyo_http_url_connection):
+                for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_pre_froyo_http_url_connection):
                     if i.getResult()[0] == "http.keepAlive":
                         has_http_keepAlive_Name = True
                         list_pre_froyo_http_url_connection.append(i.getPath())  # Only list the "false" one

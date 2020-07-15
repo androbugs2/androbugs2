@@ -24,7 +24,7 @@ class Vector(VectorBase):
         # path_ndk_library_classname_to_ndkso_mapping = self.analysis.find_methods("Lcom/example/base64testapp/MainActivity;", "onCreate")
         path_ndk_library_classname_to_ndkso_mapping = self.filtering_engine.filter_method_class_analysis_list(
                                                                                            path_ndk_library_classname_to_ndkso_mapping)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_ndk_library_classname_to_ndkso_mapping):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_ndk_library_classname_to_ndkso_mapping):
             if (i.getResult()[0] is None) or (not i.is_string(0)):
                 continue
             path = i.getPath()['src_method']

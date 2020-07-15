@@ -117,7 +117,7 @@ class FilteringEngine:
                                                                     result_idx):  # dic: key=>class_name, value=>paths
         dic_classname_to_paths = {}
         paths = self.filter_method_class_analysis_list(paths)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(paths):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(paths):
             if (i.getResult()[result_idx] is None) or (
                     not i.is_class_container(
                         result_idx)):  # If parameter 0 is a class_container type (ex: Lclass/name;)

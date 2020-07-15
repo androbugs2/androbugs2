@@ -25,7 +25,7 @@ class Vector(VectorBase):
                                                        "(Ljava/lang/String;)Ljava/lang/Process;")
         path_runtime_exec = self.filtering_engine.filter_method_class_analysis_list(path_runtime_exec)
 
-        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_runtime_exec):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_runtime_exec):
             if i.getResult()[1] is None:
                 continue
             if i.getResult()[1] == "su":

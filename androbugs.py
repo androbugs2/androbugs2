@@ -209,10 +209,6 @@ def __analyze(writer, args):
     APK_FILE_NAME_STRING = DIRECTORY_APK_FILES + args.apk_file
     apk_Path = APK_FILE_NAME_STRING  # + ".apk"
 
-    if ".." in args.apk_file:
-        raise ExpectedException("apk_file_name_slash_twodots_error",
-                                "APK file name should not contain slash(/) or two dots(..) (File: " + apk_Path + ").")
-
     if not os.path.isfile(apk_Path):
         raise ExpectedException("apk_file_not_exist", "APK file not exist (File: " + apk_Path + ").")
 
@@ -353,12 +349,13 @@ def main():
 
     try:
         # Print Title
-        writer.writePlainInf("""*************************************************************************
-**   AndroBugs Framework - Android App Security Vulnerability Scanner  **
-**                            version: 1.0.0                           **
-**     author: Yu-Cheng Lin (@AndroBugs, http://www.AndroBugs.com)     **
-**               contact: androbugs.framework@gmail.com                **
-*************************************************************************""")
+        writer.writePlainInf("""**********************************************************************************************
+**   AndroBugs Framework - Android App Security Vulnerability Scanner                       **
+**                            version: 1.0.0                                                **
+** This tool was originally created by Yu-Cheng Lin (@AndroBugs, http://www.AndroBugs.com)  **
+**                     Modifications by Jasper van Thuijl & Noam Drong                      **
+**                          contact: androbugs.framework@gmail.com                          **
+**********************************************************************************************""")
 
         # Analyze
         __analyze(writer, args)

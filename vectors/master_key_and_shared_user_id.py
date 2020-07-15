@@ -22,7 +22,7 @@ class Vector(VectorBase):
     def has_shared_user_id(self) -> bool:
         sharedUserId = self.apk.get_attribute_value("manifest", "sharedUserId")
 
-        if sharedUserId is "android.uid.system":
+        if sharedUserId == "android.uid.system":
             self.writer.startWriter("SHARED_USER_ID", LEVEL_NOTICE, "AndroidManifest sharedUserId Checking",
                                     "This app uses \"android.uid.system\" sharedUserId, which requires the \"system("
                                     "uid=1000)\" permission. It must be signed with manufacturer's keystore or Google's "

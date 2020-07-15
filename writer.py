@@ -23,6 +23,26 @@ class Writer:
             return class_name[1:-1]
         return class_name
 
+    def show_xrefs_method_class_analysis_list(self, method_class_analysis_list, indention_space_count=0):
+        for method_class_analysis in method_class_analysis_list:
+            self.show_xrefs_method_class_analysis(method_class_analysis, indention_space_count)
+
+    def show_xrefs_method_class_analysis(self, method_class_analysis, indention_space_count=0):
+
+        dest_class_name = method_class_analysis.get_method().get_class_name()
+        dest_name = method_class_analysis.get_method().get_name()
+        dest_descriptor = method_class_analysis.get_method().get_descriptor()
+        for __, source_method, idx in method_class_analysis.get_xref_from():
+
+            self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (source_method.get_class_name(),
+                                                             source_method.get_name(),
+                                                             source_method.get_descriptor(),
+                                                             idx,
+                                                             dest_class_name,
+                                                             dest_name,
+                                                             dest_descriptor),
+                       indention_space_count)
+
     def show_Path(self, vm, path, indention_space_count=0):
         """
 			Different from analysis.show_Path, this "show_Path" writes to the tmp writer

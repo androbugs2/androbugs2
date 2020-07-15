@@ -57,7 +57,7 @@ class Vector(VectorBase):
         result_sqlite_encryption = False
         strings_analysis = self.analysis.get_strings_analysis()
         for string, string_analysis in strings_analysis.items():
-            if string is "$__sqlite_encryption__":
+            if string == "$__sqlite_encryption__":
                 result_sqlite_encryption = string_analysis
                 break
 

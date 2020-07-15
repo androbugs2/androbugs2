@@ -1,6 +1,6 @@
 import os
 import platform
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import sys
 import traceback
 from datetime import datetime
@@ -17,7 +17,7 @@ def __persist_db(writer, args):
         print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
         traceback.print_exc()
 
-    configParser = SafeConfigParser()  # TODO SafeConfigParser follow suggestion from PyCharm
+    configParser = ConfigParser()
     configParser.read(db_config_file)
 
     MongoDB_Hostname = configParser.get('DB_Config', 'MongoDB_Hostname')

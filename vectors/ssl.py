@@ -212,7 +212,7 @@ class Vector(VectorBase):
         path_http_host_scheme_http = self.analysis.find_methods(
             "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
         path_http_host_scheme_http = self.filtering_engine.filter_method_class_analysis_list(path_http_host_scheme_http)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(
                                                                          path_http_host_scheme_http):
             if i.getResult()[3] is None:
                 continue

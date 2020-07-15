@@ -70,7 +70,7 @@ class Vector(VectorBase):
         path_set_java_script_enabled_xss = self.analysis.find_methods(
             "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
         path_set_java_script_enabled_xss = self.filtering_engine.filter_method_class_analysis_list(path_set_java_script_enabled_xss)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_set_java_script_enabled_xss):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_set_java_script_enabled_xss):
             if i.getResult()[1] is None:
                 continue
             if i.getResult()[1] == 0x1:
