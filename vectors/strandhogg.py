@@ -14,9 +14,9 @@ class Vector(VectorBase):
 
     def check_strandhogg2(self) -> None:
         found = False
-        activities_launch_mode = self.apk.get_all_attribute_value("activitiy", "launchMode")
+        activities_launch_mode = self.apk.get_all_attribute_value("activity", "launchMode")
         for activity in activities_launch_mode:
-            if not activity.endswith((self.LAUNCH_MODES["standard"], self.LAUNCH_MODES["singleTop"])):
+            if activity.endswith((str(self.LAUNCH_MODES["standard"]), str(self.LAUNCH_MODES["singleTop"]))):
                 found = True
                 break
 
@@ -25,7 +25,7 @@ class Vector(VectorBase):
                                     LEVEL_CRITICAL,
                                     "Standhogg 2.0",
                                     "This application is vulnerable to the Standhogg 2.0 vulnerability. "
-                                    "Please set activity launchModes to 'singleTask' or 'singleInstance'."
+                                    "Please set activity launchModes to 'singleTask' or 'singleInstance'. "
                                     "Please see https://promon.co/strandhogg-2-0/ for more details",
                                     ["Strandhogg"])
         else:
