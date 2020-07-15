@@ -17,7 +17,7 @@ class Vector(VectorBase):
                                "This app has code checking APK installer sources(e.g. from Google Play, from Amazon, "
                                "etc.). It might be used to check for whether the app is hacked by the attackers.",
                                ["Hacker"])
-            self.writer.show_Paths(self.dalvik, path_get_installer_package_name)
+            self.writer.show_xrefs_method_class_analysis_list(path_get_installer_package_name)
         else:
             self.writer.startWriter("HACKER_INSTALL_SOURCE_CHECK", LEVEL_INFO, "APK Installing Source Checking",
                                "Did not detect this app checks for APK installer sources.", ["Hacker"])

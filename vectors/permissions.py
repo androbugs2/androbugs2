@@ -313,7 +313,7 @@ class Vector(VectorBase):
                             not action_name.startswith("com.android.")):
                                 has_any_non_google_actions = True
 
-                            if (action_name == "android.content.SyncAdapter"):
+                            if action_name == "android.content.SyncAdapter":
                                 isSyncAdapterService = True
 
                         for ssitem in utils.get_elements_by_tagname(sitem, "category"):

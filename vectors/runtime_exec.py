@@ -22,9 +22,10 @@ class Vector(VectorBase):
         list_runtime_exec = []
 
         path_runtime_exec = self.analysis.find_methods("Ljava/lang/Runtime;", "exec",
-                                                       "(Ljava/lang/String;)Ljava/lang/Process;")
+                                                       "\(Ljava/lang/String;\)Ljava/lang/Process;")
         path_runtime_exec = self.filtering_engine.filter_method_class_analysis_list(path_runtime_exec)
 
+        # TODO Fix the latter
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_runtime_exec):
             if i.getResult()[1] is None:
                 continue
@@ -33,18 +34,20 @@ class Vector(VectorBase):
 
         if path_runtime_exec:
             self.writer.startWriter("COMMAND", LEVEL_CRITICAL, "Runtime Command Checking",
-                                    "This app is using critical function 'Runtime.getRuntime().exec(\"...\")'.\nPlease confirm these following code secions are not harmful:",
+                                    "This app is using critical function 'Runtime.getRuntime().exec("
+                                    "\"...\")'.\nPlease confirm these following code secions are not harmful:",
                                     ["Command"])
 
-            self.writer.show_Paths(self.dalvik, path_runtime_exec)
+            self.writer.show_xrefs_method_class_analysis_list(path_runtime_exec)
+
 
             if list_runtime_exec:
                 self.writer.startWriter("COMMAND_SU", LEVEL_CRITICAL, "Runtime Critical Command Checking",
-                                        "Requesting for \"root\" permission code sections 'Runtime.getRuntime().exec(\"su\")' found (Critical but maybe false positive):",
+                                        "Requesting for \"root\" permission code sections 'Runtime.getRuntime().exec("
+                                        "\"su\")' found (Critical but maybe false positive):",
                                         ["Command"])
 
-                for path in list_runtime_exec:
-                    self.writer.show_Path(self.dalvik, path)
+                self.writer.show_Paths(list_runtime_exec)
         else:
             self.writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
                                     "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",

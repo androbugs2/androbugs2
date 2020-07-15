@@ -94,7 +94,7 @@ class Vector(VectorBase):
                 # because one class may initialize by many new instances of it
                 method_class_name = method.get_class_name()
                 if method_class_name in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
-                    self.writer.show_Paths(self.dalvik,
+                    self.writer.show_Paths(
                                            dic_path_HOSTNAME_INNER_VERIFIER_new_instance[method_class_name])
         else:
             self.writer.startWriter("SSL_CN1", LEVEL_INFO,
@@ -164,7 +164,7 @@ class Vector(VectorBase):
                     factory.setHostnameVerifier(new AllowAllHostnameVerifier());
                 """
                 # For this one, the exclusion procedure is done on earlier
-                self.writer.show_Paths(self.dalvik, path_HOSTNAME_INNER_VERIFIER_new_instance)
+                self.writer.show_Paths(path_HOSTNAME_INNER_VERIFIER_new_instance)
         else:
             self.writer.startWriter("SSL_CN2", LEVEL_INFO,
                                     "SSL Implementation Checking (Verifying Host Name in Fields)",
@@ -188,7 +188,7 @@ class Vector(VectorBase):
             self.writer.startWriter("SSL_CN3", LEVEL_CRITICAL, "SSL Implementation Checking (Insecure component)",
                                     output_string,
                                     ["SSL_Security"])
-            self.writer.show_Paths(self.dalvik, path_get_insecure)
+            self.writer.show_xrefs_method_class_analysis_list(path_get_insecure)
         else:
             self.writer.startWriter("SSL_CN3", LEVEL_INFO, "SSL Implementation Checking (Insecure component)",
                                     "Did not detect SSLSocketFactory by insecure method \"getInsecure\".",
@@ -225,7 +225,7 @@ class Vector(VectorBase):
                                     ["SSL_Security"])
 
             for i in list_http_host_scheme_http:
-                self.writer.show_Path(self.dalvik, i)
+                self.writer.show_Path(i)
         else:
             self.writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_INFO, "SSL Implementation Checking (HttpHost)",
                                     "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])

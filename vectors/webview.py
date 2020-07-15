@@ -45,7 +45,7 @@ class Vector(VectorBase):
                 # because one class may initialize by many new instances of it
                 method_class_name = method.get_class_name()
                 if method_class_name in dic_webview_client_new_instance:
-                    self.writer.show_Paths(self.dalvik, dic_webview_client_new_instance[method_class_name])
+                    self.writer.show_Paths(dic_webview_client_new_instance[method_class_name])
 
         else:
             self.writer.startWriter("SSL_WEBVIEW", LEVEL_INFO, "SSL Implementation Checking (WebViewClient for WebView)",
@@ -81,7 +81,7 @@ class Vector(VectorBase):
                                "Found \"setJavaScriptEnabled(true)\" in WebView, which could exposed to potential XSS attacks. Please check the web page code carefully and sanitize the output:",
                                ["WebView"])
             for i in list_set_java_script_enabled_xss:
-                self.writer.show_Path(self.dalvik, i)
+                self.writer.show_Path(i)
         else:
             self.writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_INFO, "WebView Potential XSS Attacks Checking",
                                "Did not detect \"setJavaScriptEnabled(true)\" in WebView.", ["WebView"])
@@ -107,7 +107,7 @@ class Vector(VectorBase):
 
             self.writer.startWriter("WEBVIEW_RCE", LEVEL_CRITICAL, "WebView RCE Vulnerability Checking", output_string,
                                     ["WebView", "Remote Code Execution"], "CVE-2013-4710")
-            self.writer.show_Paths(self.dalvik, path_WebView_addJavascriptInterface)
+            self.writer.show_xrefs_method_class_analysis_list(path_WebView_addJavascriptInterface)
 
         else:
 
@@ -115,7 +115,7 @@ class Vector(VectorBase):
                                     "WebView addJavascriptInterface vulnerabilities not found.",
                                     ["WebView", "Remote Code Execution"], "CVE-2013-4710")
 
-        # WebView setAllowFileAccess:
+        # WebView setAllowFileAccess: TODO
     #
     #     """
     #         Get all "dst" class: Landroid/webkit/WebSettings;

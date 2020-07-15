@@ -26,7 +26,7 @@ class Vector(VectorBase):
     Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
     """, ["Sensitive_Information"])
 
-            self.writer.show_Paths(self.dalvik, path_Device_id)
+            self.writer.show_Paths(path_Device_id)
 
         else:
 
@@ -57,7 +57,7 @@ class Vector(VectorBase):
          Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html 
          """, ["Sensitive_Information"])
 
-            self.writer.show_Paths(self.dalvik, list_android_id)
+            self.writer.show_Paths(list_android_id)
         else:
 
             self.writer.startWriter("SENSITIVE_SECURE_ANDROID_ID", LEVEL_INFO, "Getting ANDROID_ID",

@@ -38,8 +38,7 @@ class Vector(VectorBase):
                                     "This app has code checking the package signature in the code. It might be used to "
                                     "check for whether the app is hacked by the attackers.",
                                     ["Signature", "Hacker"])
-            for signature in list_package_info_signatures:
-                self.writer.show_Path(self.dalvik, signature)
+            self.writer.show_Paths(list_package_info_signatures)
         else:
             self.writer.startWriter("HACKER_SIGNATURE_CHECK", LEVEL_INFO, "Getting Signature Code Checking",
                                     "Did not detect this app is checking the signature in the code.",

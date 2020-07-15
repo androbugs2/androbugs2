@@ -43,7 +43,7 @@ class Vector(VectorBase):
 
             for ndk_location, path in list_ndk_library_classname_to_ndkso_mapping:
                 self.writer.write("[" + ndk_location + "]")
-                self.writer.show_Path(self.dalvik, path)
+                self.writer.show_Path(path)
         else:
             self.writer.startWriter("NATIVE_LIBS_LOADING", LEVEL_INFO, "Native Library Loading Checking",
                                "No native library loaded.")

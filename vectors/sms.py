@@ -25,7 +25,7 @@ class Vector(VectorBase):
         if path_sms_sending:
             self.writer.startWriter("SENSITIVE_SMS", LEVEL_WARNING, "Codes for Sending SMS",
                                     "This app has code for sending SMS messages (sendDataMessage, sendMultipartTextMessage or sendTextMessage):")
-            self.writer.show_Paths(self.dalvik, path_sms_sending)
+            self.writer.show_xrefs_method_class_analysis_list(path_sms_sending)
         else:
             self.writer.startWriter("SENSITIVE_SMS", LEVEL_INFO, "Codes for Sending SMS",
                                     "Did not detect this app has code for sending SMS messages (sendDataMessage, sendMultipartTextMessage or sendTextMessage).")

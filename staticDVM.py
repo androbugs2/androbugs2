@@ -300,7 +300,7 @@ class RegisterAnalyzerVMImmediateValue(object):
 def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
     results = []
     for method_class_analysis in method_class_analysis_list:
-        for __, source_method, idx in method_class_analysis.get_xref_to():
+        for __, source_method, idx in method_class_analysis.get_xref_from():
             if not isinstance(source_method, analysis.ExternalMethod):
                 results.append({
                     "src_method": source_method,
