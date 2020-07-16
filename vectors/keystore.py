@@ -13,7 +13,7 @@ class Vector(VectorBase):
 
         path_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; \[C)V")
         path_key_store = self.filtering_engine.filter_method_class_analysis_list(path_key_store)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_key_store):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_key_store):
             if i.getResult()[2] == 0:  # null = 0 = Not using password
                 if i.is_class_container(1):
                     clz_invoked = i.getResult()[1]
@@ -45,8 +45,7 @@ class Vector(VectorBase):
                                                 list_no_pwd_probably_ssl_pinning_keystore)) + "). Please manually check:",
                                         ["KeyStore", "Hacker"])
 
-                for keystore in list_no_pwd_probably_ssl_pinning_keystore:
-                    self.writer.show_Path(self.dalvik, keystore)
+                self.writer.show_Paths(list_no_pwd_probably_ssl_pinning_keystore)
 
             if list_no_pwd_keystore:
                 self.writer.startWriter("HACKER_KEYSTORE_NO_PWD", LEVEL_CRITICAL, "KeyStore Protection Checking",
@@ -54,8 +53,7 @@ class Vector(VectorBase):
                                             len(list_no_pwd_keystore)) + "). Please manually check:",
                                         ["KeyStore", "Hacker"])
 
-                for keystore in list_no_pwd_keystore:
-                    self.writer.show_Path(self.dalvik, keystore)
+                self.writer.show_Paths(list_no_pwd_keystore)
 
             if list_protected_keystore:
                 self.writer.startWriter("HACKER_KEYSTORE_SSL_PINNING2", LEVEL_NOTICE, "KeyStore Protection Information",
@@ -63,8 +61,7 @@ class Vector(VectorBase):
                                             len(
                                                 list_protected_keystore)) + "). You can use \"Portecle\" tool to manage the certificates in the KeyStore:",
                                         ["KeyStore", "Hacker"])
-                for keystore in list_protected_keystore:
-                    self.writer.show_Path(self.dalvik, keystore)
+                self.writer.show_Paths(list_protected_keystore)
 
         # Find all keystore
 
@@ -118,7 +115,7 @@ class Vector(VectorBase):
 
         path_bks_key_store = self.filtering_engine.filter_method_class_analysis_list(path_bks_key_store)
 
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(
                                                                          path_bks_key_store):
             if i.getResult()[0] is None:
                 continue
@@ -129,8 +126,7 @@ class Vector(VectorBase):
             self.writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_CRITICAL, "KeyStore Type Checking",
                                     "Android only accept 'BKS' type KeyStore. Please confirm you are using 'BKS' type KeyStore:",
                                     ["KeyStore"])
-            for keystore in list_non_bks_keystore:
-                self.writer.show_Path(self.dalvik, keystore)
+            self.writer.show_Paths(list_non_bks_keystore)
         else:
             self.writer.startWriter("KEYSTORE_TYPE_CHECK", LEVEL_INFO, "KeyStore Type Checking",
                                     "KeyStore 'BKS' type check OK",

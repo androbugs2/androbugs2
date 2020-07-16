@@ -23,7 +23,7 @@ class Vector(VectorBase):
                                    "SQLiteDatabase Transaction Deprecated Checking",
                                    output_string, ["Database"])
 
-                self.writer.show_Paths(self.dalvik, path_sq_lite_database_begin_transaction_non_exclusive)
+                self.writer.show_Paths(path_sq_lite_database_begin_transaction_non_exclusive)
             else:
                 self.writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO, "SQLiteDatabase Transaction Deprecated Checking",
                                    "Ignore checking \"SQLiteDatabase:beginTransactionNonExclusive\" you're not using it.",
@@ -57,7 +57,7 @@ class Vector(VectorBase):
         result_sqlite_encryption = False
         strings_analysis = self.analysis.get_strings_analysis()
         for string, string_analysis in strings_analysis.items():
-            if string is "$__sqlite_encryption__":
+            if string == "$__sqlite_encryption__":
                 result_sqlite_encryption = string_analysis
                 break
 
@@ -123,7 +123,7 @@ class Vector(VectorBase):
 
                 # Dumping:
                 for db_path, version in path_sqlcipher_dbs:
-                    self.writer.show_Path(self.dalvik, db_path)
+                    self.writer.show_Path(db_path)
 
         else:
             self.writer.startWriter("DB_SQLCIPHER", LEVEL_INFO, "Android SQLite Databases Encryption (SQLCipher)",

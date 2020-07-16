@@ -25,7 +25,7 @@ class Vector(VectorBase):
             "(I I)V")  # TODO might be changed due to Android Support library -> androidX
         path_code_for_preventing_screen_capture = self.filtering_engine.filter_method_class_analysis_list(
                                                                                              path_code_for_preventing_screen_capture)
-        for i in staticDVM.trace_register_value_by_param_in_source_paths( path_code_for_preventing_screen_capture):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_code_for_preventing_screen_capture):
             if (i.getResult()[1] is None) or (i.getResult()[2] is None):
                 continue
             if (not isinstance(i.getResult()[1], int)) or (not isinstance(i.getResult()[2], int)):
@@ -40,7 +40,7 @@ class Vector(VectorBase):
                                      "         Example: getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);\n"
                                      "         It is used by the developers to protect the app:"), ["Hacker"])
             for interesting_code in list_code_for_preventing_screen_capture:
-                self.writer.show_Path(self.dalvik, interesting_code)
+                self.writer.show_Path(interesting_code)
         else:
             self.writer.startWriter("HACKER_PREVENT_SCREENSHOT_CHECK", LEVEL_INFO,
                                "Code Setting Preventing Screenshot Capturing",

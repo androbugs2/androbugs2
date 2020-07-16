@@ -23,28 +23,39 @@ class Writer:
             return class_name[1:-1]
         return class_name
 
-    def show_Path(self, vm, path, indention_space_count=0):
+    def show_xrefs_method_class_analysis_list(self, method_class_analysis_list, indention_space_count=0):
+        for method_class_analysis in method_class_analysis_list:
+            self.show_xrefs_method_class_analysis(method_class_analysis, indention_space_count)
+
+    def show_xrefs_method_class_analysis(self, method_class_analysis, indention_space_count=0):
+
+        dest_class_name = method_class_analysis.get_method().get_class_name()
+        dest_name = method_class_analysis.get_method().get_name()
+        dest_descriptor = method_class_analysis.get_method().get_descriptor()
+        for __, source_method, idx in method_class_analysis.get_xref_from():
+
+            self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (source_method.get_class_name(),
+                                                             source_method.get_name(),
+                                                             source_method.get_descriptor(),
+                                                             idx,
+                                                             dest_class_name,
+                                                             dest_name,
+                                                             dest_descriptor),
+                       indention_space_count)
+
+    def show_Path(self, path, indention_space_count=0):
         """
 			Different from analysis.show_Path, this "show_Path" writes to the tmp writer
 		"""
-        if isinstance(path, analysis.MethodClassAnalysis):
-            for __, source_method, idx in path.get_xref_to():
-                self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (source_method.get_class_name(),
-                                                                 source_method.get_name(),
-                                                                 source_method.get_descriptor(),
-                                                                 idx,
-                                                                 path.get_method().get_class_name(),
-                                                                 path.get_method().get_name(),
-                                                                 path.get_method().get_descriptor()), indention_space_count)
-        else:
-            self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (path['src_method'].get_class_name(),
+
+        self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (path['src_method'].get_class_name(),
                                                          path['src_method'].get_name(),
                                                          path['src_method'].get_descriptor(),
                                                          path['idx'],
                                                          path['dst_method'].get_class_name(),
                                                          path['dst_method'].get_name(),
                                                          path['dst_method'].get_descriptor()),
-                indention_space_count)
+                   indention_space_count)
         # cm = vm.get_class_manager()
         #
         # if isinstance(path, analysis.PathVar):
@@ -86,10 +97,10 @@ class Writer:
         # src_class_name, src_method_name, src_descriptor = path.get_src(cm)
         # self.write("=> %s->%s%s" % (src_class_name, src_method_name, src_descriptor), indention_space_count)
         self.write("=> %s->%s%s" % (path['src_method'].get_class_name(),
-                                                         path['src_method'].get_name(),
-                                                         path['src_method'].get_descriptor()), indention_space_count)
+                                    path['src_method'].get_name(),
+                                    path['src_method'].get_descriptor()), indention_space_count)
 
-    def show_Paths(self, vm, paths, indention_space_count=0):
+    def show_Paths(self, paths, indention_space_count=0):
         """
 			Show paths of packages
 			:param paths: a list of :class:`PathP` objects
@@ -97,7 +108,7 @@ class Writer:
 			Different from "analysis.show_Paths", this "show_Paths" writes to the tmp writer
 		"""
         for path in paths:
-            self.show_Path(vm, path, indention_space_count)
+            self.show_Path(path, indention_space_count)
 
     def show_single_PathVariable(self, vm, path, indention_space_count=0):
         """

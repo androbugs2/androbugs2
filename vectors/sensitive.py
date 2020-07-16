@@ -26,7 +26,7 @@ class Vector(VectorBase):
     Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
     """, ["Sensitive_Information"])
 
-            self.writer.show_Paths(self.dalvik, path_Device_id)
+            self.writer.show_Paths(path_Device_id)
 
         else:
 
@@ -42,7 +42,7 @@ class Vector(VectorBase):
         path_android_id = self.filtering_engine.filter_method_class_analysis_list(path_android_id)
 
         list_android_id = []
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(path_android_id):
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_android_id):
             if i.getResult()[1] is None:
                 continue
             if i.getResult()[1] == "android_id":
@@ -57,7 +57,7 @@ class Vector(VectorBase):
          Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html 
          """, ["Sensitive_Information"])
 
-            self.writer.show_Paths(self.dalvik, list_android_id)
+            self.writer.show_Paths(list_android_id)
         else:
 
             self.writer.startWriter("SENSITIVE_SECURE_ANDROID_ID", LEVEL_INFO, "Getting ANDROID_ID",

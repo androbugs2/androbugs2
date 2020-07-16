@@ -1,7 +1,9 @@
+import traceback
+
 from pymongo import MongoClient
 import argparse
 import sys
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import platform
 import os
 
@@ -33,7 +35,7 @@ if not os.path.isfile(db_config_file) :
 	print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
 	traceback.print_exc()
 
-configParser = SafeConfigParser()
+configParser = ConfigParser()
 configParser.read(db_config_file)
 
 MongoDB_Hostname = configParser.get('DB_Config', 'MongoDB_Hostname')

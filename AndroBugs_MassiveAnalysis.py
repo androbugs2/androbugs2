@@ -1,5 +1,5 @@
-import sys
 import os
+import traceback
 import argparse
 import platform
 
@@ -24,10 +24,10 @@ def main() :
 
 	ANALYZE_MODE_MASSIVE = "massive"
 
-	if args.ignore_duplicated_scanning :
+	if args.ignore_duplicated_scanning:
 
 		from pymongo import MongoClient
-		from configparser import SafeConfigParser
+		from configparser import ConfigParser
 
 		if platform.system().lower() == "windows" :
 			import sys
@@ -39,7 +39,7 @@ def main() :
 			print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
 			traceback.print_exc()
 
-		configParser = SafeConfigParser()
+		configParser = ConfigParser()
 		configParser.read(db_config_file)
 
 		MongoDB_Hostname = configParser.get('DB_Config', 'MongoDB_Hostname')
@@ -49,10 +49,11 @@ def main() :
 		Collection_Analyze_Result = configParser.get('DB_Collections', 'Collection_Analyze_Result')
 
 		client = MongoClient(MongoDB_Hostname, MongoDB_Port)
-		db = client[MongoDB_Database]	# Name is case-sensitive
+		db = client[MongoDB_Database] # Name is case-sensitive
 		collection_AppInfo = db[Collection_Analyze_Result]		# Name is case-sensitive
 
-		print("[Notice] APK with the same \"package_name\", \"analyze_engine_build\" and \"analyze_tag\" will not be analyzed again.")
+		print("[Notice] APK with the same \"package_name\", \"analyze_engine_build\" and \"analyze_tag\" will not be "
+			  "analyzed again.")
 		print()
 
 	input_dir = os.path.realpath(args.input_apk_dir)
@@ -81,23 +82,17 @@ def main() :
 									"analyze_engine_build": args.analyze_engine_build,
 									"analyze_tag": args.analyze_tag }
 
-				boolHasResult = False
-
 				query_result = collection_AppInfo.find(query_condition)
 				
-				for result in query_result :
-					boolHasResult = True
-					break
-
-				if boolHasResult :
+				if query_result:
 					print((" ->Package name [" + package_name + "] has already in DB. Ignore analyzing it."))
 					continue
 			
 			try:
 
-				if platform.system().lower() == "windows" :
+				if platform.system().lower() == "windows":
 					main_cmd = "androbugs.exe"
-				else :
+				else:
 					main_cmd = "python androbugs.py"
 
 				cmd = main_cmd + " -s -v -e " + str(args.extra) + " -f " + os.path.join(input_dir, filename) + " -o " + output_dir + " -m " + ANALYZE_MODE_MASSIVE + " -b " + str(args.analyze_engine_build) + " -t " + str(args.analyze_tag)

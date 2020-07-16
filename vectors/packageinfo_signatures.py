@@ -26,7 +26,7 @@ class Vector(VectorBase):
             "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
         path_package_info_signatures = self.filtering_engine.filter_method_class_analysis_list(
                                                                                   path_package_info_signatures)  # TODO fix filtering
-        for i in staticDVM.trace_register_value_by_param_in_source_paths(
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(
                                                                          path_package_info_signatures):
             if i.getResult()[2] is None:
                 continue
@@ -38,8 +38,7 @@ class Vector(VectorBase):
                                     "This app has code checking the package signature in the code. It might be used to "
                                     "check for whether the app is hacked by the attackers.",
                                     ["Signature", "Hacker"])
-            for signature in list_package_info_signatures:
-                self.writer.show_Path(self.dalvik, signature)
+            self.writer.show_Paths(list_package_info_signatures)
         else:
             self.writer.startWriter("HACKER_SIGNATURE_CHECK", LEVEL_INFO, "Getting Signature Code Checking",
                                     "Did not detect this app is checking the signature in the code.",
