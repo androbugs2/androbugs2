@@ -35,9 +35,9 @@ class Vector(VectorBase):
                                     ['Framework'])
 
     def check_xamarin(self) -> bool:
-        if any(self.analysis.get_method_analysis_by_name(self.XAMARIN_SIGNATURE["class_name"],
+        if self.analysis.get_method_analysis_by_name(self.XAMARIN_SIGNATURE["class_name"],
                                                          self.XAMARIN_SIGNATURE["method_name"],
-                                                         self.XAMARIN_SIGNATURE["method_descriptor"])):
+                                                         self.XAMARIN_SIGNATURE["method_descriptor"]):
             self.writer.startWriter("FRAMEWORK",
                                     LEVEL_NOTICE,
                                     "App framework identification",
