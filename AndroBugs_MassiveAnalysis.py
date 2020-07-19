@@ -1,9 +1,9 @@
-import os
 import time
 import traceback
 import argparse
 import platform
-from multiprocessing import Process
+import multiprocessing
+import os
 
 
 def parseArgument():
@@ -73,7 +73,9 @@ def main():
     dir_names = os.listdir(input_dir)
     total_dir = len(dir_names)
     current_file = 0
-    processes = []
+    filenames = []
+
+    print("CPU count: %d" % multiprocessing.cpu_count())
 
     for filename in dir_names:
         if filename.endswith(".apk"):
@@ -90,38 +92,41 @@ def main():
                     print((" ->Package name [" + package_name + "] has already in DB. Ignore analyzing it."))
                     continue
 
-            print(("Starting analysis process for APK(" + str(current_file) + "/" + str(total_dir) + "): " + filename))
-            new_process = Process(analyse(filename, input_dir, output_dir, args))
-            processes.append(new_process)
-            new_process.start()
+            print(("Appending APK(" + str(current_file) + "/" + str(total_dir) + "): " + filename))
+            filenames.append(filename)
 
-    for process in processes:
-        process.join()
-        print(process, "done.")
-        processes.remove(process)
+    a = Analysis(input_dir, output_dir, args)
 
+    print("Running parallel analysis")
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+        p.map(a.analyse, filenames)
+    print("Parallel analysis complete!")
 
-def analyse(filename, input_dir, output_dir, args):
-    print("i am process", os.getpid())
-    # main_cmd = "python androbugs.py"
-    # if platform.system().lower() == "windows":
-    #     main_cmd = "androbugs.exe"
-    #
-    # cmd = main_cmd + " -s -v -e " + str(args.extra) + " -f " + os.path.join(input_dir, filename) + " -o " + output_dir + \
-    #       " -m massive -b " + str(args.analyze_engine_build) + " -t " + str(args.analyze_tag)
-    # try:
-    #
-    #     p = os.popen(cmd)
-    #     preprocessed = p.read()
-    #     p.close()
-    #
-    # except KeyboardInterrupt:
-    #     print("Stopped.")
-    #     # break
-    # except Exception as err:
-    #     print(err)
-    #     pass
-    time.sleep(5)
+class Analysis():
+    def __init__(self, input_dir, output_dir, args):
+        self._input_dir = input_dir
+        self._output_dir = output_dir
+        self._args = args
+
+    def analyse(self, filename):
+        main_cmd = "python androbugs.py"
+        if platform.system().lower() == "windows":
+            main_cmd = "androbugs.exe"
+
+        cmd = main_cmd + " -s -v -e " + str(self._args.extra) + " -f " + os.path.join(self._input_dir,
+                                                                                      filename) + " -o " + self._output_dir + \
+              " -m massive -b " + str(self._args.analyze_engine_build) + " -t " + str(self._args.analyze_tag)
+        try:
+
+            p = os.popen(cmd)
+            preprocessed = p.read()
+            p.close()
+        except KeyboardInterrupt:
+            print("Stopped.")
+        except Exception as err:
+            print(err)
+        finally:
+            return
 
 
 if __name__ == "__main__":
