@@ -25,11 +25,10 @@ class Vector(VectorBase):
                                                        "\(Ljava/lang/String;\)Ljava/lang/Process;")
         path_runtime_exec = self.filtering_engine.filter_method_class_analysis_list(path_runtime_exec)
 
-        # TODO Fix the latter
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_runtime_exec):
             if i.getResult()[1] is None:
                 continue
-            if i.getResult()[1] == "su":
+            if i.getResult()[1].startswith("su"):
                 list_runtime_exec.append(i.getPath())
 
         if path_runtime_exec:
@@ -39,7 +38,6 @@ class Vector(VectorBase):
                                     ["Command"])
 
             self.writer.show_xrefs_method_class_analysis_list(path_runtime_exec)
-
 
             if list_runtime_exec:
                 self.writer.startWriter("COMMAND_SU", LEVEL_CRITICAL, "Runtime Critical Command Checking",
