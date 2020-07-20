@@ -12,7 +12,7 @@ class Vector(VectorBase):
 
         # First, find out who calls setWebViewClient
         path_webview_client_new_instance = self.analysis.find_methods(
-            "Landroid/webkit/WebView;", "setWebViewClient", "(Landroid/webkit/WebViewClient;)V")
+            "Landroid/webkit/WebView;", "setWebViewClient", "\(Landroid/webkit/WebViewClient;\)V")
         dic_webview_client_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_paths(self.dalvik,
                                                                                                                            self.analysis,
                                                                                                                            path_webview_client_new_instance,
@@ -68,7 +68,7 @@ class Vector(VectorBase):
 
         list_set_java_script_enabled_xss = []
         path_set_java_script_enabled_xss = self.analysis.find_methods(
-            "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "(Z)V")
+            "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "\(Z\)V")
         path_set_java_script_enabled_xss = self.filtering_engine.filter_method_class_analysis_list(path_set_java_script_enabled_xss)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_set_java_script_enabled_xss):
             if i.getResult()[1] is None:
@@ -90,7 +90,7 @@ class Vector(VectorBase):
 
         # Don't match class name because it might use the subclass of WebView
         path_WebView_addJavascriptInterface = self.analysis.find_methods(
-            methodname="addJavascriptInterface", descriptor="(Ljava/lang/Object; Ljava/lang/String;)V")
+            methodname="addJavascriptInterface", descriptor="\(Ljava/lang/Object; Ljava/lang/String;\)V")
         path_WebView_addJavascriptInterface = self.filtering_engine.filter_method_class_analysis_list(
                                                                                     path_WebView_addJavascriptInterface)
 
@@ -115,86 +115,61 @@ class Vector(VectorBase):
                                     "WebView addJavascriptInterface vulnerabilities not found.",
                                     ["WebView", "Remote Code Execution"], "CVE-2013-4710")
 
-        # WebView setAllowFileAccess: TODO
-    #
-    #     """
-    #         Get all "dst" class: Landroid/webkit/WebSettings;
-    #           => Categorized by src function,
-    #              If the src function:
-    #                1.setAllowFileAccess does not exist    OR
-    #                2.setAllowFileAccess(true)
-    #                    =>src function may be vulnerable
-    #
-    #         **Why check WebSettings? It's because WebView almost always uses the method: WebView->getSettings()
-    #
-    #         **Even if the below example, it will finally call WebSettings:
-    #           class TestWebView extends WebView {
-    #             public TestWebView(Context context) {
-    #               super(context);
-    #             }
-    #           }
-    #     """
-    #
-    #     pkg_WebView_WebSettings = self.analysis.is_class_present("Landroid/webkit/WebSettings;")
-    #     pkg_WebView_WebSettings = self.filtering_engine.filter_list_of_paths(self.dalvik, pkg_WebView_WebSettings)
-    #
-    #     dict_WebSettings_ClassMethod_to_Path = {}
-    #
-    #     for path in pkg_WebView_WebSettings:
-    #         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-    #         dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-    #
-    #         dict_name = src_class_name + "->" + src_method_name + src_descriptor
-    #         if dict_name not in dict_WebSettings_ClassMethod_to_Path:
-    #             dict_WebSettings_ClassMethod_to_Path[dict_name] = []
-    #
-    #         dict_WebSettings_ClassMethod_to_Path[dict_name].append((dst_method_name + dst_descriptor, path))
-    #
-    #     path_setAllowFileAccess_vulnerable_ready_to_test = []
-    #     path_setAllowFileAccess_confirm_vulnerable_src_class_func = []
-    #
-    #     for class_fun_descriptor, value in list(dict_WebSettings_ClassMethod_to_Path.items()):
-    #         has_Settings = False
-    #         for func_name_descriptor, path in value:
-    #             if func_name_descriptor == "setAllowFileAccess(Z)V":
-    #                 has_Settings = True
-    #
-    #                 # Add ready-to-test Path list
-    #                 path_setAllowFileAccess_vulnerable_ready_to_test.append(path)
-    #                 break
-    #
-    #         if not has_Settings:
-    #             # Add vulnerable Path list
-    #             path_setAllowFileAccess_confirm_vulnerable_src_class_func.append(class_fun_descriptor)
-    #
-    #     for i in staticDVM.trace_register_value_by_param_in_source_paths(path_setAllowFileAccess_vulnerable_ready_to_test):
-    #         if (i.getResult()[1] == 0x1):  # setAllowFileAccess is true
-    #
-    #             path = i.getPath()
-    #             src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-    #             dict_name = src_class_name + "->" + src_method_name + src_descriptor
-    #
-    #             if dict_name not in path_setAllowFileAccess_confirm_vulnerable_src_class_func:
-    #                 path_setAllowFileAccess_confirm_vulnerable_src_class_func.append(dict_name)
-    #
-    #     if path_setAllowFileAccess_confirm_vulnerable_src_class_func:
-    #
-    #         path_setAllowFileAccess_confirm_vulnerable_src_class_func = sorted(
-    #             set(path_setAllowFileAccess_confirm_vulnerable_src_class_func))
-    #
-    #         self.writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_WARNING,
-    #                            "WebView Local File Access Attacks Checking",
-    #                            """Found "setAllowFileAccess(true)" or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default)
-    # Note that this enables or disables file system access only. Assets and resources are still accessible using file:///android_asset and file:///android_res.
-    # The attackers can use "mWebView.loadUrl("file:///data/data/[Your_Package_Name]/[File]");" to access app's local file.
-    # Reference: (1)https://labs.mwrinfosecurity.com/blog/2012/04/23/adventures-with-android-webviews/
-    #            (2)http://developer.android.com/reference/android/webkit/WebSettings.html#setAllowFileAccess(boolean)
-    # Please add or modify "yourWebView.getSettings().setAllowFileAccess(false)" to your WebView:
-    # """, ["WebView"])
-    #         for i in path_setAllowFileAccess_confirm_vulnerable_src_class_func:
-    #             self.writer.write(i)
-    #
-    #     else:
-    #         self.writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_INFO,
-    #                            "WebView Local File Access Attacks Checking",
-    #                            "Did not find potentially critical local file access settings.", ["WebView"])
+        # WebView setAllowFileAccess:
+
+        """
+            Get all "dst" class: Landroid/webkit/WebSettings;
+              => Categorized by src function,
+                 If the src function:
+                   1.setAllowFileAccess does not exist    OR
+                   2.setAllowFileAccess(true)
+                       =>src function may be vulnerable
+
+            **Why check WebSettings? It's because WebView almost always uses the method: WebView->getSettings()
+
+            **Even if the below example, it will finally call WebSettings:
+              class TestWebView extends WebView {
+                public TestWebView(Context context) {
+                  super(context);
+                }
+              }
+        """
+
+        webview_websettings_class_analysis_list = self.analysis.find_classes("Landroid/webkit/WebSettings;")
+        webview_websettings_class_analysis_list = self.filtering_engine.filter_class_analysis_list(webview_websettings_class_analysis_list)
+
+        webview_websettings_method_class_analysis_list = []
+        for class_analysis in webview_websettings_class_analysis_list:
+            for method_class_analysis in class_analysis.get_methods():
+                if method_class_analysis.name == "setAllowFileAccess":
+                    webview_websettings_method_class_analysis_list.append(method_class_analysis)
+
+        paths_webview_websettings_set_allow_file_access_true = []
+        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(webview_websettings_method_class_analysis_list):
+            if i.getResult()[1] == 0x1:  # setAllowFileAccess is true
+                paths_webview_websettings_set_allow_file_access_true.append(i.getPath())
+
+        # setAllowFileAccess is true by default for apps targeting Build.VERSION_CODES.Q and below, and false when
+        # targeting Build.VERSION_CODES.R and above.
+        if paths_webview_websettings_set_allow_file_access_true \
+                or (not webview_websettings_method_class_analysis_list and webview_websettings_class_analysis_list):
+            self.writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_WARNING,
+                                    "WebView Local File Access Attacks Checking",
+                                    (    "Found \"setAllowFileAccess(true)\" or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default)\n"
+                                        "         Note that this enables or disables file system access only. Assets and resources are still accessible using file:///android_asset and file:///android_res.\n"
+                                        "         The attackers can use \"mWebView.loadUrl(\"file:///data/data/[Your_Package_Name]/[File]\");\" to access app's local file.\n"
+                                        "         Reference: (1)https://labs.mwrinfosecurity.com/blog/2012/04/23/adventures-with-android-webviews/\n"
+                                        "                    (2)http://developer.android.com/reference/android/webkit/WebSettings.html#setAllowFileAccess(boolean)\n"
+                                        "         Please add or modify \"yourWebView.getSettings().setAllowFileAccess(false)\" to your WebView:\n"
+                                        "         "), ["WebView"])
+            if paths_webview_websettings_set_allow_file_access_true:
+                self.writer.write("Methods where setAllowFileAccess(true)")
+                self.writer.show_xrefs_method_class_analysis_list(paths_webview_websettings_set_allow_file_access_true)
+            if webview_websettings_class_analysis_list:
+                self.writer.write("Classes where WebSettings is used, and setAllowFileAccess might be enabled by default")
+                self.writer.show_xrefs_class_analysis_list(webview_websettings_class_analysis_list)
+
+        else:
+            self.writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_INFO,
+                                    "WebView Local File Access Attacks Checking",
+                                    "Did not find potentially critical local file access settings.", ["WebView"])

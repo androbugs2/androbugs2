@@ -20,7 +20,7 @@ class Vector(VectorBase):
         dic_ndk_library_classname_to_ndkso_mapping = {}
         list_ndk_library_classname_to_ndkso_mapping = []
         path_ndk_library_classname_to_ndkso_mapping = self.analysis.find_methods("Ljava/lang/System;", "loadLibrary",
-                                                                                 "(Ljava/lang/String;)V")
+                                                                                 "\(Ljava/lang/String;\)V")
         # path_ndk_library_classname_to_ndkso_mapping = self.analysis.find_methods("Lcom/example/base64testapp/MainActivity;", "onCreate")
         path_ndk_library_classname_to_ndkso_mapping = self.filtering_engine.filter_method_class_analysis_list(
                                                                                            path_ndk_library_classname_to_ndkso_mapping)

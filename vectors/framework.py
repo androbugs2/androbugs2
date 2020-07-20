@@ -74,7 +74,7 @@ class Vector(VectorBase):
 
     def check_ijiami(self) -> bool:
         if any(self.analysis.find_methods("Lcom/shell/NativeApplication;", "load",
-                                          "(Landroid/app/Application; Ljava/lang/String;)Z")):
+                                          "\(Landroid/app/Application; Ljava/lang/String;\)Z")):
             self.writer.startWriter("FRAMEWORK",
                                     LEVEL_NOTICE,
                                     "App framework identification",
@@ -87,7 +87,7 @@ class Vector(VectorBase):
     def check_bangcle(self) -> bool:
         if any(self.analysis.find_methods("Lcom/secapk/wrapper/ACall;",
                                           "getACall",
-                                          "()Lcom/secapk/wrapper/ACall;")):
+                                          "\(\)Lcom/secapk/wrapper/ACall;")):
             self.writer.startWriter("FRAMEWORK",
                                     LEVEL_NOTICE,
                                     "App framework identification",

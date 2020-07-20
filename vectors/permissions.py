@@ -294,9 +294,13 @@ class Vector(VectorBase):
         find_tags = ["activity", "activity-alias", "service", "receiver"]
         for tag in find_tags:
             for item in utils.get_elements_by_tagname(xml, tag):
-                name = item.attrib.get("android:name")
-                exported = item.attrib.get("android:exported")
-                permission = item.attrib.get("android:permission")
+                name = item.attrib.get("{http://schemas.android.com/apk/res/android}name")
+                exported = item.attrib.get("{http://schemas.android.com/apk/res/android}exported")
+                if not exported:
+                    exported = ""
+                permission = item.attrib.get("{http://schemas.android.com/apk/res/android}permission")
+                if not permission:
+                    permission = ""
                 has_any_actions_in_intent_filter = False
                 if (not utils.is_null_or_empty_string(name)) and (exported.lower() != "false"):
 
@@ -308,7 +312,7 @@ class Vector(VectorBase):
                         for ssitem in utils.get_elements_by_tagname(sitem, "action"):
                             has_any_actions_in_intent_filter = True
 
-                            action_name = ssitem.attrib.get("android:name")
+                            action_name = ssitem.attrib.get("{http://schemas.android.com/apk/res/android}name")
                             if (not action_name.startswith("android.")) and (
                             not action_name.startswith("com.android.")):
                                 has_any_non_google_actions = True
@@ -317,7 +321,7 @@ class Vector(VectorBase):
                                 isSyncAdapterService = True
 
                         for ssitem in utils.get_elements_by_tagname(sitem, "category"):
-                            category_name = ssitem.attrib.get("android:name")
+                            category_name = ssitem.attrib.get("{http://schemas.android.com/apk/res/android}name")
                             if category_name == "android.intent.category.LAUNCHER":
                                 is_launcher = True
 
@@ -394,14 +398,15 @@ class Vector(VectorBase):
         list_ready_to_check = []
 
         for item in utils.get_elements_by_tagname(xml, "provider"):
-            name = item.attrib.get("android:name")
-            exported = item.attrib.get("android:exported")
-
+            name = item.attrib.get("{http://schemas.android.com/apk/res/android}name")
+            exported = item.attrib.get("{http://schemas.android.com/apk/res/android}exported")
+            if not exported:
+                exported = ""
             if (not utils.is_null_or_empty_string(name)) and (exported.lower() != "false"):
                 # exported is only "true" or non-set
-                permission = item.attrib.get("android:permission")
-                readPermission = item.attrib.get("android:readPermission")
-                writePermission = item.attrib.get("android:writePermission")
+                permission = item.attrib.get("{http://schemas.android.com/apk/res/android}permission")
+                readPermission = item.attrib.get("{http://schemas.android.com/apk/res/android}readPermission")
+                writePermission = item.attrib.get("{http://schemas.android.com/apk/res/android}writePermission")
                 has_exported = True if (exported != "") else False
 
                 list_ready_to_check.append(
@@ -511,15 +516,15 @@ class Vector(VectorBase):
                 isDetected1 = False
                 isDetected2 = False
                 for ssitem in utils.get_elements_by_tagname(item, "intent-filter"):
-                    if (ssitem.attrib.get("android:enabled") != "") or (
-                            ssitem.attrib.get("android:exported") != ""):
+                    if (ssitem.attrib.get("{http://schemas.android.com/apk/res/android}enabled") != None) or (
+                            ssitem.attrib.get("{http://schemas.android.com/apk/res/android}exported") != None):
                         isDetected1 = True
                     if len(utils.get_elements_by_tagname(item, "action")) == 0:
                         isDetected2 = True
                 if isDetected1:
-                    list_wrong_intent_filter_settings.append((tag, item.attrib.get("android:name")))
+                    list_wrong_intent_filter_settings.append((tag, item.attrib.get("{http://schemas.android.com/apk/res/android}name")))
                 if isDetected2:
-                    list_no_actions_in_intent_filter.append((tag, item.attrib.get("android:name")))
+                    list_no_actions_in_intent_filter.append((tag, item.attrib.get("{http://schemas.android.com/apk/res/android}name")))
 
         if list_wrong_intent_filter_settings or list_no_actions_in_intent_filter:
             if list_wrong_intent_filter_settings:

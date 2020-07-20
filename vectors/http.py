@@ -26,8 +26,8 @@ class Vector(VectorBase):
         int_min_sdk = int(self.apk.get_min_sdk_version())
         if (int_min_sdk is not None) and (int_min_sdk <= 8):
 
-            pkg_http_url_connection = self.analysis.is_class_present("Ljava/net/HttpURLConnection;")
-            pkg_http_url_connection = self.filtering_engine.filter_method_class_analysis_list(pkg_http_url_connection)
+            pkg_http_url_connection = self.analysis.find_classes("Ljava/net/HttpURLConnection;")
+            pkg_http_url_connection = self.filtering_engine.filter_class_analysis_list(pkg_http_url_connection)
 
             # Check only when using the HttpURLConnection
             if pkg_http_url_connection:

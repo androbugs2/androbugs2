@@ -49,15 +49,17 @@ class FilteringEngine:
         else:
             return True
 
-    def filter_list_of_classes(self, class_list):
-        if self.__enable_exclude_classes and class_list:
-            l = []
-            for i in class_list:
-                if not self.__regexp_excluded_classes.match(i):
-                    l.append(i)
-            return l
+    def filter_class_analysis_list(self, class_analysis_list):
+        if self.__enable_exclude_classes and class_analysis_list:
+            filtered_methods = []
+            for class_analysis in class_analysis_list:
+                class_name = class_analysis.name
+                if not self.__regexp_excluded_classes.match(class_name):
+                    filtered_methods.append(class_analysis)
+
+            return filtered_methods
         else:
-            return class_list
+            return class_analysis_list
 
     def filter_method_class_analysis_list(self, method_class_analysis_list):
         if self.__enable_exclude_classes and method_class_analysis_list:

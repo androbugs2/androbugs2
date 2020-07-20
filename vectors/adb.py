@@ -9,7 +9,7 @@ class Vector(VectorBase):
     def analyze(self) -> None:
         # Adb Backup check
 
-        if self.apk.get_attribute_value("application", "allowBackup") is (True or None):
+        if self.apk.get_attribute_value("application", "allowBackup") in ("true", None):
             self.writer.startWriter("ALLOW_BACKUP", LEVEL_NOTICE, "AndroidManifest Adb Backup Checking",
                                """ADB Backup is ENABLED for this app (default: ENABLED). ADB Backup is a good tool for backing up all of your files. If it's open for this app, people who have your phone can copy all of the sensitive data for this app in your phone (Prerequisite: 1.Unlock phone's screen 2.Open the developer mode). The sensitive data may include lifetime access token, username or password, etc.
     Security case related to ADB Backup:

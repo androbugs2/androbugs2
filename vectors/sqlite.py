@@ -6,6 +6,22 @@ class Vector(VectorBase):
     description = "SQLiteDatabase - beginTransactionNonExclusive() checking "
 
     def analyze(self) -> None:
+        # pragma key
+        found_strings = self.analysis.find_strings("PRAGMA\s*key\s*=")
+
+        if found_strings:
+            self.writer.startWriter("HACKER_DB_KEY", LEVEL_NOTICE, "Key for Android SQLite Databases Encryption",
+                                   "Found using the symmetric key(PRAGMA key) to encrypt the SQLite databases. \nRelated code:",
+                                   ["Database", "Hacker"])
+
+
+            for found_string in found_strings:
+                self.writer.write(found_string.get_value())
+                self._print_xrefs(found_string)
+        else:
+            self.writer.startWriter("HACKER_DB_KEY", LEVEL_INFO, "Key for Android SQLite Databases Encryption",
+                                                      "Did not find using the symmetric key(PRAGMA key) to encrypt the SQLite databases (It's still possible that it might use but we did not find out).",
+                                                      ["Database", "Hacker"])
         # SQLiteDatabase - beginTransactionNonExclusive() checking:
 
         int_min_sdk = int(self.apk.get_min_sdk_version())
@@ -89,20 +105,9 @@ class Vector(VectorBase):
                                "This app is using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
                                ["Database"])
 
-            path_sqlcipher_dbs = False # TODO needs implementing!
-
-            # path_sqlcipher_dbs = self.analysis.get_tainted_packages().search_sqlcipher_databases()  # Don't do the exclusion checking on this one because it's not needed
-            #  for each tainted package loop through and run this function
-            # def search_sqlcipher_databases(self):
-            #     l = []
-            #
-            #     for path in self.paths[TAINTED_PACKAGE_CALL]:
-            #         _, dst_name, dst_descriptor = path.get_dst(self.vm.get_class_manager())
-            #         if (dst_descriptor == "()Linfo/guardianproject/database/sqlcipher/SQLiteDatabase;"):
-            #             l.append((path, 1))
-            #         if (dst_descriptor == "()Lnet/sqlcipher/database/SQLiteDatabase;"):
-            #             l.append((path, 2))
-            #     return l
+            path_sqlcipher_dbs = list(self.analysis.find_methods(descriptor="\(\)Linfo/guardianproject/database/sqlcipher/SQLiteDatabase;"))
+            path_sqlcipher_dbs.append(list(self.analysis.find_methods(descriptor="\(\)Lnet/sqlcipher/database/SQLiteDatabase;")))
+            path_sqlcipher_dbs = self.filtering_engine.filter_method_class_analysis_list(path_sqlcipher_dbs)
 
             if path_sqlcipher_dbs:
                 # Get versions:
@@ -131,25 +136,23 @@ class Vector(VectorBase):
                                ["Database"])
 
         # SQLite databases
-         # TODO implement this!
-    #
-    #     is_using_android_dbs = dx.get_tainted_packages().has_android_databases(
-    #         filteringEngine.get_filtering_regexp())
-    #     if is_using_android_dbs:
-    #         if int_min_sdk < 15:
-    #             writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE,
-    #                                "Android SQLite Databases Vulnerability Checking",
-    #                                """This app is using Android SQLite databases.
-    # Prior to Android 4.0, Android has SQLite Journal Information Disclosure Vulnerability.
-    # But it can only be solved by users upgrading to Android > 4.0 and YOU CANNOT SOLVE IT BY YOURSELF (But you can use encrypt your databases and Journals by "SQLCipher" or other libs).
-    # Proof-Of-Concept Reference:
-    # (1) http://blog.watchfire.com/files/androidsqlitejournal.pdf
-    # (2) http://www.youtube.com/watch?v=oCXLHjmH5rY """, ["Database"], "CVE-2011-3901")
-    #         else:
-    #             writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE,
-    #                                "Android SQLite Databases Vulnerability Checking",
-    #                                "This app is using Android SQLite databases but it's \"NOT\" suffering from SQLite Journal Information Disclosure Vulnerability.",
-    #                                ["Database"], "CVE-2011-3901")
-    #     else:
-    #         writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_INFO, "Android SQLite Databases Vulnerability Checking",
-    #                            "This app is \"NOT\" using Android SQLite databases.", ["Database"], "CVE-2011-3901")
+        is_using_android_dbs = self.analysis.find_methods(descriptor="\(\)Landroid/database/sqlite/SQLiteDatabase;")
+        is_using_android_dbs = self.filtering_engine.filter_method_class_analysis_list(is_using_android_dbs)
+        if is_using_android_dbs:
+            if int_min_sdk < 15:
+                self.writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE,
+                                   "Android SQLite Databases Vulnerability Checking",
+                                   """This app is using Android SQLite databases.
+    Prior to Android 4.0, Android has SQLite Journal Information Disclosure Vulnerability.
+    But it can only be solved by users upgrading to Android > 4.0 and YOU CANNOT SOLVE IT BY YOURSELF (But you can use encrypt your databases and Journals by "SQLCipher" or other libs).
+    Proof-Of-Concept Reference:
+    (1) http://blog.watchfire.com/files/androidsqlitejournal.pdf
+    (2) http://www.youtube.com/watch?v=oCXLHjmH5rY """, ["Database"], "CVE-2011-3901")
+            else:
+                self.writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE,
+                                   "Android SQLite Databases Vulnerability Checking",
+                                   "This app is using Android SQLite databases but it's \"NOT\" suffering from SQLite Journal Information Disclosure Vulnerability.",
+                                   ["Database"], "CVE-2011-3901")
+        else:
+            self.writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_INFO, "Android SQLite Databases Vulnerability Checking",
+                               "This app is \"NOT\" using Android SQLite databases.", ["Database"], "CVE-2011-3901")

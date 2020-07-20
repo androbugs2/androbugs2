@@ -43,6 +43,16 @@ class Writer:
                                                              dest_descriptor),
                        indention_space_count)
 
+    def show_xrefs_class_analysis_list(self, class_analysis_list, indention_space_count=0):
+        for class_analysis in class_analysis_list:
+            self.show_xrefs_class_analysis(class_analysis, indention_space_count)
+
+    def show_xrefs_class_analysis(self, class_analysis, indention_space_count=0):
+
+        dest_class_name = class_analysis.name
+        for source_class, source_methods in class_analysis.get_xref_from().items():
+            self.write("=> %s ---> %s" % (source_class.name, dest_class_name), indention_space_count)
+
     def show_Path(self, path, indention_space_count=0):
         """
 			Different from analysis.show_Path, this "show_Path" writes to the tmp writer

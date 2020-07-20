@@ -11,7 +11,7 @@ class Vector(VectorBase):
         list_no_pwd_keystore = []
         list_protected_keystore = []
 
-        path_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "(Ljava/io/InputStream; \[C)V")
+        path_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "load", "\(Ljava/io/InputStream; \[C\)V")
         path_key_store = self.filtering_engine.filter_method_class_analysis_list(path_key_store)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_key_store):
             if i.getResult()[2] == 0:  # null = 0 = Not using password
@@ -111,7 +111,7 @@ class Vector(VectorBase):
 
         list_non_bks_keystore = []
         path_bks_key_store = self.analysis.find_methods("Ljava/security/KeyStore;", "getInstance",
-                                                        "(Ljava/lang/String;)Ljava/security/KeyStore;")
+                                                        "\(Ljava/lang/String;\)Ljava/security/KeyStore;")
 
         path_bks_key_store = self.filtering_engine.filter_method_class_analysis_list(path_bks_key_store)
 

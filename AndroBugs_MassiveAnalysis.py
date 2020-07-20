@@ -1,4 +1,3 @@
-import time
 import traceback
 import argparse
 import platform
