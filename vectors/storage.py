@@ -75,23 +75,23 @@ class Vector(VectorBase):
 
             if list_path_openOrCreateDatabase:
                 self.writer.write("[openOrCreateDatabase - 3 params]")
-                self.writer.show_xrefs_method_class_analysis_list(list_path_openOrCreateDatabase)
+                self.writer.show_Paths(list_path_openOrCreateDatabase)
                 self.writer.write("--------------------------------------------------")
             if list_path_openOrCreateDatabase2:
                 self.writer.write("[openOrCreateDatabase - 4 params]")
-                self.writer.show_xrefs_method_class_analysis_list(list_path_openOrCreateDatabase2)
+                self.writer.show_Paths(list_path_openOrCreateDatabase2)
                 self.writer.write("--------------------------------------------------")
             if list_path_getDir:
                 self.writer.write("[getDir]")
-                self.writer.show_xrefs_method_class_analysis_list(list_path_getDir)
+                self.writer.show_Paths(list_path_getDir)
                 self.writer.write("--------------------------------------------------")
             if list_path_getSharedPreferences:
                 self.writer.write("[getSharedPreferences]")
-                self.writer.show_xrefs_method_class_analysis_list(list_path_getSharedPreferences)
+                self.writer.show_Paths(list_path_getSharedPreferences)
                 self.writer.write("--------------------------------------------------")
             if list_path_openFileOutput:
                 self.writer.write("[openFileOutput]")
-                self.writer.show_xrefs_method_class_analysis_list(list_path_openFileOutput)
+                self.writer.show_Paths(list_path_openFileOutput)
                 self.writer.write("--------------------------------------------------")
 
         else:
