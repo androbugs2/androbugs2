@@ -23,8 +23,7 @@ class Vector(VectorBase):
                 invoke-static {v0, v1}, Ljava/lang/System;->setProperty(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 
         """
-        int_min_sdk = int(self.apk.get_min_sdk_version())
-        if (int_min_sdk is not None) and (int_min_sdk <= 8):
+        if (self.int_min_sdk is not None) and (self.int_min_sdk <= 8):
 
             pkg_http_url_connection = self.analysis.find_classes("Ljava/net/HttpURLConnection;")
             pkg_http_url_connection = self.filtering_engine.filter_class_analysis_list(pkg_http_url_connection)

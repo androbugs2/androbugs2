@@ -15,7 +15,7 @@ class VectorBase(ABC):
     This abstract class is used to define vulnerability vectors for the AndroBugs vulnerability scanner.
     """
 
-    def __init__(self, writer: Writer, apk: APK, dalvik: DalvikVMFormat, analysis: Analysis, args: any = None) -> None:
+    def __init__(self, writer: Writer, apk: APK, dalvik: DalvikVMFormat, analysis: Analysis, args: any = None, int_min_sdk: int = 1, int_target_sdk: int = 1) -> None:
         """
         Initialize the vector class with the resources needed for analysis.
         :param writer: Output writer.
@@ -30,6 +30,8 @@ class VectorBase(ABC):
         self.analysis = analysis
         self.args = args
         self.filtering_engine = FilteringEngine(ENABLE_EXCLUDE_CLASSES, STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+        self.int_target_sdk = int_target_sdk
+        self.int_min_sdk = int_min_sdk
 
     def _print_xrefs(self, string_analysis) -> None:
         """

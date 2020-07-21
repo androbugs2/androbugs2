@@ -24,8 +24,7 @@ class Vector(VectorBase):
                                                       ["Database", "Hacker"])
         # SQLiteDatabase - beginTransactionNonExclusive() checking:
 
-        int_min_sdk = int(self.apk.get_min_sdk_version())
-        if (int_min_sdk is not None) and (int_min_sdk < 11):
+        if (self.int_min_sdk is not None) and (self.int_min_sdk < 11):
             path_sq_lite_database_begin_transaction_non_exclusive = self.analysis.find_methods(
                 "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "()V")
             path_sq_lite_database_begin_transaction_non_exclusive = self.filtering_engine.filter_method_class_analysis_list(
@@ -34,7 +33,7 @@ class Vector(VectorBase):
             if path_sq_lite_database_begin_transaction_non_exclusive:
                 output_string = """We detect you're using \"beginTransactionNonExclusive\" in your \"SQLiteDatabase\" but your minSdk supports down to %d.
                     \"beginTransactionNonExclusive\" is not supported by API < 11. Please make sure you use \"beginTransaction\" in the earlier version of Android.
-                    Reference: http://developer.android.com/reference/android/database/sqlite/SQLiteDatabase.html#beginTransactionNonExclusive()")""" % int_min_sdk
+                    Reference: http://developer.android.com/reference/android/database/sqlite/SQLiteDatabase.html#beginTransactionNonExclusive()")""" % self.int_min_sdk
                 self.writer.startWriter("DB_DEPRECATED_USE1", LEVEL_CRITICAL,
                                    "SQLiteDatabase Transaction Deprecated Checking",
                                    output_string, ["Database"])
@@ -139,7 +138,7 @@ class Vector(VectorBase):
         is_using_android_dbs = self.analysis.find_methods(descriptor="\(\)Landroid/database/sqlite/SQLiteDatabase;")
         is_using_android_dbs = self.filtering_engine.filter_method_class_analysis_list(is_using_android_dbs)
         if is_using_android_dbs:
-            if int_min_sdk < 15:
+            if self.int_min_sdk < 15:
                 self.writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE,
                                    "Android SQLite Databases Vulnerability Checking",
                                    """This app is using Android SQLite databases.

@@ -8,14 +8,12 @@ class Vector(VectorBase):
 
     def analyze(self) -> None:
 
-        int_min_sdk = int(self.apk.get_min_sdk_version())
-
-        if int_min_sdk is not None and int_min_sdk < 8:  # Android 2.2=SDK 8
+        if self.int_min_sdk is not None and self.int_min_sdk < 8:  # Android 2.2=SDK 8
 
             output_string = """Your supporting minSdk is %d
         You are now allowing minSdk to less than 8. Please check: http://developer.android.com/about/dashboards/index.html
         Google Cloud Messaging (Push Message) service only allows Android SDK >= 8 (Android 2.2). Pleae check: http://developer.android.com/google/gcm/gcm.html
-        You may have the change to use GCM in the future, so please set minSdk to at least 9.""" % int_min_sdk
+        You may have the change to use GCM in the future, so please set minSdk to at least 9.""" % self.int_min_sdk
 
             self.writer.startWriter("MANIFEST_GCM", LEVEL_NOTICE, "Google Cloud Messaging Suggestion", output_string)
 

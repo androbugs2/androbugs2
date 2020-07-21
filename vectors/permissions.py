@@ -9,7 +9,6 @@ class Vector(VectorBase):
     description = "Checks if app has correct permissions"
 
     def analyze(self) -> None:
-        int_target_sdk = int(self.apk.get_target_sdk_version())
         all_permissions = self.apk.get_permissions()
 
         # ACCESS_MOCK_LOCATION check
@@ -435,7 +434,7 @@ class Vector(VectorBase):
                     if self_defined_permission in dangerous_custom_permissions or permission in normal_or_default_custom_permissions:
                             is_dangerous = True
                             break
-                if (exported == "") and (int_target_sdk >= 17) and (
+                if (exported == "") and (self.int_target_sdk >= 17) and (
                         is_dangerous):  # permission is not set, it will depend on the Android system
                     list_alerting_exposing_providers_no_exported_setting.append(i)
 
@@ -443,7 +442,7 @@ class Vector(VectorBase):
                 if exported.lower() == "true":
                     is_dangerous = True
                 elif (exported == "") and (
-                        int_target_sdk >= 17):  # permission is not set, it will depend on the Android system
+                        self.int_target_sdk >= 17):  # permission is not set, it will depend on the Android system
                     list_alerting_exposing_providers_no_exported_setting.append(i)
 
             if is_dangerous:
