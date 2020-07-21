@@ -76,7 +76,7 @@ class Vector(VectorBase):
                     self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Android Bug Checking",
                                        output_string)
                     # Make it optional to list library
-                    self.writer.show_xrefs_method_class_analysis_list(pkg_http_url_connection)  # Notice: pkg_HttpURLConnection
+                    self.writer.show_xrefs_class_analysis_list(pkg_http_url_connection)  # Notice: pkg_HttpURLConnection
 
             else:
                 self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
