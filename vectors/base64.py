@@ -5,8 +5,8 @@ import utils
 import base64
 
 STR_REGEXP_TYPE_EXCLUDE_CLASSES = "^(Landroid/support/|Lcom/actionbarsherlock/|Lorg/apache/)"
-ENABLE_EXCLUDE_CLASSES = True
-
+list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "endNanos", "cityList", "cloudid=",
+                                        "Liouciou"]  # exclusion list
 
 class Vector(VectorBase):
     description = "Checks if there are any Base64 encoded strings present and decodes them"
@@ -20,7 +20,7 @@ class Vector(VectorBase):
         found_strings = []
 
         for string, string_analysis in strings_analysis.items():
-            if utils.is_base64(string) and len(string) >= 3:
+            if utils.is_base64(string) and len(string) >= 3 and string not in list_base64_excluded_original_string:
                 try:
                     decoded_string = base64.b64decode(string).decode()
                     if utils.is_success_base64_decoded_string(decoded_string) and len(decoded_string) > 3:
