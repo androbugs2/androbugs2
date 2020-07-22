@@ -7,13 +7,18 @@ class Vector(VectorBase):
 
     def has_master_key_vulnerability(self) -> bool:
         all_files = self.apk.get_files()
+        found_dexfiles = 0
+
         for f in all_files:
-            if f == 'classes.dex':
-                self.writer.startWriter("MASTER_KEY", LEVEL_NOTICE,
-                                        "Master Key Type I Vulnerability (Android 1.6 Donut through 4.2 Jelly Bean)",
-                                        "This APK is suffered from Master Key Type I Vulnerability.", None,
-                                        "CVE-2013-4787")
-                return True
+            if f.endswith('.dex'):
+                found_dexfiles += 1
+
+        if found_dexfiles > 1:
+            self.writer.startWriter("MASTER_KEY", LEVEL_NOTICE,
+                                    "Master Key Type I Vulnerability (Android 1.6 Donut through 4.2 Jelly Bean)",
+                                    "This APK is suffered from Master Key Type I Vulnerability.", None,
+                                    "CVE-2013-4787")
+            return True
 
         self.writer.startWriter("MASTER_KEY", LEVEL_INFO, "Master Key Type I Vulnerability",
                                 "No Master Key Type I Vulnerability in this APK.", None, "CVE-2013-4787")
