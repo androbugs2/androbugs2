@@ -66,46 +66,8 @@ class Writer:
                                                          path['dst_method'].get_name(),
                                                          path['dst_method'].get_descriptor()),
                    indention_space_count)
-        # cm = vm.get_class_manager()
-        #
-        # if isinstance(path, analysis.PathVar):
-        #     dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-        #     info_var = path.get_var_info()
-        #
-        #     self.write("=> %s (0x%x) ---> %s->%s%s" % (info_var,
-        #                                                path.get_idx(),
-        #                                                dst_class_name,
-        #                                                dst_method_name,
-        #                                                dst_descriptor),
-        #                indention_space_count)
-        #
-        # else:
-        #     if path.get_access_flag() == analysis.TAINTED_PACKAGE_CALL:
-        #         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        #         dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
-        #
-        #         self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (src_class_name,
-        #                                                          src_method_name,
-        #                                                          src_descriptor,
-        #                                                          path.get_idx(),
-        #                                                          dst_class_name,
-        #                                                          dst_method_name,
-        #                                                          dst_descriptor),
-        #                    indention_space_count)
-        #
-        #     else:
-        #         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        #
-        #         self.write("=> %s->%s%s (0x%x)" % (src_class_name,
-        #                                            src_method_name,
-        #                                            src_descriptor,
-        #                                            path.get_idx()),
-        #                    indention_space_count)
 
     def show_Path_only_source(self, vm, path, indention_space_count=0):
-        # cm = vm.get_class_manager()
-        # src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        # self.write("=> %s->%s%s" % (src_class_name, src_method_name, src_descriptor), indention_space_count)
         self.write("=> %s->%s%s" % (path['src_method'].get_class_name(),
                                     path['src_method'].get_name(),
                                     path['src_method'].get_descriptor()), indention_space_count)

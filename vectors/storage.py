@@ -36,21 +36,21 @@ class Vector(VectorBase):
                                                                descriptor="\(Ljava/landescriptor=g/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;\)Landroid/database/sqlite/SQLiteDatabase;")
         path_openOrCreateDatabase = self.filtering_engine.filter_method_class_analysis_list(list(path_openOrCreateDatabase))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openOrCreateDatabase):
-            if (0x1 <= i.getResult()[2] <= 0x3):
+            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openOrCreateDatabase.append(i.getPath())
 
         path_openOrCreateDatabase2 = self.analysis.find_methods(methodname="openOrCreateDatabase",
                                                                 descriptor="\(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;\)Landroid/database/sqlite/SQLiteDatabase;")
         path_openOrCreateDatabase2 = self.filtering_engine.filter_method_class_analysis_list(list(path_openOrCreateDatabase2))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openOrCreateDatabase2):
-            if (0x1 <= i.getResult()[2] <= 0x3):
+            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openOrCreateDatabase2.append(i.getPath())
 
         path_getDir = self.analysis.find_methods(methodname="getDir",
                                                  descriptor="\(Ljava/lang/String; I\)Ljava/io/File;")
         path_getDir = self.filtering_engine.filter_method_class_analysis_list(list(path_getDir))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_getDir):
-            if (0x1 <= i.getResult()[2] <= 0x3):
+            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_getDir.append(i.getPath())
 
         path_getSharedPreferences = self.analysis.find_methods(methodname="getSharedPreferences",
@@ -64,14 +64,15 @@ class Vector(VectorBase):
                                                          descriptor="\(Ljava/lang/String; I\)Ljava/io/FileOutputStream;")
         path_openFileOutput = self.filtering_engine.filter_method_class_analysis_list(list(path_openFileOutput))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openFileOutput):
-            if (0x1 <= i.getResult()[2] <= 0x3):
+            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openFileOutput.append(i.getPath())
 
         if list_path_openOrCreateDatabase or list_path_openOrCreateDatabase2 or list_path_getDir or list_path_getSharedPreferences or list_path_openFileOutput:
 
             self.writer.startWriter("MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", LEVEL_CRITICAL,
                                     "App Sandbox Permission Checking",
-                                    "Security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found (Please check: https://www.owasp.org/index.php/Mobile_Top_10_2014-M2):")
+                                    "Security issues \"MODE_WORLD_READABLE\" or \"MODE_WORLD_WRITEABLE\" found ("
+                                    "Please check: https://www.owasp.org/index.php/Mobile_Top_10_2014-M2):")
 
             if list_path_openOrCreateDatabase:
                 self.writer.write("[openOrCreateDatabase - 3 params]")
