@@ -41,10 +41,10 @@ class Vector(VectorBase):
     """, ["SSL_Security"])
 
             for method in list_webview_client:
-                self.writer.write(method.easy_print())
+                self.writer.write(method.easy_print()) # TODO needs fixing 'EncodedMethod' object has no attribute 'easy_print'
 
                 # because one class may initialize by many new instances of it
-                method_class_name = method.get_class_name()
+                method_class_name = method.get_class_name()    # TODO needs fixing
                 if method_class_name in dic_webview_client_new_instance:
                     self.writer.show_Paths(dic_webview_client_new_instance[method_class_name])
 
@@ -81,8 +81,7 @@ class Vector(VectorBase):
             self.writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_WARNING, "WebView Potential XSS Attacks Checking",
                                "Found \"setJavaScriptEnabled(true)\" in WebView, which could exposed to potential XSS attacks. Please check the web page code carefully and sanitize the output:",
                                ["WebView"])
-            for i in list_set_java_script_enabled_xss:
-                self.writer.show_Path(i)
+            self.writer.show_Paths(list_set_java_script_enabled_xss)
         else:
             self.writer.startWriter("WEBVIEW_JS_ENABLED", LEVEL_INFO, "WebView Potential XSS Attacks Checking",
                                "Did not detect \"setJavaScriptEnabled(true)\" in WebView.", ["WebView"])
@@ -165,8 +164,8 @@ class Vector(VectorBase):
                                         "         "), ["WebView"])
             if paths_webview_websettings_set_allow_file_access_true:
                 self.writer.write("Methods where setAllowFileAccess(true)")
-                self.writer.show_xrefs_method_class_analysis_list(paths_webview_websettings_set_allow_file_access_true)
-            if webview_websettings_class_analysis_list:
+                self.writer.show_Paths(paths_webview_websettings_set_allow_file_access_true)
+            elif webview_websettings_class_analysis_list:
                 self.writer.write("Classes where WebSettings is used, and setAllowFileAccess might be enabled by default")
                 self.writer.show_xrefs_class_analysis_list(webview_websettings_class_analysis_list)
 

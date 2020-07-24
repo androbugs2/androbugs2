@@ -57,7 +57,7 @@ class Vector(VectorBase):
                                                                descriptor="\(Ljava/lang/String; I\)Landroid/content/SharedPreferences;")
         path_getSharedPreferences = self.filtering_engine.filter_method_class_analysis_list(list(path_getSharedPreferences))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_getSharedPreferences):
-            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
+            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3: #TODO needs fixing "'<=' not supported between instances of 'int' and 'str'",
                 list_path_getSharedPreferences.append(i.getPath())
 
         path_openFileOutput = self.analysis.find_methods(methodname="openFileOutput",

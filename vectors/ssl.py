@@ -117,7 +117,7 @@ class Vector(VectorBase):
         if fields_ALLOW_ALL_HOSTNAME_VERIFIER:
             fields_ALLOW_ALL_HOSTNAME_VERIFIER = fields_ALLOW_ALL_HOSTNAME_VERIFIER[0].get_field()
             filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = []
-            for xref_class, xref_method in fields_ALLOW_ALL_HOSTNAME_VERIFIER.get_xref_read():
+            for xref_class, xref_method in fields_ALLOW_ALL_HOSTNAME_VERIFIER.get_xref_read(): # TODO needs fixing 'EncodedField' object has no attribute 'get_xref_read'
                 if not regex_excluded_class_names.match(xref_class.name):
                     filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths.append(xref_class.name)
 
