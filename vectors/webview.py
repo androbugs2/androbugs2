@@ -27,7 +27,8 @@ class Vector(VectorBase):
             if helper_functions.is_kind_string_in_ins_method(method, "Landroid/webkit/SslErrorHandler;->proceed()V"):
                 list_webview_client.append(method)
 
-        list_webview_client = self.filtering_engine.filter_method_class_analysis_list(list_webview_client)
+        # TODO needs fixing
+        # list_webview_client = self.filtering_engine.filter_method_class_analysis_list(list_webview_client)
 
         if list_webview_client:
             self.writer.startWriter("SSL_WEBVIEW", LEVEL_CRITICAL, "SSL Implementation Checking (WebViewClient for WebView)",
