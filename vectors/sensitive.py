@@ -36,7 +36,7 @@ class Vector(VectorBase):
 
         # Android "android_id"
 
-        path_android_id = self.analysis.find_methods("Landroid/provider/Settings$Secure;",
+        path_android_id = self.analysis.find_methods("Landroid/provider/Settings\$Secure;",
                                                      "getString",
                                                      "\(Landroid/content/ContentResolver; Ljava/lang/String;\)Ljava/lang/String;")
         path_android_id = self.filtering_engine.filter_method_class_analysis_list(path_android_id)
