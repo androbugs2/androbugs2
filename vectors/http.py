@@ -33,7 +33,7 @@ class Vector(VectorBase):
 
                 list_pre_froyo_http_url_connection = []
                 path_pre_froyo_http_url_connection = self.analysis.find_methods(
-                    "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
+                    "Ljava/lang/System;", "setProperty", "\(Ljava/lang/String; Ljava/lang/String;\)Ljava/lang/String;")
                 path_pre_froyo_http_url_connection = self.filtering_engine.filter_method_class_analysis_list(
                                                                                         path_pre_froyo_http_url_connection)
 

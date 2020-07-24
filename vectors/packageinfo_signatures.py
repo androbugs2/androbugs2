@@ -23,7 +23,7 @@ class Vector(VectorBase):
         list_package_info_signatures = []
         path_package_info_signatures = self.analysis.find_methods(
             "Landroid/content/pm/PackageManager;", "getPackageInfo",
-            "(Ljava/lang/String; I)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
+            "\(Ljava/lang/String; I\)Landroid/content/pm/PackageInfo;")  # TODO might be changed due to Android Support library -> androidX
         path_package_info_signatures = self.filtering_engine.filter_method_class_analysis_list(
                                                                                   path_package_info_signatures)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(

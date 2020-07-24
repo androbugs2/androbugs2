@@ -37,10 +37,10 @@ class Vector(VectorBase):
 
         # First, find out who calls it
         path_HOSTNAME_INNER_VERIFIER = list(self.analysis.find_methods(
-            "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "(Ljavax/net/ssl/HostnameVerifier;)V"))
+            "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "\(Ljavax/net/ssl/HostnameVerifier;\)V"))
         path_HOSTNAME_INNER_VERIFIER2 = list(self.analysis.find_methods(
             "Lorg/apache/http/conn/ssl/SSLSocketFactory;", "setHostnameVerifier",
-            "(Lorg/apache/http/conn/ssl/X509HostnameVerifier;)V"))
+            "\(Lorg/apache/http/conn/ssl/X509HostnameVerifier;\)V"))
         path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
 
         path_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_class_analysis_list(
@@ -176,7 +176,7 @@ class Vector(VectorBase):
         list_getInsecure = []
         path_get_insecure = self.analysis.find_methods(
             "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
-            "(I Landroid/net/SSLSessionCache;)Ljavax/net/ssl/SSLSocketFactory;")
+            "\(I Landroid/net/SSLSessionCache;\)Ljavax/net/ssl/SSLSocketFactory;")
         path_get_insecure = self.filtering_engine.filter_method_class_analysis_list(path_get_insecure)
 
         if path_get_insecure:
@@ -210,13 +210,13 @@ class Vector(VectorBase):
 
         list_http_host_scheme_http = []
         path_http_host_scheme_http = self.analysis.find_methods(
-            "Lorg/apache/http/HttpHost;", "<init>", "(Ljava/lang/String; I Ljava/lang/String;)V")
+            "Lorg/apache/http/HttpHost;", "<init>", "\(Ljava/lang/String; I Ljava/lang/String;\)V")
         path_http_host_scheme_http = self.filtering_engine.filter_method_class_analysis_list(path_http_host_scheme_http)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(
                                                                          path_http_host_scheme_http):
             if i.getResult()[3] is None:
                 continue
-            if (i.is_string(i.getResult()[3])) and ((i.getResult()[3]).lower() == "http"):
+            if i.is_string(i.getResult()[3]) and i.getResult()[3].lower() == "http":
                 list_http_host_scheme_http.append(i.getPath())
 
         if list_http_host_scheme_http:

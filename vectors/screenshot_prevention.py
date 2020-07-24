@@ -22,7 +22,7 @@ class Vector(VectorBase):
         list_code_for_preventing_screen_capture = []
         path_code_for_preventing_screen_capture = self.analysis.find_methods(
             "Landroid/view/Window;", "setFlags",
-            "(I I)V")  # TODO might be changed due to Android Support library -> androidX
+            "\(I I\)V")  # TODO might be changed due to Android Support library -> androidX
         path_code_for_preventing_screen_capture = self.filtering_engine.filter_method_class_analysis_list(
                                                                                              path_code_for_preventing_screen_capture)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_code_for_preventing_screen_capture):

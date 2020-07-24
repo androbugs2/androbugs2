@@ -41,7 +41,9 @@ class Vector(VectorBase):
 
     def analyze(self) -> None:
         # System shared_user_id + Master Key Vulnerability checking: (Depends on "Master Key Vulnerability checking")
-        if self.has_master_key_vulnerability() and self.has_shared_user_id():
+        has_master_key_vulnerability = self.has_master_key_vulnerability()
+        has_shared_user_id = self.has_shared_user_id()
+        if has_master_key_vulnerability and has_shared_user_id:
             self.writer.startWriter("MASTER_KEY_SYSTEM_APP", LEVEL_CRITICAL,
                                     "Rooting System with Master Key Vulnerability",
                                     "This app is malware, which requests \"system(uid=1000)\" privilege with Master "

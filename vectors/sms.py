@@ -15,11 +15,11 @@ class Vector(VectorBase):
         """
 
         path_sms_sending = list(self.analysis.find_methods("Landroid/telephony/SmsManager;", "sendDataMessage",
-                                                           "(Ljava/lang/String; Ljava/lang/String; S [B Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V"))
+                                                           "\(Ljava/lang/String; Ljava/lang/String; S \[B Landroid/app/PendingIntent; Landroid/app/PendingIntent;\)V"))
         path_sms_sending.extend(self.analysis.find_methods("Landroid/telephony/SmsManager;", "sendMultipartTextMessage",
-                                                           "(Ljava/lang/String; Ljava/lang/String; Ljava/util/ArrayList; Ljava/util/ArrayList; Ljava/util/ArrayList;)V"))
+                                                           "\(Ljava/lang/String; Ljava/lang/String; Ljava/util/ArrayList; Ljava/util/ArrayList; Ljava/util/ArrayList;\)V"))
         path_sms_sending.extend(self.analysis.find_methods("Landroid/telephony/SmsManager;", "sendTextMessage",
-                                                           "(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V"))
+                                                           "\(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;\)V"))
         path_sms_sending = self.filtering_engine.filter_method_class_analysis_list(path_sms_sending)
 
         if path_sms_sending:

@@ -1,5 +1,4 @@
 import re
-
 import utils
 from vector_base import VectorBase
 from constants import *

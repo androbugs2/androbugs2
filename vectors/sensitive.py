@@ -4,14 +4,14 @@ from constants import *
 
 
 class Vector(VectorBase):
-    description = "Checks if Android getting IMEI, Android_ID, UUID problem"
+    description = "Checks if Android getting sensitive information such as IMEI, Android_ID, UUID"
 
     def analyze(self) -> None:
 
         # Android getting IMEI, Android_ID, UUID problem
 
         path_Device_id = self.analysis.find_methods("Landroid/telephony/TelephonyManager;",
-                                                    "getDeviceId", "()Ljava/lang/String;")
+                                                    "getDeviceId", "\(\)Ljava/lang/String;")
         path_Device_id = self.filtering_engine.filter_method_class_analysis_list(path_Device_id)
 
         if path_Device_id:
@@ -38,7 +38,7 @@ class Vector(VectorBase):
 
         path_android_id = self.analysis.find_methods("Landroid/provider/Settings$Secure;",
                                                      "getString",
-                                                     "(Landroid/content/ContentResolver; Ljava/lang/String;)Ljava/lang/String;")
+                                                     "\(Landroid/content/ContentResolver; Ljava/lang/String;\)Ljava/lang/String;")
         path_android_id = self.filtering_engine.filter_method_class_analysis_list(path_android_id)
 
         list_android_id = []
