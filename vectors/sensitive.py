@@ -26,7 +26,7 @@ class Vector(VectorBase):
     Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
     """, ["Sensitive_Information"])
 
-            self.writer.show_Paths(path_Device_id)
+            self.writer.show_xrefs_method_class_analysis_list(path_Device_id)
 
         else:
 

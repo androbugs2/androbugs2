@@ -38,7 +38,7 @@ class Vector(VectorBase):
                                    "SQLiteDatabase Transaction Deprecated Checking",
                                    output_string, ["Database"])
 
-                self.writer.show_Paths(path_sq_lite_database_begin_transaction_non_exclusive)
+                self.writer.show_xrefs_method_class_analysis_list(path_sq_lite_database_begin_transaction_non_exclusive)
             else:
                 self.writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO, "SQLiteDatabase Transaction Deprecated Checking",
                                    "Ignore checking \"SQLiteDatabase:beginTransactionNonExclusive\" you're not using it.",
@@ -66,25 +66,6 @@ class Vector(VectorBase):
                                "Android SQLite Databases Encryption (SQLite Encryption Extension (SEE))",
                                "This app is \"NOT\" using SQLite Encryption Extension (SEE) on Android (http://www.sqlite.org/android) to encrypt or decrpyt databases.",
                                ["Database"])
-
-        # Searching SQLite "PRAGMA key" encryption:
-
-        result_sqlite_encryption = False
-        strings_analysis = self.analysis.get_strings_analysis()
-        for string, string_analysis in strings_analysis.items():
-            if string == "$__sqlite_encryption__":
-                result_sqlite_encryption = string_analysis
-                break
-
-        if result_sqlite_encryption:
-            self.writer.startWriter("HACKER_DB_KEY", LEVEL_NOTICE, "Key for Android SQLite Databases Encryption",
-                               "Found using the symmetric key(PRAGMA key) to encrypt the SQLite databases. \nRelated code:",
-                               ["Database", "Hacker"])
-            self._print_xrefs(result_sqlite_encryption)
-        else:
-            self.writer.startWriter("HACKER_DB_KEY", LEVEL_INFO, "Key for Android SQLite Databases Encryption",
-                               "Did not find using the symmetric key(PRAGMA key) to encrypt the SQLite databases (It's still possible that it might use but we did not find out).",
-                               ["Database", "Hacker"])
 
         # Checking whether the app is using SQLCipher:
         isUsingSQLCipher = False
