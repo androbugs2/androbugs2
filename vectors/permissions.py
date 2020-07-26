@@ -1,3 +1,4 @@
+import collections
 import re
 import utils
 from vector_base import VectorBase
@@ -6,6 +7,39 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks if app has correct permissions"
+
+    def _get_all_components_by_permission(self, xml, permission):
+        """
+            Return:
+                (1) activity
+                (2) activity-alias
+                (3) service
+                (4) receiver
+                (5) provider
+            who use the specific permission
+        """
+
+        find_tags = ["activity", "activity-alias", "service", "receiver", "provider"]
+        dict_perms = {}
+
+        for tag in find_tags:
+            for item in utils.get_elements_by_tagname(xml, tag):
+                if item.attrib.get("{http://schemas.android.com/apk/res/android}:permission") == permission \
+                        or item.attrib.get("{http://schemas.android.com/apk/res/android}:readPermission") == permission \
+                        or item.attrib.get(
+                    "{http://schemas.android.com/apk/res/android}:writePermission") == permission:
+                    if tag not in dict_perms:
+                        dict_perms[tag] = []
+                    dict_perms[tag].append(item.attrib.get("{http://schemas.android.com/apk/res/android}:name"))
+        return dict_perms
+
+    def _print_permission_usage(self, xml, class_name):
+        who_use_this_permission = self._get_all_components_by_permission(xml, class_name)
+        who_use_this_permission = collections.OrderedDict(sorted(who_use_this_permission.items()))
+        if who_use_this_permission:
+            for key, value_list in who_use_this_permission.items():
+                for item in value_list:
+                    self.writer.write("    -> used by (" + key + ") " + item)
 
     def analyze(self) -> None:
         all_permissions = self.apk.get_permissions()
@@ -101,7 +135,7 @@ class Vector(VectorBase):
             self.writer.startWriter("USE_PERMISSION_INTERNET", LEVEL_INFO, "Accessing the Internet Checking",
                                     "No HTTP-related connection codes found.")
 
-        # Find all "dangerous" and normal permissions
+        # Find all "dangerous" and normal custom permissions
 
         """
             android:permission
@@ -109,19 +143,17 @@ class Vector(VectorBase):
             android:writePermission (for ContentProvider)
         """
 
-        permissions = self.apk.get_details_permissions()
-        package_name = self.apk.get_package()
+        permissions = self.apk.get_declared_permissions_details()
 
         dangerous_custom_permissions = []
         normal_or_default_custom_permissions = []
 
         for name, details in permissions.items():
-            if package_name in name:
-                if details[0] == "dangerous":
-                    dangerous_custom_permissions.append(name)
+            if details[0] == "dangerous":
+                dangerous_custom_permissions.append(name)
 
-                if details[0] in ("normal", None):
-                    normal_or_default_custom_permissions.append(name)
+            if details[0] in ("normal", None):
+                normal_or_default_custom_permissions.append(name)
 
         if dangerous_custom_permissions:
             self.writer.startWriter("PERMISSION_DANGEROUS", LEVEL_CRITICAL,
@@ -137,6 +169,7 @@ class Vector(VectorBase):
 
             for class_name in dangerous_custom_permissions:
                 self.writer.write(class_name)
+                self._print_permission_usage(xml, class_name)
 
         else:
             self.writer.startWriter("PERMISSION_DANGEROUS", LEVEL_INFO,
@@ -156,14 +189,15 @@ class Vector(VectorBase):
                                     "or otherwise change to \"signature\" or \"signatureOrSystem\" protection level.")
             for class_name in normal_or_default_custom_permissions:
                 self.writer.write(class_name)
+                self._print_permission_usage(xml, class_name)
+
         else:
             self.writer.startWriter("PERMISSION_NORMAL", LEVEL_INFO,
                                     "AndroidManifest Normal ProtectionLevel of Permission Checking",
                                     "No default or \"normal\" protection level customized permission found ("
                                     "AndroidManifest.xml).")
 
-
-        # Lost "android:" prefix in exported components
+        # CHECK Lost "android:" prefix in exported components
 
         list_lost_exported_components = []
         find_tags = ["activity", "activity-alias", "service", "receiver", "provider"]
@@ -171,28 +205,30 @@ class Vector(VectorBase):
             for item in utils.get_elements_by_tagname(xml, tag):
                 name = item.attrib.get("{http://schemas.android.com/apk/res/android}name")
                 exported = item.attrib.get("exported")
-                if (not utils.is_null_or_empty_string(name)) and (not utils.is_null_or_empty_string(exported)):
+                if not utils.is_null_or_empty_string(name) and not utils.is_null_or_empty_string(exported):
                     list_lost_exported_components.append((tag, name))
 
         if list_lost_exported_components:
             self.writer.startWriter("PERMISSION_NO_PREFIX_EXPORTED", LEVEL_CRITICAL,
-                               "AndroidManifest Exported Lost Prefix Checking",
-                               """Found exported components that forgot to add "android:" prefix (AndroidManifest.xml). 
+                                    "AndroidManifest Exported Lost Prefix Checking",
+                                    """Found exported components that forgot to add "android:" prefix (AndroidManifest.xml). 
     Related Cases: (1)http://blog.curesec.com/article/blog/35.html
                    (2)http://safe.baidu.com/2014-07/cve-2013-6272.html
                    (3)http://blogs.360.cn/360mobile/2014/07/08/cve-2013-6272/""", None, "CVE-2013-6272")
 
             for tag, name in list_lost_exported_components:
-                self.writer.write(("%10s => %s") % (tag, name))
+                self.writer.write("%10s => %s" % (tag, name))
 
         else:
-            self.writer.startWriter("PERMISSION_NO_PREFIX_EXPORTED", LEVEL_INFO, "AndroidManifest Exported Lost Prefix Checking",
-                               "No exported components that forgot to add \"android:\" prefix.", None, "CVE-2013-6272")
+            self.writer.startWriter("PERMISSION_NO_PREFIX_EXPORTED", LEVEL_INFO,
+                                    "AndroidManifest Exported Lost Prefix Checking",
+                                    "No exported components that forgot to add \"android:\" prefix.", None,
+                                    "CVE-2013-6272")
 
-        # "exported" checking (activity, activity-alias, service, receiver):
+        # CHECK "exported" (activity, activity-alias, service, receiver):
 
         """
-    		Remember: Even if the componenet is protected by "signature" level protection,
+    		Remember: Even if the component is protected by "signature" level protection,
     		it still cannot receive the broadcasts from other apps if the component is set to [exported="false"].
     	    ---------------------------------------------------------------------------------------------------
 
@@ -300,19 +336,19 @@ class Vector(VectorBase):
                 if not permission:
                     permission = ""
                 has_any_actions_in_intent_filter = False
-                if (not utils.is_null_or_empty_string(name)) and (exported.lower() != "false"):
+                if not utils.is_null_or_empty_string(name) and exported.lower() != "false":
 
                     is_ready_to_check = False
                     is_launcher = False
                     has_any_non_google_actions = False
                     isSyncAdapterService = False
-                    for sitem in utils.get_elements_by_tagname(xml, "intent-filter"):
+                    for sitem in utils.get_elements_by_tagname(item, "intent-filter"):
                         for ssitem in utils.get_elements_by_tagname(sitem, "action"):
                             has_any_actions_in_intent_filter = True
 
                             action_name = ssitem.attrib.get("{http://schemas.android.com/apk/res/android}name")
-                            if (not action_name.startswith("android.")) and (
-                            not action_name.startswith("com.android.")):
+                            if not action_name.startswith("android.") \
+                                    and not action_name.startswith("com.android."):
                                 has_any_non_google_actions = True
 
                             if action_name == "android.content.SyncAdapter":
@@ -333,7 +369,7 @@ class Vector(VectorBase):
                         # CHECK
                         is_ready_to_check = True
 
-                    if (is_ready_to_check) and (not is_launcher):
+                    if is_ready_to_check and not is_launcher:
                         list_ready_to_check.append((tag, name, exported, permission,
                                                     has_any_non_google_actions, has_any_actions_in_intent_filter,
                                                     isSyncAdapterService))
@@ -349,17 +385,10 @@ class Vector(VectorBase):
             hasAnyNonGoogleActions = i[4]
             has_any_actions_in_intent_filter = i[5]
             isSyncAdapterService = i[6]
-            is_dangerous = False
-            if permission == "":  # permission is not set
-                is_dangerous = True
-            else:  # permission is set
-                if permission in dangerous_custom_permissions or permission in normal_or_default_custom_permissions:
-                        is_dangerous = True
-            # else: #cannot find the mapping permission
-            # 	is_dangerous = True
+            if permission == "" \
+                    or permission in dangerous_custom_permissions or permission in normal_or_default_custom_permissions:
 
-            if is_dangerous:
-                if (component == "service") and has_any_actions_in_intent_filter and not isSyncAdapterService:
+                if component == "service" and has_any_actions_in_intent_filter and not isSyncAdapterService:
                     list_implicit_service_components.append(i[1])
 
                 if hasAnyNonGoogleActions:
@@ -371,24 +400,25 @@ class Vector(VectorBase):
 
         if list_alerting_exposing_components_NonGoogle or list_alerting_exposing_components_Google:
             if list_alerting_exposing_components_NonGoogle:
-                self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_WARNING, "AndroidManifest Exported Components Checking",
-                                   """Found "exported" components(except for Launcher) for receiving outside applications' actions (AndroidManifest.xml). 
+                self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_WARNING,
+                                        "AndroidManifest Exported Components Checking",
+                                        """Found "exported" components(except for Launcher) for receiving outside applications' actions (AndroidManifest.xml). 
     These components can be initilized by other apps. You should add or modify the attribute to [exported="false"] if you don't want to. 
     You can also protect it with a customized permission with "signature" or higher protectionLevel and specify in "android:permission" attribute.""")
 
                 for i in list_alerting_exposing_components_NonGoogle:
-                    self.writer.write(("%10s => %s") % (i[0], i[1]))
+                    self.writer.write("%10s => %s" % (i[0], i[1]))
 
             if list_alerting_exposing_components_Google:
                 self.writer.startWriter("PERMISSION_EXPORTED_GOOGLE", LEVEL_NOTICE,
-                                   "AndroidManifest Exported Components Checking 2",
-                                   "Found \"exported\" components(except for Launcher) for receiving Google's \"Android\" actions (AndroidManifest.xml):")
+                                        "AndroidManifest Exported Components Checking 2",
+                                        "Found \"exported\" components(except for Launcher) for receiving Google's \"Android\" actions (AndroidManifest.xml):")
 
                 for i in list_alerting_exposing_components_Google:
-                    self.writer.write(("%10s => %s") % (i[0], i[1]))
+                    self.writer.write("%10s => %s" % (i[0], i[1]))
         else:
             self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_INFO, "AndroidManifest Exported Components Checking",
-                               "No exported components(except for Launcher) for receiving Android or outside applications' actions (AndroidManifest.xml).")
+                                    "No exported components(except for Launcher) for receiving Android or outside applications' actions (AndroidManifest.xml).")
 
         # ------------------------------------------------------------------------
         # "exported" checking (provider):
@@ -400,7 +430,7 @@ class Vector(VectorBase):
             exported = item.attrib.get("{http://schemas.android.com/apk/res/android}exported")
             if not exported:
                 exported = ""
-            if (not utils.is_null_or_empty_string(name)) and (exported.lower() != "false"):
+            if not utils.is_null_or_empty_string(name) and exported.lower() != "false":
                 # exported is only "true" or non-set
                 permission = item.attrib.get("{http://schemas.android.com/apk/res/android}permission")
                 readPermission = item.attrib.get("{http://schemas.android.com/apk/res/android}readPermission")
@@ -421,39 +451,40 @@ class Vector(VectorBase):
 
             is_dangerous = False
             list_perm = []
-            if permission != "":
+            if permission != None:
                 list_perm.append(permission)
-            if readPermission != "":
+            if readPermission != None:
                 list_perm.append(readPermission)
-            if writePermission != "":
+            if writePermission != None:
                 list_perm.append(writePermission)
 
             if list_perm:  # among "permission" or "readPermission" or "writePermission", any of the permission is set
                 for self_defined_permission in list_perm:  # (1)match any (2)ignore permission that is not found
-                    if self_defined_permission in dangerous_custom_permissions or permission in normal_or_default_custom_permissions:
-                            is_dangerous = True
-                            break
-                if (exported == "") and (self.int_target_sdk >= 17) and (
-                        is_dangerous):  # permission is not set, it will depend on the Android system
+                    if self_defined_permission in dangerous_custom_permissions\
+                            or permission in normal_or_default_custom_permissions:
+                        is_dangerous = True
+                        break
+                if exported == "" and self.int_target_sdk >= 17\
+                        and is_dangerous:  # permission is not set, it will depend on the Android system
                     list_alerting_exposing_providers_no_exported_setting.append(i)
 
             else:  # none of any permission
                 if exported.lower() == "true":
                     is_dangerous = True
-                elif (exported == "") and (
-                        self.int_target_sdk >= 17):  # permission is not set, it will depend on the Android system
+                # if permission is not set, it will depend on the Android system
+                elif exported == "" and self.int_target_sdk >= 17:
                     list_alerting_exposing_providers_no_exported_setting.append(i)
 
+            # if exported="true" and none of the permission are set => of course dangerous
             if is_dangerous:
-                list_alerting_exposing_providers.append(
-                    i)  # exported="true" and none of the permission are set => of course dangerous
+                list_alerting_exposing_providers.append(i)
 
         if list_alerting_exposing_providers or list_alerting_exposing_providers_no_exported_setting:
-            if list_alerting_exposing_providers_no_exported_setting:  # providers that Did not set exported
+            if list_alerting_exposing_providers_no_exported_setting:  # providers that did not set exported
 
                 self.writer.startWriter("PERMISSION_PROVIDER_IMPLICIT_EXPORTED", LEVEL_CRITICAL,
-                                   "AndroidManifest ContentProvider Exported Checking",
-                                   """We strongly suggest you explicitly specify the "exported" attribute (AndroidManifest.xml). 
+                                        "AndroidManifest ContentProvider Exported Checking",
+                                        """We strongly suggest you explicitly specify the "exported" attribute (AndroidManifest.xml). 
     For Android "android:targetSdkVersion" < 17, the exported value of ContentProvider is "true" by default. 
     For Android "android:targetSdkVersion" >= 17, the exported value of ContentProvider is "false" by default. 
     Which means if you do not explicitly set the "android:exported", you will expose your ContentProvider to Android < 4.2 devices. 
@@ -469,24 +500,24 @@ class Vector(VectorBase):
     """)
 
                 for i in list_alerting_exposing_providers_no_exported_setting:
-                    self.writer.write(("%10s => %s") % ("provider", i[0]))
+                    self.writer.write("%10s => %s" % ("provider", i[0]))
 
             if list_alerting_exposing_providers:  # provider with "true" exported and not enough permission protected on it
 
                 self.writer.startWriter("PERMISSION_PROVIDER_EXPLICIT_EXPORTED", LEVEL_CRITICAL,
-                                   "AndroidManifest ContentProvider Exported Checking",
-                                   """Found "exported" ContentProvider, allowing any other app on the device to access it (AndroidManifest.xml). You should modify the attribute to [exported="false"] or set at least "signature" protectionalLevel permission if you don't want to.
+                                        "AndroidManifest ContentProvider Exported Checking",
+                                        """Found "exported" ContentProvider, allowing any other app on the device to access it (AndroidManifest.xml). You should modify the attribute to [exported="false"] or set at least "signature" protectionalLevel permission if you don't want to.
     Vulnerable ContentProvider Case Example: 
       (1)https://www.nowsecure.com/mobile-security/ebay-android-content-provider-injection-vulnerability.html
       (2)http://blog.trustlook.com/2013/10/23/ebay-android-content-provider-information-disclosure-vulnerability/
       (3)http://www.wooyun.org/bugs/wooyun-2010-039169""")
                 for i in list_alerting_exposing_providers:
-                    self.writer.write(("%10s => %s") % ("provider", i[0]))
+                    self.writer.write("%10s => %s" % ("provider", i[0]))
 
         else:
             self.writer.startWriter("PERMISSION_PROVIDER_IMPLICIT_EXPORTED", LEVEL_INFO,
-                               "AndroidManifest ContentProvider Exported Checking",
-                               "No exported \"ContentProvider\" found (AndroidManifest.xml).")
+                                    "AndroidManifest ContentProvider Exported Checking",
+                                    "No exported \"ContentProvider\" found (AndroidManifest.xml).")
 
         # ------------------------------------------------------------------------
         # intent-filter checking:
@@ -520,41 +551,43 @@ class Vector(VectorBase):
                     if len(utils.get_elements_by_tagname(item, "action")) == 0:
                         isDetected2 = True
                 if isDetected1:
-                    list_wrong_intent_filter_settings.append((tag, item.attrib.get("{http://schemas.android.com/apk/res/android}name")))
+                    list_wrong_intent_filter_settings.append(
+                        (tag, item.attrib.get("{http://schemas.android.com/apk/res/android}name")))
                 if isDetected2:
-                    list_no_actions_in_intent_filter.append((tag, item.attrib.get("{http://schemas.android.com/apk/res/android}name")))
+                    list_no_actions_in_intent_filter.append(
+                        (tag, item.attrib.get("{http://schemas.android.com/apk/res/android}name")))
 
         if list_wrong_intent_filter_settings or list_no_actions_in_intent_filter:
             if list_wrong_intent_filter_settings:
                 self.writer.startWriter("PERMISSION_INTENT_FILTER_MISCONFIG", LEVEL_WARNING,
-                                   "AndroidManifest \"intent-filter\" Settings Checking",
-                                   """Misconfiguration in "intent-filter" of these components (AndroidManifest.xml). 
+                                        "AndroidManifest \"intent-filter\" Settings Checking",
+                                        """Misconfiguration in "intent-filter" of these components (AndroidManifest.xml). 
     Config "intent-filter" should not have "android:exported" or "android:enabled" attribute. 
     Reference: http://developer.android.com/guide/topics/manifest/intent-filter-element.html
     """)
                 for tag, name in list_wrong_intent_filter_settings:
-                    self.writer.write(("%10s => %s") % (tag, name))
+                    self.writer.write("%10s => %s" % (tag, name))
 
             if list_no_actions_in_intent_filter:
                 self.writer.startWriter("PERMISSION_INTENT_FILTER_MISCONFIG", LEVEL_CRITICAL,
-                                   "AndroidManifest \"intent-filter\" Settings Checking",
-                                   """Misconfiguration in "intent-filter" of these components (AndroidManifest.xml).
+                                        "AndroidManifest \"intent-filter\" Settings Checking",
+                                        """Misconfiguration in "intent-filter" of these components (AndroidManifest.xml).
     Config "intent-filter" should have at least one "action".
     Reference: http://developer.android.com/guide/topics/manifest/intent-filter-element.html
     """)
                 for tag, name in list_no_actions_in_intent_filter:
-                    self.writer.write(("%10s => %s") % (tag, name))
+                    self.writer.write("%10s => %s" % (tag, name))
         else:
             self.writer.startWriter("PERMISSION_INTENT_FILTER_MISCONFIG", LEVEL_INFO,
-                               "AndroidManifest \"intent-filter\" Settings Checking",
-                               "\"intent-filter\" of AndroidManifest.xml check OK.")
+                                    "AndroidManifest \"intent-filter\" Settings Checking",
+                                    "\"intent-filter\" of AndroidManifest.xml check OK.")
 
         # ------------------------------------------------------------------------
         # Implicit Service (** Depend on: "exported" checking (activity, activity-alias, service, receiver) **)
 
         if list_implicit_service_components:
             self.writer.startWriter("PERMISSION_IMPLICIT_SERVICE", LEVEL_CRITICAL, "Implicit Service Checking",
-                               """To ensure your app is secure, always use an explicit intent when starting a Service and DO NOT declare intent filters for your services. Using an implicit intent to start a service is a security hazard because you cannot be certain what service will respond to the intent, and the user cannot see which service starts. 
+                                    """To ensure your app is secure, always use an explicit intent when starting a Service and DO NOT declare intent filters for your services. Using an implicit intent to start a service is a security hazard because you cannot be certain what service will respond to the intent, and the user cannot see which service starts. 
     Reference: http://developer.android.com/guide/components/intents-filters.html#Types""", ["Implicit_Intent"])
 
             for name in list_implicit_service_components:
@@ -562,4 +595,4 @@ class Vector(VectorBase):
 
         else:
             self.writer.startWriter("PERMISSION_IMPLICIT_SERVICE", LEVEL_INFO, "Implicit Service Checking",
-                               "No dangerous implicit service.", ["Implicit_Intent"])
+                                    "No dangerous implicit service.", ["Implicit_Intent"])
