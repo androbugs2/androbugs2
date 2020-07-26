@@ -5,6 +5,15 @@ from vector_base import VectorBase
 from constants import *
 
 
+PROTECTION_NORMAL = 0   # "normal" or not set
+PROTECTION_DANGEROUS = 1
+PROTECTION_SIGNATURE = 2
+PROTECTION_SIGNATURE_OR_SYSTEM = 3
+PROTECTION_MASK_BASE = 15
+PROTECTION_FLAG_SYSTEM = 16
+PROTECTION_FLAG_DEVELOPMENT = 32
+PROTECTION_MASK_FLAGS = 240
+
 class Vector(VectorBase):
     description = "Checks if app has correct permissions"
 
@@ -149,10 +158,15 @@ class Vector(VectorBase):
         normal_or_default_custom_permissions = []
 
         for name, details in permissions.items():
-            if details[0] == "dangerous":
+            try:
+                protectionLevel = int(details['protectionLevel'], 16)
+            except ValueError:
+                protectionLevel = 0
+
+            if protectionLevel == PROTECTION_DANGEROUS:
                 dangerous_custom_permissions.append(name)
 
-            if details[0] in ("normal", None):
+            elif protectionLevel == PROTECTION_NORMAL:
                 normal_or_default_custom_permissions.append(name)
 
         if dangerous_custom_permissions:

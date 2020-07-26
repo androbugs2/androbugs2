@@ -13,10 +13,8 @@ class Vector(VectorBase):
         # First, find out who calls setWebViewClient
         path_webview_client_new_instance = self.analysis.find_methods(
             "Landroid/webkit/WebView;", "setWebViewClient", "\(Landroid/webkit/WebViewClient;\)V")
-        dic_webview_client_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_paths(self.dalvik,
-                                                                                                                           self.analysis,
-                                                                                                                           path_webview_client_new_instance,
-                                                                                                                           1)
+        dic_webview_client_new_instance = self.filtering_engine.\
+            get_class_container_dict_by_new_instance_classname_in_paths(path_webview_client_new_instance, 1)
 
         # Second, find which class and method extends it
         list_webview_client = []

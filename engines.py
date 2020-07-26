@@ -115,8 +115,7 @@ class FilteringEngine:
         else:
             return paths
 
-    def get_class_container_dict_by_new_instance_classname_in_paths(self, vm, analysis, paths,
-                                                                    result_idx):  # dic: key=>class_name, value=>paths
+    def get_class_container_dict_by_new_instance_classname_in_paths(self, paths, result_idx):  # dic: key=>class_name, value=>paths
         dic_classname_to_paths = {}
         paths = self.filter_method_class_analysis_list(paths)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(paths):

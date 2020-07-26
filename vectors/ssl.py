@@ -46,17 +46,17 @@ class Vector(VectorBase):
         path_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_class_analysis_list(
                                                                                   path_HOSTNAME_INNER_VERIFIER)
 
-        dic_path_HOSTNAME_INNER_VERIFIER_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_paths(
-            self.dalvik, self.analysis, path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
+        dic_path_HOSTNAME_INNER_VERIFIER_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_paths(path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
 
         # Second, find the called custom classes
         list_HOSTNAME_INNER_VERIFIER = []
 
-        methods_hostnameverifier = helper_functions.get_method_ins_by_implement_interface_and_method(self.dalvik, [
-            "Ljavax/net/ssl/HostnameVerifier;"],
-                                                                                                     TYPE_COMPARE_ANY,
-                                                                                                     "verify",
-                                                                                                     "(Ljava/lang/String; Ljavax/net/ssl/SSLSession;)Z")
+        methods_hostnameverifier = helper_functions. \
+            get_method_ins_by_implement_interface_and_method(self.dalvik,
+                                                             ["Ljavax/net/ssl/HostnameVerifier;"],
+                                                             TYPE_COMPARE_ANY,
+                                                             "verify",
+                                                             "(Ljava/lang/String; Ljavax/net/ssl/SSLSession;)Z")
         for method in methods_hostnameverifier:
             register_analyzer = staticDVM.RegisterAnalyzerVMImmediateValue(method.get_instructions())
             if register_analyzer.get_ins_return_boolean_value():  # Has security problem
@@ -109,20 +109,14 @@ class Vector(VectorBase):
         else:
             path_HOSTNAME_INNER_VERIFIER_new_instance = None
 
-        # "self.analysis.get_tainted_field" will return "None" if nothing found TODO Might need further checking to see if this works properly
-        fields_ALLOW_ALL_HOSTNAME_VERIFIER = list(self.analysis.find_fields("Lorg/apache/http/conn/ssl/SSLSocketFactory;",
-                                                                            "ALLOW_ALL_HOSTNAME_VERIFIER",
-                                                                            "Lorg/apache/http/conn/ssl/X509HostnameVerifier;"))
+        fields_ALLOW_ALL_HOSTNAME_VERIFIER = list(self.analysis.find_fields(fieldname="ALLOW_ALL_HOSTNAME_VERIFIER",
+                                                                            fieldtype="Lorg/apache/http/conn/ssl/X509HostnameVerifier;"))
 
-        if fields_ALLOW_ALL_HOSTNAME_VERIFIER:
-            fields_ALLOW_ALL_HOSTNAME_VERIFIER = fields_ALLOW_ALL_HOSTNAME_VERIFIER[0].get_field()
-            filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = []
-            for xref_class, xref_method in fields_ALLOW_ALL_HOSTNAME_VERIFIER.get_xref_read(): # TODO needs fixing 'EncodedField' object has no attribute 'get_xref_read'
+        filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = []
+        for field in fields_ALLOW_ALL_HOSTNAME_VERIFIER:
+            for xref_class, xref_method in field.get_xref_read():
                 if not regex_excluded_class_names.match(xref_class.name):
-                    filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths.append(xref_class.name)
-
-        else:
-            filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = None
+                    filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths.append(xref_method)
 
         if path_HOSTNAME_INNER_VERIFIER_new_instance or filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
 
@@ -153,9 +147,8 @@ class Vector(VectorBase):
                     SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
                     factory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
                 """
-
-                for path in filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
-                    self.writer.show_single_PathVariable(self.dalvik, path)
+                for method in filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+                    self.writer.write("=> %s ---> %s" % (method.get_class_name(), method.name))
 
             if path_HOSTNAME_INNER_VERIFIER_new_instance:
                 """
