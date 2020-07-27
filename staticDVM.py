@@ -127,6 +127,23 @@ class RegisterAnalyzerVMImmediateValue(object):
         --> 2 :  [(0, 4), (256, 5061, 'Lcom/example/androidurlaccesstesting1/MainActivity;->getApplicationContext()Landroid/content/Context;')]
         --> 3 :  [(0, 0)]
         --> 4 :  [(0, 1), (257, 5823, "'test.db'")]  => const-string v1, 'test.db'
+                    
+        KIND_METH = 0
+        KIND_STRING = 1
+        KIND_FIELD = 2
+        KIND_TYPE = 3
+        VARIES = 4
+        INLINE_METHOD = 5
+        VTABLE_OFFSET = 6
+        FIELD_OFFSET = 7
+        KIND_RAW_STRING = 8
+                            
+         
+        OPERAND_REGISTER = 0
+        OPERAND_LITERAL = 1
+        OPERAND_RAW = 2
+        OPERAND_OFFSET = 3
+        OPERAND_KIND = 0x100
     """
 
     def __add(self, ins, reg_list):

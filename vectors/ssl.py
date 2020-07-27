@@ -43,10 +43,9 @@ class Vector(VectorBase):
             "\(Lorg/apache/http/conn/ssl/X509HostnameVerifier;\)V"))
         path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
 
-        path_HOSTNAME_INNER_VERIFIER = self.filtering_engine.filter_method_class_analysis_list(
-                                                                                  path_HOSTNAME_INNER_VERIFIER)
+        dic_path_HOSTNAME_INNER_VERIFIER_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_method_class_analysis_list(path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
 
-        dic_path_HOSTNAME_INNER_VERIFIER_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_paths(path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
+        # TODO might need filtering?
 
         # Second, find the called custom classes
         list_HOSTNAME_INNER_VERIFIER = []

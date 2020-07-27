@@ -14,7 +14,7 @@ class Vector(VectorBase):
         path_webview_client_new_instance = self.analysis.find_methods(
             "Landroid/webkit/WebView;", "setWebViewClient", "\(Landroid/webkit/WebViewClient;\)V")
         dic_webview_client_new_instance = self.filtering_engine.\
-            get_class_container_dict_by_new_instance_classname_in_paths(path_webview_client_new_instance, 1)
+            get_class_container_dict_by_new_instance_classname_in_method_class_analysis_list(path_webview_client_new_instance, 1)
 
         # Second, find which class and method extends it
         list_webview_client = []
@@ -39,7 +39,7 @@ class Vector(VectorBase):
     """, ["SSL_Security"])
 
             for method in list_webview_client:
-                self.writer.write(method.easy_print()) # TODO needs fixing 'EncodedMethod' object has no attribute 'easy_print'
+                self.writer.write("%s-> %s%s" % (method.get_class_name(), method.get_name(), method.get_descriptor()))
 
                 # because one class may initialize by many new instances of it
                 method_class_name = method.get_class_name()    # TODO needs fixing
