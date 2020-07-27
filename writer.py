@@ -82,23 +82,6 @@ class Writer:
         for path in paths:
             self.show_Path(path, indention_space_count)
 
-    def show_single_PathVariable(self, vm, path, indention_space_count=0):
-        """
-			Different from "analysis.show_single_PathVariable", this "show_single_PathVariable" writes to the tmp writer
-
-			method[0] : class name
-			method[1] : function name
-			method[2][0] + method[2][1]) : description
-		"""
-        #TODO fix this
-        print(path)
-        # access, idx = path[0]
-        # m_idx = path[1]
-        # method = vm.get_cm_method(m_idx)
-        #
-        # self.write("=> %s->%s %s" % (method[0], method[1], method[2][0] + method[2][1]), indention_space_count)
-
-    # Output: stoping
 
     def startWriter(self, tag, level, summary, title_msg, special_tag=None, cve_number=""):
         """
