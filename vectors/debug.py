@@ -48,33 +48,35 @@ class Vector(VectorBase):
         debuggable_check_paths = []
         application_info = list(self.analysis.find_methods(methodname="getApplicationInfo",
                                                            classname="Landroid/content/pm/PackageManager;"))
-        if not application_info:
-            self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_INFO, "Code for Checking Android Debug Mode",
-                                    "Did not detect code that checks whether debug mode is enabled",
-                                    ["Debug", "Hacker"])
-            return
 
-        application_info = application_info[0]
-        xrefs = application_info.get_xref_from()
+        if application_info:
+            application_info = application_info[0]
+            xrefs = application_info.get_xref_from()
+            matches = []
+            for _, method, _ in xrefs:
+                if self._scan_xrefs_for_debuggable_checks(method):
+                    matches.append(method)
 
-        matches = []
-        for _, method, _ in xrefs:
-            if self._scan_xrefs_for_debuggable_checks(method):
-                matches.append(method)
+            if matches:
+                self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_NOTICE,
+                                        "Codes for Checking Android Debug Mode",
+                                        "Detected code that checks whether debug mode is enabled in:",
+                                        ["Debug", "Hacker"])
+                for method in matches:
+                    self.writer.write(
+                        "%s --> %s%s" % (method.get_class_name(), method.get_name(), method.get_descriptor()))
+                return
 
-        if matches:
-            self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_NOTICE, "Codes for Checking Android Debug Mode",
-                                    "Detected code that checks whether debug mode is enabled in:",
-                                    ["Debug", "Hacker"])
-            for method in matches:
-                self.writer.write("%s --> %s%s" % (method.get_class_name(), method.get_name(), method.get_descriptor()))
+        self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_INFO, "Code for Checking Android Debug Mode",
+                                "Did not detect code that checks whether debug mode is enabled",
+                                ["Debug", "Hacker"])
 
     def _scan_xrefs_for_debuggable_checks(self, method):
         flags_variable = None
         for instruction in method.get_instructions():
             operands = instruction.get_operands()
             opcode = instruction.get_op_value()
-            if len(operands == 3):
+            if len(operands) == 3:
                 if flags_variable is None and opcode == self.OPCODES["iget"]:
                     if operands[2][0] == (dvm.OPERAND_KIND + dvm.KIND_FIELD) \
                             and operands[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I":
