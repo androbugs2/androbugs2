@@ -64,7 +64,7 @@ class Vector(VectorBase):
                                         ["Debug", "Hacker"])
                 for method in matches:
                     self.writer.write(
-                        "%s --> %s%s" % (method.get_class_name(), method.get_name(), method.get_descriptor()))
+                        "%s->%s%s" % (method.get_class_name(), method.get_name(), method.get_descriptor()))
                 return
 
         self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_INFO, "Code for Checking Android Debug Mode",
