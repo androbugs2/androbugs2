@@ -97,21 +97,21 @@ class Vector(VectorBase):
                                     "This app is using SQLCipher(http://sqlcipher.net/) to encrypt or decrpyt databases.",
                                     ["Database"])
 
-            path_sqlcipher_dbs = list(
+            sqlcipher_dbs = list(
                 self.analysis.find_methods(descriptor="\(\)Linfo/guardianproject/database/sqlcipher/SQLiteDatabase;"))
-            path_sqlcipher_dbs.append(
+            sqlcipher_dbs.extend(
                 list(self.analysis.find_methods(descriptor="\(\)Lnet/sqlcipher/database/SQLiteDatabase;")))
-            path_sqlcipher_dbs = self.filtering_engine.filter_method_class_analysis_list(
-                path_sqlcipher_dbs)  # TODO  'list' object has no attribute 'get_method' for apk eu.pretix.pretixscan.droid
+            sqlcipher_dbs = self.filtering_engine.filter_method_class_analysis_list(
+                sqlcipher_dbs)  # TODO  'list' object has no attribute 'get_method' for apk eu.pretix.pretixscan.droid
 
-            if path_sqlcipher_dbs:
+            if sqlcipher_dbs:
                 # Get versions:
                 has_version1or0 = False
                 has_version2 = False
-                for _, version in path_sqlcipher_dbs:
-                    if version == 1:
+                for class_analysis in sqlcipher_dbs:
+                    if class_analysis.descriptor == "()Linfo/guardianproject/database/sqlcipher/SQLiteDatabase;":
                         has_version1or0 = True
-                    if version == 2:
+                    if class_analysis.descriptor == "()Lnet/sqlcipher/database/SQLiteDatabase;":
                         has_version2 = True
 
                 if has_version1or0:
@@ -122,8 +122,7 @@ class Vector(VectorBase):
                         "It's using \"SQLCipher for Android\" (Library version: 2.X or higher), package name: \"net.sqlcipher.database\"")
 
                 # Dumping:
-                for db_path, version in path_sqlcipher_dbs:
-                    self.writer.show_Path(db_path)
+                self.writer.show_xrefs_method_class_analysis_list(sqlcipher_dbs)
 
         else:
             self.writer.startWriter("DB_SQLCIPHER", LEVEL_INFO, "Android SQLite Databases Encryption (SQLCipher)",

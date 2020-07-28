@@ -1,12 +1,24 @@
 from vector_base import VectorBase
 from constants import *
+from androguard.core.bytecodes import dvm
 
 
 class Vector(VectorBase):
-    description = "Checks if debug mode is enabled"
+    description = "Checks if debug mode is enabled, " \
+                  "if a debug certificate is present, and " \
+                  "if debug mode detection is used"
+
+    OPCODES = {
+        "iget": 0x52,
+        "and-int/lit8": 0xDD,
+    }
 
     def analyze(self) -> None:
-        # DEBUGGABLE checking:
+        self.check_is_debuggable()
+        self.check_has_debuggable_certificate()
+        self.check_detects_debuggable()
+
+    def check_is_debuggable(self) -> None:
         is_debug_open = self.apk.get_attribute_value('application', 'debuggable') not in (None, "false")
         if is_debug_open:
             self.writer.startWriter("DEBUGGABLE", LEVEL_CRITICAL, "Android Debug Mode Checking",
@@ -18,7 +30,7 @@ class Vector(VectorBase):
                                     "DEBUG mode is OFF(android:debuggable=\"false\") in AndroidManifest.xml.",
                                     ["Debug"])
 
-        # DEBUGGABLE_CERT checking:
+    def check_has_debuggable_certificate(self) -> None:
         for cert in self.apk.get_certificates():
             if "Common Name: Android Debug" in cert.issuer.human_friendly:
                 self.writer.startWriter("HACKER_DEBUGGABLE_CERT", LEVEL_CRITICAL, "Android Debug Certificate Checking",
@@ -30,6 +42,54 @@ class Vector(VectorBase):
                                 "App is signed with a production certificate. This is good.",
                                 ["Debug"])
 
+    # See also: https://web.archive.org/web/20200726122505/http://izvornikod.com/Blog/tabid/82/EntryId/13/How-to
+    # -check-if-your-android-application-is-running-in-debug-or-release-mode.aspx
+    def check_detects_debuggable(self) -> None:
+        debuggable_check_paths = []
+        application_info = list(self.analysis.find_methods(methodname="getApplicationInfo",
+                                                           classname="Landroid/content/pm/PackageManager;"))
+
+        if application_info:
+            application_info = application_info[0]
+            xrefs = application_info.get_xref_from()
+            matches = []
+            for _, method, _ in xrefs:
+                if self._scan_xrefs_for_debuggable_checks(method):
+                    matches.append(method)
+
+            if matches:
+                self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_NOTICE,
+                                        "Codes for Checking Android Debug Mode",
+                                        "Detected code that checks whether debug mode is enabled in:",
+                                        ["Debug", "Hacker"])
+                for method in matches:
+                    self.writer.write(
+                        "%s->%s%s" % (method.get_class_name(), method.get_name(), method.get_descriptor()))
+                return
+
+        self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_INFO, "Code for Checking Android Debug Mode",
+                                "Did not detect code that checks whether debug mode is enabled",
+                                ["Debug", "Hacker"])
+
+    def _scan_xrefs_for_debuggable_checks(self, method):
+        flags_variable = None
+        for instruction in method.get_instructions():
+            operands = instruction.get_operands()
+            opcode = instruction.get_op_value()
+            if len(operands) == 3:
+                if flags_variable is None and opcode == self.OPCODES["iget"]:
+                    if operands[2][0] == (dvm.OPERAND_KIND + dvm.KIND_FIELD) \
+                            and operands[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I":
+                        flags_variable = operands[0]
+                        continue
+                if flags_variable and opcode == self.OPCODES["and-int/lit8"]:
+                    if operands[2] == (dvm.OPERAND_LITERAL, 2) \
+                            and operands[0] == flags_variable and operands[1] == flags_variable:
+                        return True
+        return False
+
+    # Find iget [[v1]], v1, [[[Landroid/content/pm/ApplicationInfo;->flags:I]]] and check whether the next
+    # line is an and-int/lit8 instruction on the variable.
 
 # # Checking whether the app is checking debuggable: #TODO maybe implement this since it returns other results than HACKER DEBUGGABLE CERT
 #
