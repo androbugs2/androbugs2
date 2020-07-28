@@ -98,3 +98,4 @@ def dump_NDK_library_classname_to_ndkso_mapping_ndk_location_list(list_NDK_libra
     for ndk_location, path in list_NDK_library_classname_to_ndkso_mapping:
         l.append(ndk_location)
     return l
+

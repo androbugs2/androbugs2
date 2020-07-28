@@ -36,35 +36,35 @@ class Vector(VectorBase):
                                                                descriptor="\(Ljava/landescriptor=g/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;\)Landroid/database/sqlite/SQLiteDatabase;")
         path_openOrCreateDatabase = self.filtering_engine.filter_method_class_analysis_list(list(path_openOrCreateDatabase))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openOrCreateDatabase):
-            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
+            if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openOrCreateDatabase.append(i.getPath())
 
         path_openOrCreateDatabase2 = self.analysis.find_methods(methodname="openOrCreateDatabase",
                                                                 descriptor="\(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;\)Landroid/database/sqlite/SQLiteDatabase;")
-        path_openOrCreateDatabase2 = self.filtering_engine.filter_method_class_analysis_list(list(path_openOrCreateDatabase2))
+        path_openOrCreateDatabase2 = self.filtering_engine.filter_method_class_analysis_list(path_openOrCreateDatabase2)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openOrCreateDatabase2):
-            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
+            if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openOrCreateDatabase2.append(i.getPath())
 
         path_getDir = self.analysis.find_methods(methodname="getDir",
                                                  descriptor="\(Ljava/lang/String; I\)Ljava/io/File;")
-        path_getDir = self.filtering_engine.filter_method_class_analysis_list(list(path_getDir))
+        path_getDir = self.filtering_engine.filter_method_class_analysis_list(path_getDir)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_getDir):
-            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
+            if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_getDir.append(i.getPath())
 
         path_getSharedPreferences = self.analysis.find_methods(methodname="getSharedPreferences",
                                                                descriptor="\(Ljava/lang/String; I\)Landroid/content/SharedPreferences;")
-        path_getSharedPreferences = self.filtering_engine.filter_method_class_analysis_list(list(path_getSharedPreferences))
+        path_getSharedPreferences = self.filtering_engine.filter_method_class_analysis_list(path_getSharedPreferences)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_getSharedPreferences):
-            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3: #TODO needs fixing "'<=' not supported between instances of 'int' and 'str'",
+            if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3: #TODO needs fixing "'<=' not supported between instances of 'int' and 'str'",
                 list_path_getSharedPreferences.append(i.getPath())
 
         path_openFileOutput = self.analysis.find_methods(methodname="openFileOutput",
                                                          descriptor="\(Ljava/lang/String; I\)Ljava/io/FileOutputStream;")
-        path_openFileOutput = self.filtering_engine.filter_method_class_analysis_list(list(path_openFileOutput))
+        path_openFileOutput = self.filtering_engine.filter_method_class_analysis_list(path_openFileOutput)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openFileOutput):
-            if i.getResult()[2] and 0x1 <= i.getResult()[2] <= 0x3:
+            if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openFileOutput.append(i.getPath())
 
         if list_path_openOrCreateDatabase or list_path_openOrCreateDatabase2 or list_path_getDir or list_path_getSharedPreferences or list_path_openFileOutput:

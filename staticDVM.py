@@ -197,8 +197,18 @@ class RegisterAnalyzerVMImmediateValue(object):
                     if self.is_class_container(clz_invoked):
                         clz_invoked.add_invoke_method(operands[-1])
 
-    def load_instructions(self, ins, max_trace=-1, trace_extra_offset_ins=0):
-        if max_trace == -1:  # Load all instructions
+    def load_instructions(self, ins, max_trace=-1, trace_extra_offset_ins=0, destination_method=None):
+        if destination_method:
+            for i in ins:  # method.get_instructions(): Instruction
+                self.__add(i.get_op_value(), i.get_operands())
+                # if the instruction is an invoke operation,
+                # check the method to call and verify it is the destination method
+                if 0x6e <= i.get_op_value() <= 0x78 \
+                        and i.get_operands()[-1][-1] == "%s->%s%s" % (destination_method.get_class_name(),
+                                                                      destination_method.get_name(),
+                                                                      destination_method.get_descriptor()):
+                    break
+        elif max_trace == -1:  # Load all instructions
             for i in ins:  # method.get_instructions(): Instruction
                 self.__add(i.get_op_value(), i.get_operands())
                 # print "\t", i.get_name(), i.get_output(), ", kind: ", hex(i.get_op_value())
@@ -317,12 +327,12 @@ class RegisterAnalyzerVMImmediateValue(object):
 def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
     results = []
     for method_class_analysis in method_class_analysis_list:
-        for __, source_method, idx in method_class_analysis.get_xref_from():
+        for __, source_method, offset in method_class_analysis.get_xref_from():
             if not isinstance(source_method, analysis.ExternalMethod):
                 results.append({
                     "src_method": source_method,
                     "dst_method": method_class_analysis.get_method(),
-                    "idx": idx
+                    "idx": offset
                 })
     return results
 
@@ -342,7 +352,7 @@ def trace_register_value_by_param_in_method_class_analysis_list(method_class_ana
             continue
 
         register_analyzer = RegisterAnalyzerVMImmediateValue()
-        register_analyzer.load_instructions(method.get_instructions(), max_trace)
+        register_analyzer.load_instructions(method.get_instructions(), destination_method=source_path['dst_method'])
         result = RegisterAnalyzerVMResult(source_path,
                                           register_analyzer.get_register_number_to_register_value_mapping())
         results.append(result)

@@ -132,3 +132,23 @@ class FilteringEngine:
                 dic_classname_to_paths[class_name] = []
             dic_classname_to_paths[class_name].append(i.getPath())
         return dic_classname_to_paths
+
+    def filter_list_of_classes(self, class_list):
+        if self.__enable_exclude_classes and class_list:
+            l = []
+            for i in class_list:
+                if not self.__regexp_excluded_classes.match(i):
+                    l.append(i)
+            return l
+        else:
+            return class_list
+
+    def filter_list_of_methods(self, method_list):
+        if self.__enable_exclude_classes and method_list:
+            l = []
+            for method in method_list:
+                if not self.__regexp_excluded_classes.match(method.get_class_name()):
+                    l.append(method)
+            return l
+        else:
+            return method_list
