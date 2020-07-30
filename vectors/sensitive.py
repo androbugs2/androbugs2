@@ -5,6 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks if Android getting sensitive information such as IMEI, Android_ID, UUID"
+    tags = ["SENSITIVE_DEVICE_ID", "SENSITIVE_SECURE_ANDROID_ID"]
 
     def analyze(self) -> None:
 

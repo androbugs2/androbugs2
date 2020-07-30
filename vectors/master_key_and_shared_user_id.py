@@ -4,6 +4,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks Master Key Type I Vulnerability and sharedUserId"
+    tags = ["MASTER_KEY", "SHARED_USER_ID"]
 
     def has_master_key_vulnerability(self) -> bool:
         all_files = self.apk.get_files()

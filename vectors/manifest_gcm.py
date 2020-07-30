@@ -5,6 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks if sdk allows Google Cloud Messaging (Push Message) service"
+    tags = ["MANIFEST_GCM"]
 
     def analyze(self) -> None:
 

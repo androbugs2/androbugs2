@@ -9,6 +9,7 @@ from zipfile import BadZipfile
 import argparse
 from androguard import misc
 import persist
+import vector_base
 import vectors
 from writer import *
 
@@ -312,15 +313,16 @@ def __analyze(writer, args):
     print("Loaded vectors:")
     file_list = os.listdir(os.path.dirname(vectors.__file__))
     for file_name in file_list:
-        if file_name.endswith('.py') and file_name != '__init__.py' \
-                and (args.debug_vector is None or file_name.startswith(args.debug_vector)):
+        if file_name.endswith('.py') and file_name != '__init__.py':
             loaded_vector_classes.append(importlib.import_module('vectors.' + file_name.replace('.py', '')))
             print(file_name.replace('.py', ''))
 
     writer.update_analyze_status("checking_vectors")
+    loaded_vector_classes: [vector_base.Vector]
     for vector_class in loaded_vector_classes:
-        print("Running " + vector_class.__name__ + " analysis.")
-        vector_class.Vector(writer, a, d[0], dx, args, int_min_sdk, int_target_sdk).analyze()
+        if args.debug_vector is None or args.debug_vector in vector_class.Vector.tags:
+            print("Running " + vector_class.__name__ + " analysis.")
+            vector_class.Vector(writer, a, d[0], dx, args, int_min_sdk, int_target_sdk).analyze()
 
     # End of Checking
 
@@ -350,11 +352,10 @@ def main():
     try:
         # Print Title
         writer.writePlainInf("""**********************************************************************************************
-**   AndroBugs Framework - Android App Security Vulnerability Scanner                       **
-**                            version: 1.0.0                                                **
+**           AndroBugs Framework - Android App Security Vulnerability Scanner               **
+**                                    version: 1.0.0                                        **
 ** This tool was originally created by Yu-Cheng Lin (@AndroBugs, http://www.AndroBugs.com)  **
 **                     Modifications by Jasper van Thuijl & Noam Drong                      **
-**                          contact: androbugs.framework@gmail.com                          **
 **********************************************************************************************""")
 
         # Analyze

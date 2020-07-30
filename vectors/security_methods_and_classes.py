@@ -4,7 +4,7 @@ import re
 
 class Vector(VectorBase):
     description = "Checks if there are any security related method and class names present"
-
+    tags = ["Security_Methods", "Security_Classes"]
     def analyze(self) -> None:
 
         regexGerneralRestricted = ".*(config|setting|constant).*"

@@ -6,7 +6,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks Master Key Type I Vulnerability "
-
+    tags = ["HACKER_SIGNATURE_CHECK"]
     def analyze(self) -> None:
         # Android PackageInfo signatures checking:
 

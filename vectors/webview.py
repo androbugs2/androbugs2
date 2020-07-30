@@ -6,6 +6,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks if an unprotected keystore is present"
+    tags = ["SSL_WEBVIEW", "WEBVIEW_JS_ENABLED", "WEBVIEW_RCE", "WEBVIEW_ALLOW_FILE_ACCESS"]
 
     def analyze(self) -> None:
         # WebViewClient onReceivedSslError errors
@@ -89,8 +90,9 @@ class Vector(VectorBase):
         # Don't match class name because it might use the subclass of WebView
         path_WebView_addJavascriptInterface = self.analysis.find_methods(
             methodname="addJavascriptInterface", descriptor="\(Ljava/lang/Object; Ljava/lang/String;\)V")
-        path_WebView_addJavascriptInterface = self.filtering_engine.filter_method_class_analysis_list(
-                                                                                    path_WebView_addJavascriptInterface)
+        path_WebView_addJavascriptInterface = staticDVM.get_paths(path_WebView_addJavascriptInterface)
+        # path_WebView_addJavascriptInterface = self.filtering_engine.filter_method_class_analysis_list(
+        #                                                                             path_WebView_addJavascriptInterface)
 
         if path_WebView_addJavascriptInterface:
 
@@ -105,7 +107,7 @@ class Vector(VectorBase):
 
             self.writer.startWriter("WEBVIEW_RCE", LEVEL_CRITICAL, "WebView RCE Vulnerability Checking", output_string,
                                     ["WebView", "Remote Code Execution"], "CVE-2013-4710")
-            self.writer.show_xrefs_method_class_analysis_list(path_WebView_addJavascriptInterface)
+            self.writer.show_Paths(path_WebView_addJavascriptInterface)
 
         else:
 

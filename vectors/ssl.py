@@ -7,6 +7,8 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks runtime exec"
+    tags = ["SSL_CN2", "SSL_CN3",
+            "SSL_DEFAULT_SCHEME_NAME", "SSL_X509"]
 
     def analyze(self) -> None:
 

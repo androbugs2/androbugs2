@@ -16,7 +16,12 @@ PROTECTION_MASK_FLAGS = 240
 
 class Vector(VectorBase):
     description = "Checks if app has correct permissions"
-
+    tags = ["USE_PERMISSION_ACCESS_MOCK_LOCATION", "PERMISSION_GROUP_EMPTY_VALUE",
+            "USE_PERMISSION_SYSTEM_APP", "USE_PERMISSION_CRITICAL",
+            "USE_PERMISSION_SYSTEM_APP", "PERMISSION_NORMAL", "PERMISSION_DANGEROUS",
+            "PERMISSION_NO_PREFIX_EXPORTED", "PERMISSION_EXPORTED",
+            "PERMISSION_PROVIDER_IMPLICIT_EXPORTED", "PERMISSION_INTENT_FILTER_MISCONFIG",
+            "PERMISSION_IMPLICIT_SERVICE"]
     def _get_all_components_by_permission(self, xml, permission):
         """
             Return:

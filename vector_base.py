@@ -51,6 +51,16 @@ class VectorBase(ABC):
         """
         pass
 
+
+    @property
+    @abstractmethod
+    def tags(self) -> [str]:
+        """
+        Short description of the vulnerability vector.
+        :return: str
+        """
+        pass
+
     @abstractmethod
     def analyze(self) -> None:
         """

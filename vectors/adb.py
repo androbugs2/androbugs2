@@ -5,6 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks adb backup"
+    tags = ["ALLOW_BACKUP"]
 
     def analyze(self) -> None:
         # Adb Backup check

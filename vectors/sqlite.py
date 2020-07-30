@@ -8,7 +8,7 @@ STR_REGEXP_TYPE_EXCLUDE_CLASSES = "^(Landroid/support/|Lcom/actionbarsherlock/|L
 
 class Vector(VectorBase):
     description = "SQLiteDatabase - beginTransactionNonExclusive() checking "
-
+    tags = ["HACKER_DB_KEY", "DB_DEPRECATED_USE1", "DB_SQLITE_JOURNAL", "DB_SEE", "DB_SQLCIPHER"]
     def analyze(self) -> None:
         # pragma key
         strings_analysis = self.analysis.find_strings("PRAGMA\s*key\s*=")

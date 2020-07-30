@@ -5,6 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks runtime exec"
+    tags = ["COMMAND", "COMMAND_SU"]
 
     def analyze(self) -> None:
         # Runtime exec checking:

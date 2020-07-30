@@ -4,6 +4,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks if a framework was used to develop the app, and if so, which one."
+    tags = ["FRAMEWORK"]
 
     XAMARIN_SIGNATURE = {
         "class_name": "Lmono/android/Runtime;",

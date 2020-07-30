@@ -7,7 +7,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks executing as root"
-
+    tags = ["COMMAND_MAYBE_SYSTEM"]
     def analyze(self) -> None:
         # Searching checking root or not:
 

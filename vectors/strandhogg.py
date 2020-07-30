@@ -4,7 +4,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks for Strandhogg 2.0 vulnerability"
-
+    tags = ["STRANDHOGG_2"]
     LAUNCH_MODES = {
         "standard": 0,
         "singleTop": 1,

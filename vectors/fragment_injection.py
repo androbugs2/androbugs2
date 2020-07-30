@@ -7,7 +7,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks severe fragment injection vulnerability prior to Android 4.4 (API 19)."
-
+    tags = ["FRAGMENT_INJECTION"]
 
     def analyze(self) -> None:
         # Android Fragment Vulnerability (prior to Android 4.4)

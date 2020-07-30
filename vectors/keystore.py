@@ -5,6 +5,9 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks if an unprotected keystore is present"
+    tags = ["HACKER_KEYSTORE_NO_PWD", "HACKER_KEYSTORE_SSL_PINNING",
+            "HACKER_KEYSTORE_LOCATION1", "HACKER_KEYSTORE_LOCATION2",
+            "KEYSTORE_TYPE_CHECK"]
 
     def analyze(self) -> None:
         list_no_pwd_probably_ssl_pinning_keystore = []

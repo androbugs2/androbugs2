@@ -4,6 +4,7 @@ from engines import *
 
 class Vector(VectorBase):
     description = "HttpURLConnection bug checking"
+    tags = ["HTTPURLCONNECTION_BUG"]
 
     def analyze(self) -> None:
         # HttpURLConnection bug checking:
@@ -34,8 +35,8 @@ class Vector(VectorBase):
                 list_pre_froyo_http_url_connection = []
                 path_pre_froyo_http_url_connection = self.analysis.find_methods(
                     "Ljava/lang/System;", "setProperty", "\(Ljava/lang/String; Ljava/lang/String;\)Ljava/lang/String;")
-                path_pre_froyo_http_url_connection = self.filtering_engine.filter_method_class_analysis_list(
-                                                                                        path_pre_froyo_http_url_connection)
+                # path_pre_froyo_http_url_connection = self.filtering_engine.filter_method_class_analysis_list(
+                #                                                                         path_pre_froyo_http_url_connection)
 
                 has_http_keepAlive_Name = False
                 has_http_keep_alive_value = False

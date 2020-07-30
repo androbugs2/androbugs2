@@ -5,7 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks Detect dynamic code loading"
-
+    tags = ["DYNAMIC_CODE_LOADING"]
     def analyze(self) -> None:
         # Detect dynamic code loading
 

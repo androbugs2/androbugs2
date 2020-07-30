@@ -5,7 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "Checks SMS sending"
-
+    tags = ["SENSITIVE_SMS"]
     def analyze(self) -> None:
         """
           Example:

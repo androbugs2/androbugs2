@@ -5,6 +5,7 @@ from constants import *
 
 class Vector(VectorBase):
     description = "MODE_WORLD_READABLE or MODE_WORLD_WRITEABLE checking"
+    tags = ["MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", "EXTERNAL_STORAGE", "FILE_DELETE"]
 
     def analyze(self) -> None:
         """

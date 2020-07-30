@@ -5,6 +5,7 @@ from engines import *
 
 class Vector(VectorBase):
     description = "Developers preventing screenshot capturing checking"
+    tags = ["HACKER_PREVENT_SCREENSHOT_CHECK"]
 
     def analyze(self) -> None:
         """

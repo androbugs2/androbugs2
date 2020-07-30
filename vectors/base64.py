@@ -10,6 +10,7 @@ list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "end
 
 class Vector(VectorBase):
     description = "Checks if there are any Base64 encoded strings present and decodes them"
+    tags = ["HACKER_BASE64_STRING_DECODE", "SSL_Security"]
 
     def analyze(self) -> None:
         strings_analysis = self.analysis.get_strings_analysis()

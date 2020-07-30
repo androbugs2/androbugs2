@@ -7,6 +7,7 @@ from engines import *
 
 class Vector(VectorBase):
     description = "get native methods and frameworks"
+    tags = ["NATIVE_METHODS", "NATIVE_LIBS_LOADING"]
 
     def analyze(self) -> None:
         """
