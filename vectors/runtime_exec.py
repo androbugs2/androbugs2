@@ -31,13 +31,14 @@ class Vector(VectorBase):
             if i.getResult()[1].startswith("su"):
                 paths_runtime_exec_su.append(i.getPath())
 
+        path_runtime_exec = staticDVM.get_paths(path_runtime_exec)
+
         if path_runtime_exec:
             self.writer.startWriter("COMMAND", LEVEL_CRITICAL, "Runtime Command Checking",
                                     "This app is using critical function 'Runtime.getRuntime().exec("
                                     "\"...\")'.\nPlease confirm these following code secions are not harmful:",
                                     ["Command"])
 
-            path_runtime_exec = staticDVM.get_paths(path_runtime_exec)
             self.writer.show_Paths(path_runtime_exec)
 
             if paths_runtime_exec_su:
