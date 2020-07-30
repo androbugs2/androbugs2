@@ -171,7 +171,7 @@ class Vector(VectorBase):
         path_get_insecure = self.analysis.find_methods(
             "Landroid/net/SSLCertificateSocketFactory;", "getInsecure",
             "\(I Landroid/net/SSLSessionCache;\)Ljavax/net/ssl/SSLSocketFactory;")
-        path_get_insecure = self.filtering_engine.filter_method_class_analysis_list(path_get_insecure)
+        path_get_insecure = staticDVM.get_paths(path_get_insecure)
 
         if path_get_insecure:
 
@@ -182,7 +182,7 @@ class Vector(VectorBase):
             self.writer.startWriter("SSL_CN3", LEVEL_CRITICAL, "SSL Implementation Checking (Insecure component)",
                                     output_string,
                                     ["SSL_Security"])
-            self.writer.show_xrefs_method_class_analysis_list(path_get_insecure)
+            self.writer.show_Paths(path_get_insecure)
         else:
             self.writer.startWriter("SSL_CN3", LEVEL_INFO, "SSL Implementation Checking (Insecure component)",
                                     "Did not detect SSLSocketFactory by insecure method \"getInsecure\".",
@@ -205,7 +205,6 @@ class Vector(VectorBase):
         list_http_host_scheme_http = []
         path_http_host_scheme_http = self.analysis.find_methods(
             "Lorg/apache/http/HttpHost;", "<init>", "\(Ljava/lang/String; I Ljava/lang/String;\)V")
-        path_http_host_scheme_http = self.filtering_engine.filter_method_class_analysis_list(path_http_host_scheme_http)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(
                                                                          path_http_host_scheme_http):
             if i.getResult()[3] is None:
@@ -218,8 +217,7 @@ class Vector(VectorBase):
                                     "This app uses \"HttpHost\", but the default scheme is \"http\" or \"HttpHost.DEFAULT_SCHEME_NAME(http)\". Please change to \"https\":",
                                     ["SSL_Security"])
 
-            for i in list_http_host_scheme_http:
-                self.writer.show_Path(i)
+            self.writer.show_Paths(list_http_host_scheme_http)
         else:
             self.writer.startWriter("SSL_DEFAULT_SCHEME_NAME", LEVEL_INFO, "SSL Implementation Checking (HttpHost)",
                                     "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])

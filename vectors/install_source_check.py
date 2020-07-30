@@ -11,7 +11,6 @@ class Vector(VectorBase):
 
         path_get_installer_package_name = self.analysis.find_methods(
             "Landroid/content/pm/PackageManager;", "getInstallerPackageName", "\(Ljava/lang/String;\)Ljava/lang/String;")
-        # path_get_installer_package_name = self.filtering_engine.filter_method_class_analysis_list(path_get_installer_package_name)
         path_get_installer_package_name = staticDVM.get_paths(path_get_installer_package_name)
 
         if path_get_installer_package_name:

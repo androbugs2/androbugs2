@@ -26,9 +26,6 @@ class Vector(VectorBase):
             if helper_functions.is_kind_string_in_ins_method(method, "Landroid/webkit/SslErrorHandler;->proceed()V"):
                 list_webview_client.append(method)
 
-        # TODO needs fixing
-        # list_webview_client = self.filtering_engine.filter_method_class_analysis_list(list_webview_client)
-
         if list_webview_client:
             self.writer.startWriter("SSL_WEBVIEW", LEVEL_CRITICAL, "SSL Implementation Checking (WebViewClient for WebView)",
                                """DO NOT use "handler.proceed();" inside those methods in extended "WebViewClient", which allows the connection even if the SSL Certificate is invalid (MITM Vulnerability).
@@ -69,7 +66,6 @@ class Vector(VectorBase):
         list_set_java_script_enabled_xss = []
         path_set_java_script_enabled_xss = self.analysis.find_methods(
             "Landroid/webkit/WebSettings;", "setJavaScriptEnabled", "\(Z\)V")
-        path_set_java_script_enabled_xss = self.filtering_engine.filter_method_class_analysis_list(path_set_java_script_enabled_xss)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_set_java_script_enabled_xss):
             if i.getResult()[1] is None:
                 continue
@@ -91,8 +87,6 @@ class Vector(VectorBase):
         path_WebView_addJavascriptInterface = self.analysis.find_methods(
             methodname="addJavascriptInterface", descriptor="\(Ljava/lang/Object; Ljava/lang/String;\)V")
         path_WebView_addJavascriptInterface = staticDVM.get_paths(path_WebView_addJavascriptInterface)
-        # path_WebView_addJavascriptInterface = self.filtering_engine.filter_method_class_analysis_list(
-        #                                                                             path_WebView_addJavascriptInterface)
 
         if path_WebView_addJavascriptInterface:
 

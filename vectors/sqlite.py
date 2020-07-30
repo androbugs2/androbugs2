@@ -38,7 +38,7 @@ class Vector(VectorBase):
         if (self.int_min_sdk is not None) and (self.int_min_sdk < 11):
             path_sq_lite_database_begin_transaction_non_exclusive = self.analysis.find_methods(
                 "Landroid/database/sqlite/SQLiteDatabase;", "beginTransactionNonExclusive", "\(\)V")
-            path_sq_lite_database_begin_transaction_non_exclusive = self.filtering_engine.filter_method_class_analysis_list(
+            path_sq_lite_database_begin_transaction_non_exclusive = staticDVM.get_paths(
                 path_sq_lite_database_begin_transaction_non_exclusive)
 
             if path_sq_lite_database_begin_transaction_non_exclusive:
@@ -49,7 +49,7 @@ class Vector(VectorBase):
                                         "SQLiteDatabase Transaction Deprecated Checking",
                                         output_string, ["Database"])
 
-                self.writer.show_xrefs_method_class_analysis_list(path_sq_lite_database_begin_transaction_non_exclusive)
+                self.writer.show_Paths(path_sq_lite_database_begin_transaction_non_exclusive)
             else:
                 self.writer.startWriter("DB_DEPRECATED_USE1", LEVEL_INFO,
                                         "SQLiteDatabase Transaction Deprecated Checking",
@@ -131,7 +131,7 @@ class Vector(VectorBase):
 
         # SQLite databases
         is_using_android_dbs = self.analysis.find_methods(descriptor="\(\)Landroid/database/sqlite/SQLiteDatabase;")
-        is_using_android_dbs = self.filtering_engine.filter_method_class_analysis_list(is_using_android_dbs)
+        is_using_android_dbs = staticDVM.get_paths(is_using_android_dbs)
         if is_using_android_dbs:
             if self.int_min_sdk < 15:
                 self.writer.startWriter("DB_SQLITE_JOURNAL", LEVEL_NOTICE,

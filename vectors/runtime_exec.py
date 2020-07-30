@@ -20,17 +20,16 @@ class Vector(VectorBase):
                 invoke-virtual {v1, v2}, Ljava/lang/Runtime;->exec(Ljava/lang/String;)Ljava/lang/Process;
         """
 
-        list_runtime_exec = []
+        paths_runtime_exec_su = []
 
         path_runtime_exec = self.analysis.find_methods("Ljava/lang/Runtime;", "exec",
                                                        "\(Ljava/lang/String;\)Ljava/lang/Process;")
-        path_runtime_exec = self.filtering_engine.filter_method_class_analysis_list(path_runtime_exec)
 
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_runtime_exec):
             if i.getResult()[1] is None:
                 continue
             if i.getResult()[1].startswith("su"):
-                list_runtime_exec.append(i.getPath())
+                paths_runtime_exec_su.append(i.getPath())
 
         if path_runtime_exec:
             self.writer.startWriter("COMMAND", LEVEL_CRITICAL, "Runtime Command Checking",
@@ -38,15 +37,16 @@ class Vector(VectorBase):
                                     "\"...\")'.\nPlease confirm these following code secions are not harmful:",
                                     ["Command"])
 
-            self.writer.show_xrefs_method_class_analysis_list(path_runtime_exec)
+            path_runtime_exec = staticDVM.get_paths(path_runtime_exec)
+            self.writer.show_Paths(path_runtime_exec)
 
-            if list_runtime_exec:
+            if paths_runtime_exec_su:
                 self.writer.startWriter("COMMAND_SU", LEVEL_CRITICAL, "Runtime Critical Command Checking",
                                         "Requesting for \"root\" permission code sections 'Runtime.getRuntime().exec("
                                         "\"su\")' found (Critical but maybe false positive):",
                                         ["Command"])
 
-                self.writer.show_Paths(list_runtime_exec)
+                self.writer.show_Paths(paths_runtime_exec_su)
         else:
             self.writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
                                     "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",

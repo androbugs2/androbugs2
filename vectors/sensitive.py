@@ -13,7 +13,7 @@ class Vector(VectorBase):
 
         path_Device_id = self.analysis.find_methods("Landroid/telephony/TelephonyManager;",
                                                     "getDeviceId", "\(\)Ljava/lang/String;")
-        path_Device_id = self.filtering_engine.filter_method_class_analysis_list(path_Device_id)
+        path_Device_id = staticDVM.get_paths(path_Device_id)
 
         if path_Device_id:
 
@@ -27,7 +27,7 @@ class Vector(VectorBase):
     Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
     """, ["Sensitive_Information"])
 
-            self.writer.show_xrefs_method_class_analysis_list(path_Device_id)
+            self.writer.show_Paths(path_Device_id)
 
         else:
 
@@ -40,7 +40,6 @@ class Vector(VectorBase):
         path_android_id = self.analysis.find_methods("Landroid/provider/Settings\$Secure;",
                                                      "getString",
                                                      "\(Landroid/content/ContentResolver; Ljava/lang/String;\)Ljava/lang/String;")
-        path_android_id = self.filtering_engine.filter_method_class_analysis_list(path_android_id)
 
         list_android_id = []
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_android_id):

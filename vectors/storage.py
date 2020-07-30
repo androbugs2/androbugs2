@@ -35,35 +35,30 @@ class Vector(VectorBase):
 
         path_openOrCreateDatabase = self.analysis.find_methods(methodname="openOrCreateDatabase",
                                                                descriptor="\(Ljava/landescriptor=g/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory;\)Landroid/database/sqlite/SQLiteDatabase;")
-        path_openOrCreateDatabase = self.filtering_engine.filter_method_class_analysis_list(list(path_openOrCreateDatabase))
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openOrCreateDatabase):
             if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openOrCreateDatabase.append(i.getPath())
 
         path_openOrCreateDatabase2 = self.analysis.find_methods(methodname="openOrCreateDatabase",
                                                                 descriptor="\(Ljava/lang/String; I Landroid/database/sqlite/SQLiteDatabase$CursorFactory; Landroid/database/DatabaseErrorHandler;\)Landroid/database/sqlite/SQLiteDatabase;")
-        path_openOrCreateDatabase2 = self.filtering_engine.filter_method_class_analysis_list(path_openOrCreateDatabase2)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openOrCreateDatabase2):
             if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openOrCreateDatabase2.append(i.getPath())
 
         path_getDir = self.analysis.find_methods(methodname="getDir",
                                                  descriptor="\(Ljava/lang/String; I\)Ljava/io/File;")
-        path_getDir = self.filtering_engine.filter_method_class_analysis_list(path_getDir)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_getDir):
             if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_getDir.append(i.getPath())
 
         path_getSharedPreferences = self.analysis.find_methods(methodname="getSharedPreferences",
                                                                descriptor="\(Ljava/lang/String; I\)Landroid/content/SharedPreferences;")
-        path_getSharedPreferences = self.filtering_engine.filter_method_class_analysis_list(path_getSharedPreferences)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_getSharedPreferences):
             if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3: #TODO needs fixing "'<=' not supported between instances of 'int' and 'str'",
                 list_path_getSharedPreferences.append(i.getPath())
 
         path_openFileOutput = self.analysis.find_methods(methodname="openFileOutput",
                                                          descriptor="\(Ljava/lang/String; I\)Ljava/io/FileOutputStream;")
-        path_openFileOutput = self.filtering_engine.filter_method_class_analysis_list(path_openFileOutput)
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_openFileOutput):
             if isinstance(i.getResult()[2], int) and 0x1 <= i.getResult()[2] <= 0x3:
                 list_path_openFileOutput.append(i.getPath())
@@ -105,13 +100,12 @@ class Vector(VectorBase):
 
         external_storage_access_method_analysis_list = self.analysis.find_methods(
             "Landroid/os/Environment;", "getExternalStorageDirectory", "\(\)Ljava/io/File;")
-        external_storage_access_method_analysis_list = self.filtering_engine.filter_method_class_analysis_list(
-            external_storage_access_method_analysis_list)
+        external_storage_access_method_analysis_list = staticDVM.get_paths(external_storage_access_method_analysis_list)
 
         if external_storage_access_method_analysis_list:
             self.writer.startWriter("EXTERNAL_STORAGE", LEVEL_WARNING, "External Storage Accessing",
                                     "External storage access found (Remember DO NOT write important files to external storages):")
-            self.writer.show_xrefs_method_class_analysis_list(external_storage_access_method_analysis_list)
+            self.writer.show_Paths(external_storage_access_method_analysis_list)
         else:
             self.writer.startWriter("EXTERNAL_STORAGE", LEVEL_INFO, "External Storage Accessing",
                                     "External storage access not found.")
@@ -119,14 +113,14 @@ class Vector(VectorBase):
         # File delete alert
 
         file_delete_method_analysis_list = self.analysis.find_methods("Ljava/io/File;", "delete")
-        file_delete_method_analysis_list = self.filtering_engine.filter_method_class_analysis_list(file_delete_method_analysis_list)
+        file_delete_method_analysis_list = staticDVM.get_paths(file_delete_method_analysis_list)
 
         if file_delete_method_analysis_list:
             self.writer.startWriter("FILE_DELETE", LEVEL_NOTICE, "File Unsafe Delete Checking",
                                     """Everything you delete may be recovered by any user or attacker, especially rooted devices.
     Please make sure do not use "file.delete()" to delete essential files.
     Check this video: https://www.youtube.com/watch?v=tGw1fxUD-uY""")
-            self.writer.show_xrefs_method_class_analysis_list(file_delete_method_analysis_list)
+            self.writer.show_Paths(file_delete_method_analysis_list)
         else:
             self.writer.startWriter("FILE_DELETE", LEVEL_INFO, "File Unsafe Delete Checking",
                                     "Did not detect that you are unsafely deleting files.")
