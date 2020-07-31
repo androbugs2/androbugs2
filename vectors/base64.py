@@ -1,10 +1,10 @@
+import constants
 from vector_base import VectorBase
 from constants import *
 from engines import *
 import utils
 import base64
 
-STR_REGEXP_TYPE_EXCLUDE_CLASSES = "^(Landroid/support/|Lcom/actionbarsherlock/|Lorg/apache/)"
 list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "endNanos", "cityList", "cloudid=",
                                         "Liouciou"]  # exclusion list
 
@@ -17,7 +17,7 @@ class Vector(VectorBase):
 
         # Check all strings that seem to be base64 encoded
 
-        regex_excluded_class_names = re.compile(STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+        regex_excluded_class_names = re.compile(constants.STR_REGEXP_TYPE_EXCLUDE_CLASSES)
         found_strings = []
 
         for string, string_analysis in strings_analysis.items():

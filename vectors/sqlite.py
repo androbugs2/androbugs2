@@ -1,9 +1,8 @@
+import constants
 from vector_base import VectorBase
 from constants import *
 from engines import *
 import re
-
-STR_REGEXP_TYPE_EXCLUDE_CLASSES = "^(Landroid/support/|Lcom/actionbarsherlock/|Lorg/apache/)"
 
 
 class Vector(VectorBase):
@@ -13,7 +12,7 @@ class Vector(VectorBase):
         # pragma key
         strings_analysis = self.analysis.find_strings("PRAGMA\s*key\s*=")
 
-        regex_excluded_class_names = re.compile(STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+        regex_excluded_class_names = re.compile(constants.STR_REGEXP_TYPE_EXCLUDE_CLASSES)
 
         found_strings = []
         for string_analysis in strings_analysis:
