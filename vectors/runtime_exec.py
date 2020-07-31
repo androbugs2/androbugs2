@@ -22,8 +22,7 @@ class Vector(VectorBase):
 
         paths_runtime_exec_su = []
 
-        path_runtime_exec = self.analysis.find_methods("Ljava/lang/Runtime;", "exec",
-                                                       "\(Ljava/lang/String;\)Ljava/lang/Process;")
+        path_runtime_exec = list(self.analysis.find_methods("Ljava/lang/Runtime;", "exec", "\(Ljava/lang/String;\)Ljava/lang/Process;"))
 
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_runtime_exec):
             if i.getResult()[1] is None:
