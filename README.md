@@ -3,113 +3,104 @@
 AndroBugs Framework is an Android vulnerability analysis system that helps developers or hackers find potential security vulnerabilities in Android applications. 
 No splendid GUI interface, but the most efficient (less than 2 minutes per scan in average) and more accurate.
 
-Version: 1.0.0
+Version: 2.0.0
 
-## Features:
-
-- Find security vulnerabilities in an Android app
-- Check if the code is missing best practices
-- Check dangerous shell commands (e.g. “su”)
-- Collect Information from millions of apps
+## Features
+- Find security vulnerabilities in an Android application
+- Check if the application's code is missing best practices
+- Detect if an application uses a certain cross-platform framework (such as Xamarin, Flutter and React Native)
+- Check if the application executes potentially dangerous shell commands (e.g. “su”)
+- Parallel massive analysis feature to scan large numbers of applications in a short amount of time (allows to scan 1000 applications with 20 cores and 10 GB RAM in 7 minutes and 30 seconds under 15 minutes)
 - Check the app’s security protection (marked as ```<Hacker>```, designed for app repackaging hacking)
+- Find and decode base64 encoded strings in Applications
+- Easy development and integration of new vulnerability vectors (see EXTENDING.md)
 
 
-## Setup:
-In the folder create a virtual environment: `python3 -m venv venv` and activate the virtual environment: `source venv/bin/activate`
+## Setup
+The following requirements are needed in order to fully use AndroBugs Framework's features:
+- Python 3
+- MongoDB installation (https://www.mongodb.org/downloads) 
 
-Install requirements by running `pip -r requirements.txt`. It is now possible to use pip and python instead of pip3 and python3 since we have activated the virtual environment. The required packages will be installed locally in the folder `venv/lib/python3.7/site-packages`
+The MongoDB installation is necessary if you want to use the massive analysis fetaure. 
 
-## Author
+Clone the repository to a local folder.  In this folder, create a virtual environment: `python3 -m venv venv` and activate the virtual environment: `source venv/bin/activate`
 
-- Yu-Cheng Lin  (androbugs.framework at gmail.com, @AndroBugs)
+Install the required packages by running `pip -r requirements.txt`. (It is possible to use pip and python instead of pip3 and python3 since we have activated the virtual environment.) The required packages will be installed locally in the folder `./venv/lib/python3.7/site-packages`
 
-## Steup Steps and Usage for Windows
-
-**Easy to use for Android developers or hackers on Microsoft Windows: (a) No need to install Python 2.7 (b) No need to install any 3rd-party library (c) No need to install AndroBugs Framework**
-
-1. mkdir C:\AndroBugs_Framework
-2. cd C:\AndroBugs_Framework
-3. Unzip the latest Windows version of AndroBugs Framework from [Windows releases](https://github.com/AndroBugs/AndroBugs_Framework/releases)
-4. Go to Computer->System Properties->Advanced->Environment Variables. Add "C:\AndroBugs_Framework" to the "Path" variable
-5. ```androbugs.exe -h```
-6. ```androbugs.exe -f [APK file]```
-
-## Massive Analysis Tool Steup Steps and Usage for Windows
-1. Complete the *Steup Steps and Usage for Windows* first
-2. Install the Windows version of MongoDB (https://www.mongodb.org/downloads)
-3. Install [PyMongo library](http://api.mongodb.org/python/current/installation.html)
-4. Config your own MongoDB settings: C:\AndroBugs_Framework\androbugs-db.cfg
-5. Choose your preferred MongoDB management tool (http://mongodb-tools.com/)
-6. ```AndroBugs_MassiveAnalysis.exe -h```
-  - Example: ```AndroBugs_MassiveAnalysis.exe -b 20151112 -t BlackHat -d .\All_Your_Apps\ -o .\Massive_Analysis_Reports```
-7. ```AndroBugs_ReportByVectorKey.exe -h```
-  - Example: ```AndroBugs_ReportByVectorKey.exe -v WEBVIEW_RCE -l Critical -b 20151112 -t BlackHat```
+Optionally reconfigure the MongoDB config in `androbugs-db.cfg` to match your MongoDB configuration. The database will be created if it does not exists already.
 
 ## Usage for Unix/Linux
 
-####To run the AndroBugs Framework:####
-
+### Running the AndroBugs Framework
+To scan an application for all the defined vulnerabilities run the following command:
 ```
 python androbugs.py -f [APK file]
 ```
+Optionally, you can specify which vectors you would like to scan, using 
+```
+python androbugs.py -f [APK file] -d [Vector Name]
+```
+For example, you could replace `[Vector Name]` with `STRANDHOGG_2` to only scan the application for the Strandhogg 2.0 vulnerability.
 
-####To check the usage:####
+To get a full list of defined vulnerabilities, please run the following command:
+```
+python androbugs.py -l
+```
+
+### Getting help for parameters
 
 ```
 python androbugs.py -h
 ```
 
-## Usage of Massive Analysis Tools for Unix/Linux
-
-**Prerequisite: Setup MongoDB and config your own MongoDB settings in "androbugs-db.cfg"**
-
-####To run the massive analysis for AndroBugs Framework:####
+### Usage of Massive Analysis Tools for Unix/Linux
 
 ```
-python AndroBugs_MassiveAnalysis.py -b [Your_Analysis_Number] -t [Your_Analysis_Tag] -d [APKs input directory] -o [Report output directory]
+python AndroBugs_MassiveAnalysis.py -b [Analysis Date] -t [Anaysis Tag] -d [APKs input directory] -o [Report output directory]
 ```
  
 Example:
 ```
-python AndroBugs_MassiveAnalysis.py -b 20151112 -t BlackHat -d ~/All_Your_Apps/ -o ~/Massive_Analysis_Reports
+python AndroBugs_MassiveAnalysis.py -b 30072020 -t BlackHat -d ~/APKDataset/ -o ~/Massive_Analysis_Reports
 ```
 
 
-####To get the summary report and all the vectors of massive analysis:####
+### To get the summary report and all the vectors of massive analysis
 
 ```
-python AndroBugs_ReportSummary.py -m massive -b [Your_Analysis_Number] -t [Your_Analysis_Tag]
-```
-
-Example:
-```
-python AndroBugs_ReportSummary.py -m massive -b 20151112 -t BlackHat
-```
-
-
-####To list the potentially vulnerable apps by Vector ID and Severity Level (Log Level):####
-
-```
-python AndroBugs_ReportByVectorKey.py -v [Vector ID] -l [Log Level] -b [Your_Analysis_Number] -t [Your_Analysis_Tag]
-python AndroBugs_ReportByVectorKey.py -v [Vector ID] -l [Log Level] -b [Your_Analysis_Number] -t [Your_Analysis_Tag] -a
+python AndroBugs_ReportSummary.py -m massive -b [Analysis Date] -t [Anaysis Tag]
 ```
 
 Example:
 ```
-python AndroBugs_ReportByVectorKey.py -v WEBVIEW_RCE -l Critical -b 20151112 -t BlackHat
-python AndroBugs_ReportByVectorKey.py -v WEBVIEW_RCE -l Critical -b 20151112 -t BlackHat -a
+python AndroBugs_ReportSummary.py -m massive -b 30072020 -t BlackHat
+```
+
+
+### Listing potentially vulnerable apps by Vector ID and Severity Level (Log Level)
+
+```
+python AndroBugs_ReportByVectorKey.py -v [Vector ID] -l [Log Level] -b [Analysis Date] -t [Anaysis Tag]
+python AndroBugs_ReportByVectorKey.py -v [Vector ID] -l [Log Level] -b [Analysis Date] -t [Anaysis Tag] -a
+```
+
+Example:
+```
+python AndroBugs_ReportByVectorKey.py -v WEBVIEW_RCE -l Critical -b 30072020 -t BlackHat
+python AndroBugs_ReportByVectorKey.py -v WEBVIEW_RCE -l Critical -b 30072020 -t BlackHat -a
 ```
 
 ![AndroBugs_ReportSummary.py](http://www.androbugs.com/images/v1.0.0/MassiveAnalysisTool2.png)
 
 ![AndroBugs_ReportByVectorKey.py](http://www.androbugs.com/images/v1.0.0/MassiveAnalysisTool1.png)
 
-##Requirements
+## Authors
 
-- Python 2.7.x (DO NOT USE Python 3.X)
-- [PyMongo library](http://api.mongodb.org/python/current/installation.html) (If you want to use the massive analysis tool)
+- Yu-Cheng Lin  (androbugs.framework at gmail.com, @AndroBugs)
+- Jasper van Thuijl
+- Noam Drong
 
-##Licenses
+## Licenses
 
 * AndroBugs Framework is under the license of [GNU GPL v3.0](http://www.gnu.org/licenses/gpl-3.0.txt)
 
