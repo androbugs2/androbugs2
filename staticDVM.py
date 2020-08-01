@@ -330,8 +330,9 @@ def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
     regex_excluded_class_names = re.compile(constants.STR_REGEXP_TYPE_EXCLUDE_CLASSES)
     for method_class_analysis in method_class_analysis_list:
         for source_class_analysis, source_method, offset in method_class_analysis.get_xref_from():
-            if not isinstance(source_method, analysis.ExternalMethod) \
-                    and not regex_excluded_class_names.match(source_class_analysis.name):
+            # if not isinstance(source_method, analysis.ExternalMethod) \
+            #         and not regex_excluded_class_names.match(source_class_analysis.name):
+            if not regex_excluded_class_names.match(source_class_analysis.name):
                 results.append({
                     "src_method": source_method,
                     "dst_method": method_class_analysis.get_method(),
