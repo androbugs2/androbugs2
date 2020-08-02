@@ -181,6 +181,11 @@ class RegisterAnalyzerVMImmediateValue(object):
                 register_number = reg_list[0][1]
                 self._register[register_number] = None
 
+                if ins in [0x54, 0x62]: # if instruction is iget-object or sget-object
+                    instance_class_idx = reg_list[-1][1]
+                    instance_class_name = reg_list[-1][2]
+                    self._register[register_number] = RegisterAnalyzerVMClassContainer(instance_class_name, instance_class_idx)
+
             elif ins == 0x22:  # [new-instance vA, Lclass/name;]
                 # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
                 register_number = reg_list[0][1]

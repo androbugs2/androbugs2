@@ -104,22 +104,24 @@ class Vector(VectorBase):
 
         # (2)ALLOW_ALL_HOSTNAME_VERIFIER fields checking
 
+        path_HOSTNAME_INNER_VERIFIER_new_instance = None
         if "Lorg/apache/http/conn/ssl/AllowAllHostnameVerifier;" in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
             path_HOSTNAME_INNER_VERIFIER_new_instance = dic_path_HOSTNAME_INNER_VERIFIER_new_instance[
                 "Lorg/apache/http/conn/ssl/AllowAllHostnameVerifier;"]
-        else:
-            path_HOSTNAME_INNER_VERIFIER_new_instance = None
 
-        fields_ALLOW_ALL_HOSTNAME_VERIFIER = list(self.analysis.find_fields(fieldname="ALLOW_ALL_HOSTNAME_VERIFIER",
-                                                                            fieldtype="Lorg/apache/http/conn/ssl/X509HostnameVerifier;"))
+        path_HOSTNAME_INNER_VERIFIER_in_params = None
+        if 'Lorg/apache/http/conn/ssl/SSLSocketFactory;->ALLOW_ALL_HOSTNAME_VERIFIER Lorg/apache/http/conn/ssl/X509HostnameVerifier;' in dic_path_HOSTNAME_INNER_VERIFIER_new_instance:
+            path_HOSTNAME_INNER_VERIFIER_in_params = dic_path_HOSTNAME_INNER_VERIFIER_new_instance['Lorg/apache/http/conn/ssl/SSLSocketFactory;->ALLOW_ALL_HOSTNAME_VERIFIER Lorg/apache/http/conn/ssl/X509HostnameVerifier;']
+        # fields_ALLOW_ALL_HOSTNAME_VERIFIER = list(self.analysis.find_fields(fieldname="ALLOW_ALL_HOSTNAME_VERIFIER",
+        #                                                                     fieldtype="Lorg/apache/http/conn/ssl/X509HostnameVerifier;"))
+        #
+        # filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = []
+        # for field in fields_ALLOW_ALL_HOSTNAME_VERIFIER:
+        #     for xref_class, xref_method in field.get_xref_read():
+        #         if not regex_excluded_class_names.match(xref_class.name):
+        #             filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths.append(xref_method)
 
-        filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths = []
-        for field in fields_ALLOW_ALL_HOSTNAME_VERIFIER:
-            for xref_class, xref_method in field.get_xref_read():
-                if not regex_excluded_class_names.match(xref_class.name):
-                    filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths.append(xref_method)
-
-        if path_HOSTNAME_INNER_VERIFIER_new_instance or filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+        if path_HOSTNAME_INNER_VERIFIER_new_instance or path_HOSTNAME_INNER_VERIFIER_in_params:
 
             output_string = """This app does not check the validation of the CN(Common Name) of the SSL certificate ("ALLOW_ALL_HOSTNAME_VERIFIER" field or "AllowAllHostnameVerifier" class). 
         This is a critical vulnerability and allows attackers to do MITM attacks with his valid certificate without your knowledge. 
@@ -142,14 +144,14 @@ class Vector(VectorBase):
                                     "SSL Implementation Checking (Verifying Host Name in Fields)",
                                     output_string, ["SSL_Security"])
 
-            if filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
-                """
-                    Example code: 
-                    SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
-                    factory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-                """
-                for method in filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
-                    self.writer.write("=> %s ---> %s" % (method.get_class_name(), method.name))
+            # if filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+            #     """
+            #         Example code:
+            #         SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
+            #         factory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+            #     """
+            #     for method in filtered_ALLOW_ALL_HOSTNAME_VERIFIER_paths:
+            #         self.writer.write("=> %s ---> %s" % (method.get_class_name(), method.name))
 
             if path_HOSTNAME_INNER_VERIFIER_new_instance:
                 """
@@ -159,6 +161,16 @@ class Vector(VectorBase):
                 """
                 # For this one, the exclusion procedure is done on earlier
                 self.writer.show_Paths(path_HOSTNAME_INNER_VERIFIER_new_instance)
+
+            if path_HOSTNAME_INNER_VERIFIER_in_params:
+                """
+                    Example code: 
+                    SSLSocketFactory factory = SSLSocketFactory.getSocketFactory();
+                    x = factory.ALLOW_ALL_HOSTNAME_VERIFIER;
+                    factory.setHostnameVerifier(x);
+                """
+                # For this one, the exclusion procedure is done on earlier
+                self.writer.show_Paths(path_HOSTNAME_INNER_VERIFIER_in_params)
         else:
             self.writer.startWriter("SSL_CN2", LEVEL_INFO,
                                     "SSL Implementation Checking (Verifying Host Name in Fields)",
