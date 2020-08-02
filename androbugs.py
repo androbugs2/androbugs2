@@ -97,9 +97,8 @@ LINE_MAX_OUTPUT_INDENT = 20
 """
 
 
-def parseArgument():
-    parser = argparse.ArgumentParser(description='AndroBugs Framework - Android App Security Vulnerability Scanner')
-    parser.add_argument("-f", "--apk_file", help="APK File to analyze", type=str, required=True)
+def parseArgument(parser):
+    parser.add_argument("-f", "--apk_file", help="APK File to analyze", type=str, required=False)
     parser.add_argument("-m", "--analyze_mode", help="Specify \"single\"(default) or \"massive\"", type=str,
                         required=False, default=ANALYZE_MODE_SINGLE)
     parser.add_argument("-b", "--analyze_engine_build", help="Analysis build number.", type=int, required=False,
@@ -120,7 +119,9 @@ def parseArgument():
     parser.add_argument("-d", "--debug_vector",
                         help="Specify this argument if you want to only load a specific vector.",
                         type=str, required=False, default=None)
-
+    parser.add_argument("-l", "--list_vectors",
+                        help="Specify this argument if you want to list the defined vectors.",
+                        action="store_true")
     # When you want to use "report_output_dir", remember to use "os.path.join(args.report_output_dir, [filename])"
     parser.add_argument("-o", "--report_output_dir", help="Analysis Report Output Directory", type=str, required=False,
                         default=DIRECTORY_REPORT_OUTPUT)
@@ -345,7 +346,25 @@ def __analyze(writer, args):
 
 
 def main():
-    args = parseArgument()
+    parser = argparse.ArgumentParser(description='AndroBugs Framework - Android App Security Vulnerability Scanner')
+    args = parseArgument(parser)
+
+    # list vectors
+    if args.list_vectors:
+        print("The following vector tags are defined")
+        loaded_vector_classes = []
+        file_list = os.listdir(os.path.dirname(vectors.__file__))
+        for file_name in file_list:
+            if file_name.endswith('.py') and file_name != '__init__.py':
+                loaded_vector_classes.append(importlib.import_module('vectors.' + file_name.replace('.py', '')))
+
+        loaded_vector_classes: [vector_base.Vector]
+        for vector_class in loaded_vector_classes:
+            for tag in vector_class.Vector.tags:
+                print(tag)
+        return
+    elif args.apk_file is None:
+        parser.error("APK name is required")
 
     writer = Writer()
 
