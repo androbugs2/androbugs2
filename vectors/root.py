@@ -14,7 +14,7 @@ class Vector(VectorBase):
         regex_excluded_class_names = re.compile(STR_REGEXP_TYPE_EXCLUDE_CLASSES)
         found_strings = []
 
-        for string_analysis in self.analysis.find_strings("^(su|sudo |/system/bin)"):
+        for string_analysis in self.analysis.find_strings(r"^(su\b|sudo |/system/bin)"):
             if not all([regex_excluded_class_names.match(xref_class.name)
                         for xref_class, xref_method in string_analysis.get_xref_from()]):
                 found_strings.append(string_analysis)
