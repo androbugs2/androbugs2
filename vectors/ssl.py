@@ -40,9 +40,10 @@ class Vector(VectorBase):
         # First, find out who calls it
         path_HOSTNAME_INNER_VERIFIER = list(self.analysis.find_methods(
             "Ljavax/net/ssl/HttpsURLConnection;", "setDefaultHostnameVerifier", "\(Ljavax/net/ssl/HostnameVerifier;\)V"))
+        # classname "Lorg/apache/http/conn/ssl/SSLSocketFactory;"
         path_HOSTNAME_INNER_VERIFIER2 = list(self.analysis.find_methods(
-            "Lorg/apache/http/conn/ssl/SSLSocketFactory;", "setHostnameVerifier",
-            "\(Lorg/apache/http/conn/ssl/X509HostnameVerifier;\)V"))
+            methodname="setHostnameVerifier",
+            descriptor="\(Lorg/apache/http/conn/ssl/X509HostnameVerifier;\)V"))
         path_HOSTNAME_INNER_VERIFIER.extend(path_HOSTNAME_INNER_VERIFIER2)
 
         dic_path_HOSTNAME_INNER_VERIFIER_new_instance = self.filtering_engine.get_class_container_dict_by_new_instance_classname_in_method_class_analysis_list(path_HOSTNAME_INNER_VERIFIER, 1)  # parameter index 1
