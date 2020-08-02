@@ -4,7 +4,7 @@ from constants import *
 
 
 class Vector(VectorBase):
-    description = "Check if app check for installing from Google Play"
+    description = "Check if application has detection for installation source (e.g Google Play or F-Droid)"
     tags = ["HACKER_INSTALL_SOURCE_CHECK"]
 
     def analyze(self) -> None:

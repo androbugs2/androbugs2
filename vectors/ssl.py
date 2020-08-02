@@ -6,7 +6,7 @@ from constants import *
 
 
 class Vector(VectorBase):
-    description = "Checks runtime exec"
+    description = "Checks SSL Implementation, and verifies if application has any SSL practices allowing MITM attacks"
     tags = ["SSL_CN2", "SSL_CN3",
             "SSL_DEFAULT_SCHEME_NAME", "SSL_X509"]
 

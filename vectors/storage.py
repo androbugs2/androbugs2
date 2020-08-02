@@ -4,7 +4,7 @@ from constants import *
 
 
 class Vector(VectorBase):
-    description = "MODE_WORLD_READABLE or MODE_WORLD_WRITEABLE checking"
+    description = "App sandbox permission check, external storage accessing, and unsafe file deletion checks"
     tags = ["MODE_WORLD_READABLE_OR_MODE_WORLD_WRITEABLE", "EXTERNAL_STORAGE", "FILE_DELETE"]
 
     def analyze(self) -> None:

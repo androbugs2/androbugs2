@@ -6,7 +6,7 @@ import re
 
 
 class Vector(VectorBase):
-    description = "SQLiteDatabase - beginTransactionNonExclusive() checking "
+    description = "Checks if sql lite database is encoded with hardcoded key, and checks for deprecated SQL methods"
     tags = ["HACKER_DB_KEY", "DB_DEPRECATED_USE1", "DB_SQLITE_JOURNAL", "DB_SEE", "DB_SQLCIPHER"]
     def analyze(self) -> None:
         # pragma key

@@ -360,8 +360,9 @@ def main():
 
         loaded_vector_classes: [vector_base.Vector]
         for vector_class in loaded_vector_classes:
-            for tag in vector_class.Vector.tags:
-                print(tag)
+            print(vector_class.Vector.tags, vector_class.Vector.description)
+            # for tag in vector_class.Vector.tags:
+            #     print(tag)
         return
     elif args.apk_file is None:
         parser.error("APK name is required")

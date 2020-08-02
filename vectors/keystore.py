@@ -4,7 +4,7 @@ from constants import *
 
 
 class Vector(VectorBase):
-    description = "Checks if an unprotected keystore is present"
+    description = " Checks if an unprotected keystore is present, and if the application uses ssl pinning"
     tags = ["HACKER_KEYSTORE_NO_PWD", "HACKER_KEYSTORE_SSL_PINNING",
             "HACKER_KEYSTORE_LOCATION1", "HACKER_KEYSTORE_LOCATION2",
             "KEYSTORE_TYPE_CHECK"]
