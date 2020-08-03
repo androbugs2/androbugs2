@@ -1,4 +1,6 @@
 import traceback
+from shlex import quote
+
 import argparse
 import platform
 import multiprocessing
@@ -112,8 +114,8 @@ class Analysis():
         if platform.system().lower() == "windows":
             main_cmd = "androbugs.exe"
 
-        cmd = main_cmd + " -s -v -e " + str(self._args.extra) + " -f " + os.path.join(self._input_dir,
-                                                                                      filename) + " -o " + self._output_dir + \
+        cmd = main_cmd + " -s -v -e " + str(self._args.extra) + " -f " + quote(os.path.join(self._input_dir,
+                                                                                      filename)) + " -o " + self._output_dir + \
               " -m massive -b " + str(self._args.analyze_engine_build) + " -t " + str(self._args.analyze_tag)
         try:
 
