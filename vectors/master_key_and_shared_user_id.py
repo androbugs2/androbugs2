@@ -11,7 +11,7 @@ class Vector(VectorBase):
         found_dexfiles = 0
 
         for f in all_files:
-            if f.endswith('.dex'):
+            if f == 'classes.dex':
                 found_dexfiles += 1
 
         if found_dexfiles > 1:
