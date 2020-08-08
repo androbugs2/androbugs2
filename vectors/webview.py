@@ -133,24 +133,43 @@ class Vector(VectorBase):
               }
         """
 
-        webview_websettings_class_analysis_list = self.analysis.find_classes("Landroid/webkit/WebSettings;")
-        webview_websettings_class_analysis_list = self.filtering_engine.filter_class_analysis_list(webview_websettings_class_analysis_list)
+        webview_websettings_method_class_analysis_list = self.analysis.find_methods(classname="Landroid/webkit/WebSettings;")
+        webview_websettings_method_paths = staticDVM.get_paths(webview_websettings_method_class_analysis_list)
 
-        webview_websettings_method_class_analysis_list = []
-        for class_analysis in webview_websettings_class_analysis_list:
-            for method_class_analysis in class_analysis.get_methods():
-                if method_class_analysis.name == "setAllowFileAccess":
-                    webview_websettings_method_class_analysis_list.append(method_class_analysis)
+        dic_webview_websettings_source_methods = {}
+        for path in webview_websettings_method_paths:
 
-        paths_webview_websettings_set_allow_file_access_true = []
-        for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(webview_websettings_method_class_analysis_list):
+            full_src_method_name = "=> %s->%s%s" % (path['src_method'].get_class_name(),
+                                                    path['src_method'].get_name(),
+                                                    path['src_method'].get_descriptor())
+
+            if full_src_method_name not in dic_webview_websettings_source_methods:
+                dic_webview_websettings_source_methods[full_src_method_name] = []
+
+            dic_webview_websettings_source_methods[full_src_method_name].append(path)
+
+        webview_websettings_method_class_analysis_list_to_test = []
+        webview_websettings_method_class_analysis_list_manual_confirm = []
+
+        for full_src_method_name, paths in dic_webview_websettings_source_methods.items():
+            has_settings = False
+            for path in paths:
+                if path['dst_method'].name == "setAllowFileAccess":
+                    webview_websettings_method_class_analysis_list_to_test.append(path)
+                    has_settings = True
+                    break
+
+            if not has_settings:
+                webview_websettings_method_class_analysis_list_manual_confirm.append(full_src_method_name)
+
+        paths_webview_websettings_set_allow_file_access_true =[]
+        for i in staticDVM.trace_register_value_by_param_in_paths(webview_websettings_method_class_analysis_list_to_test):
             if i.getResult()[1] == 0x1:  # setAllowFileAccess is true
                 paths_webview_websettings_set_allow_file_access_true.append(i.getPath())
 
         # setAllowFileAccess is true by default for apps targeting Build.VERSION_CODES.Q and below, and false when
         # targeting Build.VERSION_CODES.R and above.
-        if paths_webview_websettings_set_allow_file_access_true \
-                or (not webview_websettings_method_class_analysis_list and webview_websettings_class_analysis_list):
+        if paths_webview_websettings_set_allow_file_access_true or webview_websettings_method_class_analysis_list_manual_confirm:
             self.writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_WARNING,
                                     "WebView Local File Access Attacks Checking",
                                     (    "Found \"setAllowFileAccess(true)\" or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default)\n"
@@ -161,12 +180,13 @@ class Vector(VectorBase):
                                         "         Please add or modify \"yourWebView.getSettings().setAllowFileAccess(false)\" to your WebView:\n"
                                         "         "), ["WebView"])
             if paths_webview_websettings_set_allow_file_access_true:
-                self.writer.write("Methods where setAllowFileAccess(true)")
+                self.writer.write("Methods where setAllowFileAccess(true):")
                 self.writer.show_Paths(paths_webview_websettings_set_allow_file_access_true)
-            elif webview_websettings_class_analysis_list:
-                self.writer.write("Classes where WebSettings is used, and setAllowFileAccess might be enabled by default")
-                self.writer.show_xrefs_class_analysis_list(webview_websettings_class_analysis_list)
 
+            if webview_websettings_method_class_analysis_list_manual_confirm:
+                self.writer.write("Methods where WebSettings is used, and setAllowFileAccess might be enabled by default:")
+                for full_src_method_name in sorted(set(webview_websettings_method_class_analysis_list_manual_confirm)):
+                    self.writer.write(full_src_method_name)
         else:
             self.writer.startWriter("WEBVIEW_ALLOW_FILE_ACCESS", LEVEL_INFO,
                                     "WebView Local File Access Attacks Checking",

@@ -181,10 +181,11 @@ class RegisterAnalyzerVMImmediateValue(object):
                 register_number = reg_list[0][1]
                 self._register[register_number] = None
 
-                if ins in [0x54, 0x62]: # if instruction is iget-object or sget-object
+                if ins in [0x54, 0x62]:  # if instruction is iget-object or sget-object
                     instance_class_idx = reg_list[-1][1]
                     instance_class_name = reg_list[-1][2]
-                    self._register[register_number] = RegisterAnalyzerVMClassContainer(instance_class_name, instance_class_idx)
+                    self._register[register_number] = RegisterAnalyzerVMClassContainer(instance_class_name,
+                                                                                       instance_class_idx)
 
             elif ins == 0x22:  # [new-instance vA, Lclass/name;]
                 # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
@@ -349,6 +350,28 @@ def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
 def trace_register_value_by_param_in_method_class_analysis_list(
         method_class_analysis_list: [analysis.MethodClassAnalysis]):
     paths = get_paths(method_class_analysis_list)
+    results = []
+
+    for source_path in paths:
+        method = source_path['src_method']
+        max_trace = source_path['idx']
+
+        if (method.get_class_name() is None) \
+                or (method.get_name() is None) \
+                or (method.get_descriptor() is None) \
+                or (max_trace is None):
+            continue
+
+        register_analyzer = RegisterAnalyzerVMImmediateValue()
+        register_analyzer.load_instructions(method.get_instructions(), destination_method=source_path['dst_method'])
+        result = RegisterAnalyzerVMResult(source_path,
+                                          register_analyzer.get_register_number_to_register_value_mapping())
+        results.append(result)
+
+    return results
+
+
+def trace_register_value_by_param_in_paths(paths: []):
     results = []
 
     for source_path in paths:

@@ -373,7 +373,7 @@ def main():
         # Print Title
         writer.writePlainInf("""**********************************************************************************************
 **           AndroBugs Framework - Android App Security Vulnerability Scanner               **
-**                                    version: 1.0.0                                        **
+**                                    version: 2.0.0                                        **
 ** This tool was originally created by Yu-Cheng Lin (@AndroBugs, http://www.AndroBugs.com)  **
 **                     Modifications by Jasper van Thuijl & Noam Drong                      **
 **********************************************************************************************""")
