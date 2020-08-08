@@ -18,6 +18,10 @@ def is_class_implements_interface(cls, search_interfaces, compare_type):
 
 
 def get_method_ins_by_superclass_and_method(vm, super_classes, method_name, method_descriptor):
+    """
+    Returns a generator of methods mathing 'method_name' and 'method_descriptor',
+    that belong to a class that extends '[super_classes]'
+    """
     for cls in vm.get_classes():
         if cls.get_superclassname() in super_classes:
             for method in cls.get_methods():
@@ -56,12 +60,15 @@ def get_method_ins_by_implement_interface_and_method(vm, implement_interface, co
 
 
 def is_kind_string_in_ins_method(method, kind_string):
+    """
+    Returns if a kind_string is within the methods instructions
+    """
     for ins in method.get_instructions():
         try:
             if ins.get_translated_kind() == kind_string:
                 return True
         except AttributeError:  # Because the instruction may not have "get_kind_string()" method
-            return False
+            continue
     return False
 
 

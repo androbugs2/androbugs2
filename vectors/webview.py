@@ -14,11 +14,15 @@ class Vector(VectorBase):
         # First, find out who calls setWebViewClient
         path_webview_client_new_instance = self.analysis.find_methods(
             "Landroid/webkit/WebView;", "setWebViewClient", "\(Landroid/webkit/WebViewClient;\)V")
+
+        # Retrieve a dictionary of class names (and their paths) that are passed as WebViewClient parameter to
+        # Landroid/webkit/WebView;->setWebViewClient(Landroid/webkit/WebViewClient;)V
         dic_webview_client_new_instance = self.filtering_engine.\
             get_class_container_dict_by_new_instance_classname_in_method_class_analysis_list(path_webview_client_new_instance, 1)
 
         # Second, find which class and method extends it
         list_webview_client = []
+        # Get a list of onReceivedSslError( ... ) methods that belong to a class extending Landroid/webkit/WebviewClient;
         methods_webviewClient = helper_functions.get_method_ins_by_superclass_and_method(self.dalvik, ["Landroid/webkit/WebViewClient;"],
                                                                         "onReceivedSslError",
                                                                         "(Landroid/webkit/WebView; Landroid/webkit/SslErrorHandler; Landroid/net/http/SslError;)V")

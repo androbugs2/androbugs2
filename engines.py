@@ -119,10 +119,15 @@ class FilteringEngine:
     def get_class_container_dict_by_new_instance_classname_in_method_class_analysis_list(self,
                                                                                          method_class_analysis_list,
                                                                                          result_idx):  # dic: key=>class_name, value=>paths
+        """
+        Returns a dictionary with classnames -> paths, of newly instantiated classes in the
+        'method_class_analysis_list' methods parameter indicated by 'result_idx'.
+
+        """
         dic_classname_to_paths = {}
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(method_class_analysis_list):
 
-            # If parameter 0 is a class_container type (ex: Lclass/name;)
+            # If parameter result_idx is a class_container type (ex: Lclass/name;)
             if i.getResult()[result_idx] is None \
                     or not i.is_class_container(result_idx):
                 continue
