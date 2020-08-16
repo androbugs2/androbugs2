@@ -206,7 +206,7 @@ class RegisterAnalyzerVMImmediateValue(object):
 
     def load_instructions(self, ins, max_trace=-1, trace_extra_offset_ins=0, destination_method=None):
         if destination_method:
-            for i in ins:  # method.get_instructions(): Instruction
+            for (idx, i) in enumerate(ins):  # method.get_instructions(): Instruction
                 self.__add(i.get_op_value(), i.get_operands())
                 # if the instruction is an invoke operation,
                 # check the method to call and verify it is the destination method
@@ -363,7 +363,7 @@ def trace_register_value_by_param_in_method_class_analysis_list(
             continue
 
         register_analyzer = RegisterAnalyzerVMImmediateValue()
-        register_analyzer.load_instructions(method.get_instructions(), destination_method=source_path['dst_method'])
+        register_analyzer.load_instructions(method.get_instructions(), max_trace)
         result = RegisterAnalyzerVMResult(source_path,
                                           register_analyzer.get_register_number_to_register_value_mapping())
         results.append(result)
@@ -385,7 +385,7 @@ def trace_register_value_by_param_in_paths(paths: []):
             continue
 
         register_analyzer = RegisterAnalyzerVMImmediateValue()
-        register_analyzer.load_instructions(method.get_instructions(), destination_method=source_path['dst_method'])
+        register_analyzer.load_instructions(method.get_instructions(), max_trace)
         result = RegisterAnalyzerVMResult(source_path,
                                           register_analyzer.get_register_number_to_register_value_mapping())
         results.append(result)
