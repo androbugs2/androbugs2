@@ -15,4 +15,7 @@ module load Python/3.6.6-foss-2018b
 B=$(python ../AndroBugs_ReportByVectorKey.py -b $3 -t $4 -v $5 -l $6)
 A=$(sed '1,5d' <(echo "$A") | head -n -4)
 B=$(sed '1,5d' <(echo "$B") | head -n -4)
+echo "Lines unique in original:"
 comm -23 <(echo "$A" | sort) <(echo "$B" | sort)
+echo "Lines unique in modified:"
+comm -13 <(echo "$A" | sort) <(echo "$B" | sort)
