@@ -47,12 +47,15 @@ class Vector(VectorBase):
     # -check-if-your-android-application-is-running-in-debug-or-release-mode.aspx
     def check_detects_debuggable(self) -> None:
         debuggable_check_paths = []
-        application_info = list(self.analysis.find_methods(methodname="getApplicationInfo",
+        application_info_methods = list(self.analysis.find_methods(methodname="getApplicationInfo",
                                                            classname="Landroid/content/pm/PackageManager;"))
+        application_info_methods.extend(list(self.analysis.find_methods(methodname="getApplicationInfo",
+                                                                classname="Landroid/content/Context;")))
 
-        if application_info:
-            application_info = application_info[0]
-            xrefs = application_info.get_xref_from()
+        if application_info_methods:
+            xrefs = []
+            for method in application_info_methods:
+                xrefs.extend(method.get_xref_from())
             matches = []
             for _, method, _ in xrefs:
                 if self._scan_xrefs_for_debuggable_checks(method):
@@ -88,4 +91,3 @@ class Vector(VectorBase):
                             and operands[0] == flags_variable and operands[1] == flags_variable:
                         return True
         return False
-
