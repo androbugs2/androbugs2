@@ -6,14 +6,14 @@ No splendid GUI interface, but the most efficient (less than 2 minutes per scan 
 Version: 2.0.0
 
 ## Features
-- Find security vulnerabilities in an Android application
-- Check if the application's code is missing best practices
-- Detect if an application uses a certain cross-platform framework (such as Xamarin, Flutter and React Native)
-- Check if the application executes potentially dangerous shell commands (e.g. “su”)
-- Parallel massive analysis feature to scan large numbers of applications in a short amount of time (allows to scan 1000 applications with 20 cores and 10 GB RAM in 7 minutes and 30 seconds under 15 minutes)
-- Check the app’s security protection (marked as ```<Hacker>```, designed for app repackaging hacking)
-- Find and decode base64 encoded strings in Applications
-- Easy development and integration of new vulnerability vectors (see EXTENDING.md)
+- Find security vulnerabilities in Android applications
+- Check if an application's code is lacking best practices
+- Detect if an application uses a certain cross-platform development framework (such as Xamarin, Flutter, or React Native)
+- Check if an application executes potentially dangerous shell commands (e.g. “su”)
+- Parallel massive analysis feature to scan large numbers of applications in a short amount of time (allows to scan 1000 applications on a machine with 20 cores and 10 GB RAM in under 15 minutes)
+- Check an app’s security protections (marked as ```<Hacker>```, designed for app repackaging hacking)
+- Find and decode base64 encoded strings
+- Easy development and integration of new vulnerability vectors (see [EXTENDING.md](EXTENDING.md))
 
 
 ## Setup
@@ -95,10 +95,12 @@ python AndroBugs_ReportByVectorKey.py -v WEBVIEW_RCE -l Critical -b 30072020 -t 
 ![AndroBugs_ReportByVectorKey.py](http://www.androbugs.com/images/v1.0.0/MassiveAnalysisTool1.png)
 
 ## Authors
+[Original](https://github.com/AndroBugs/AndroBugs_Framework) (v1.0.0):
+- Yu-Cheng Lin ([@AndroBugs](https://github.com/AndroBugs))
 
-- Yu-Cheng Lin  (androbugs.framework at gmail.com, @AndroBugs)
-- Jasper van Thuijl
-- Noam Drong
+Improved (v2.0.0):
+- Jasper van Thuijl ([@jvthuijl](https://github.com/jvthuijl))
+- Noam Drong ([@ndrong](https://github.com/ndrong))
 
 ## Licenses
 
