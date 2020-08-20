@@ -46,24 +46,10 @@ class Vector(VectorBase):
     # See also: https://web.archive.org/web/20200726122505/http://izvornikod.com/Blog/tabid/82/EntryId/13/How-to
     # -check-if-your-android-application-is-running-in-debug-or-release-mode.aspx
     def check_detects_debuggable(self) -> None:
-        debuggable_check_paths = []
-        application_info_methods = list(self.analysis.find_methods(methodname="getApplicationInfo",
-                                                                   classname="Landroid/content/pm/PackageManager;"))
-        application_info_methods.extend(list(self.analysis.find_methods(methodname="getApplicationInfo",
-                                                                        classname="Landroid/content/Context;")))
 
-        matches = []
+        matches = self._scan_for_debuggable_checks()
 
-        if application_info_methods:
-            xrefs = []
-            for method in application_info_methods:
-                xrefs.extend(method.get_xref_from())
-
-            for _, method, _ in xrefs:
-                if self._scan_xrefs_for_debuggable_checks(method):
-                    matches.append(method)
-
-        if matches or self.analysis.is_class_present("Lcom/google/android/gms/common/GoogleSignatureVerifier;"):
+        if matches:
             self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_NOTICE,
                                     "Codes for Checking Android Debug Mode",
                                     "Detected code that checks whether debug mode is enabled in:",
@@ -80,19 +66,31 @@ class Vector(VectorBase):
                                 "Did not detect code that checks whether debug mode is enabled",
                                 ["Debug", "Hacker"])
 
-    def _scan_xrefs_for_debuggable_checks(self, method):
-        flags_variable = None
-        for instruction in method.get_instructions():
-            operands = instruction.get_operands()
-            opcode = instruction.get_op_value()
-            if len(operands) == 3:
-                if flags_variable is None and opcode == self.OPCODES["iget"]:
-                    if operands[2][0] == (dvm.OPERAND_KIND + dvm.KIND_FIELD) \
-                            and operands[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I":
-                        flags_variable = operands[0]
-                        continue
+    def _scan_for_debuggable_checks(self):
+        # Do a quick scan to detect if there are any Landroid/content/pm/ApplicationInfo;->flags fields present
+        if not any([i for i in self.dalvik.get_all_fields()
+                if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']]):
+            return []
+
+        matches = []
+
+        # Loop over all methods
+        for method_analysis in self.analysis.get_methods():
+            if method_analysis.is_external():
+                continue
+            method = method_analysis.get_method()
+            flags_variable = None
+            for instruction in method.get_instructions():
+                operands = instruction.get_operands()
+                opcode = instruction.get_op_value()
+                if flags_variable is None and opcode == self.OPCODES["iget"] \
+                      and operands[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I":
+                    flags_variable = operands[0]
+                    continue
                 if flags_variable and opcode == self.OPCODES["and-int/lit8"]:
                     if operands[2] == (dvm.OPERAND_LITERAL, 2) \
                             and operands[0] == flags_variable and operands[1] == flags_variable:
-                        return True
-        return False
+                        matches.append(method)
+                        break
+        return matches
+
