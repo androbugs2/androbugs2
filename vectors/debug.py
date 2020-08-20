@@ -67,30 +67,59 @@ class Vector(VectorBase):
                                 ["Debug", "Hacker"])
 
     def _scan_for_debuggable_checks(self):
-        # Do a quick scan to detect if there are any Landroid/content/pm/ApplicationInfo;->flags fields present
+        """
+            Java code checking debuggable:
+                    boolean isDebuggable = (0 != (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE));
+                    if (isDebuggable) { }
+
+                Smali code checking debuggable:
+                    invoke-virtual {p0}, Lcom/example/androiddebuggable/MainActivity;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;
+                    move-result-object v1
+                    iget v1, v1, Landroid/content/pm/ApplicationInfo;->flags:I
+                    and-int/lit8 v1, v1, 0x2
+                    if-eqz v1, :cond_0
+
+                Checking Pattern:
+                    1. Find tainted calling field: Landroid/content/pm/ApplicationInfo;->flags:I
+                    2. Get the next instruction of the calling field: Landroid/content/pm/ApplicationInfo;->flags:I
+                    3. Check whether the next instruction is 0xDD(and-int/lit8) and make sure the register numbers are all matched
+                        iget [[v1]], v1, [[[Landroid/content/pm/ApplicationInfo;->flags:I]]]
+                        and-int/lit8 v1, [[v1]], [0x2]
+        """
+
+        # Do a quick scan to detect if there are any Landroid/content/pm/ApplicationInfo;->flags fields present,
+        # saving time if there are no such fields in the application
         if not any([i for i in self.dalvik.get_all_fields()
-                if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']]):
+                    if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']]):
             return []
 
-        matches = []
+        # Loop over all methods and retrieve methods that contain ApplicationInfo;->flags fields and access its debug flag
+        # List comprehensions are used for performance purposes
+        return [method_analysis.get_method()
+                for method_analysis in self.analysis.get_methods()
+                    if not method_analysis.is_external() and \
+                        self._scan_method_instructions_for_application_info(method_analysis.get_method().get_instructions())
+                ]
 
-        # Loop over all methods
-        for method_analysis in self.analysis.get_methods():
-            if method_analysis.is_external():
-                continue
-            method = method_analysis.get_method()
-            flags_variable = None
-            for instruction in method.get_instructions():
-                operands = instruction.get_operands()
-                opcode = instruction.get_op_value()
-                if flags_variable is None and opcode == self.OPCODES["iget"] \
-                      and operands[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I":
-                    flags_variable = operands[0]
-                    continue
-                if flags_variable and opcode == self.OPCODES["and-int/lit8"]:
-                    if operands[2] == (dvm.OPERAND_LITERAL, 2) \
-                            and operands[0] == flags_variable and operands[1] == flags_variable:
-                        matches.append(method)
-                        break
-        return matches
+    def _scan_method_instructions_for_application_info(self, instructions):
+        """
+        returns if there any instructions access ApplicationInfo;->flags fields and subsequently access its debug flag
+        """
+        return any([True
+                    for instruction in instructions
+                        if instruction.get_op_value() == self.OPCODES["iget"] and \
+                            instruction.get_operands()[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I" and \
+                            self._does_instruction_access_debug_flag(instruction.get_operands()[0], next(instructions))
+                    ])
 
+    def _does_instruction_access_debug_flag(self, flags_register, instruction):
+        """
+        Checks if the instruction accesses the debug flag in the register that contains ApplicationInfo;->flags
+        """
+        operands = instruction.get_operands()
+        opcode = instruction.get_op_value()
+        if opcode == self.OPCODES["and-int/lit8"] and \
+                operands[2] == (dvm.OPERAND_LITERAL, 2) and \
+                operands[0] == flags_register and operands[1] == flags_register:
+            return True
+        return False
