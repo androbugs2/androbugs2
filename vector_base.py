@@ -56,7 +56,7 @@ class VectorBase(ABC):
     @abstractmethod
     def tags(self) -> [str]:
         """
-        Short description of the vulnerability vector.
+        Tags associated with the vulnerability vector (e.g. one or more categories).
         :return: str
         """
         pass
