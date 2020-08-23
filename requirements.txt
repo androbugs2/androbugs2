@@ -1,6 +1,6 @@
-uuid
-datetime
-argparse
-ConfigParser
-pymongo
-androguard
+uuid==1.30
+datetime==4.3
+argparse==1.4.0
+ConfigParser==5.0.0
+pymongo==3.11.0
+androguard==3.3.5
