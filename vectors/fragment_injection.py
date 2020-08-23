@@ -15,13 +15,15 @@ class Vector(VectorBase):
         prog = re.compile("Landroid/support/v(\d*)/app/Fragment;")
         REGEXP_EXCLUDE_CLASSESd_fragment_class = re.compile("(Landroid/support/)|(Lcom/actionbarsherlock/)")
         list_Fragment = []
-        has_any_fragment = False
-        for cls in self.dalvik.get_classes():
-            if (cls.get_superclassname() == "Landroid/app/Fragment;") or prog.match(cls.get_superclassname()):
-                if not REGEXP_EXCLUDE_CLASSESd_fragment_class.match(cls.get_name()):
-                    # Exclude the classes from library itself to make the finding more precise and to check the user really use fragment, not just include the libs
-                    has_any_fragment = True
-                    list_Fragment.append(cls.get_name())
+
+        for dalvik in self.dalvik:
+            for cls in dalvik.get_classes():
+                if (cls.get_superclassname() == "Landroid/app/Fragment;") or prog.match(cls.get_superclassname()):
+                    if not REGEXP_EXCLUDE_CLASSESd_fragment_class.match(cls.get_name()):
+                        # Exclude the classes from library itself to make the finding more precise and to check the user really use fragment, not just include the libs
+                        list_Fragment.append(cls.get_name())
+
+
 
         list_Fragment_vulnerability_NonMethod_classes = []
         list_Fragment_vulnerability_Method_OnlyReturnTrue_methods = []
@@ -29,27 +31,28 @@ class Vector(VectorBase):
         list_Fragment = self.filtering_engine.filter_list_of_classes(list_Fragment)
 
         if list_Fragment:
-            for cls in self.dalvik.get_classes():
-                if (cls.get_superclassname() == "Landroid/preference/PreferenceActivity;") or (
-                        cls.get_superclassname() == "Lcom/actionbarsherlock/app/SherlockPreferenceActivity;"):
-                    boolHas_isValidFragment = False
-                    method_isValidFragment = None
-                    for method in cls.get_methods():
-                        if (method.get_name() == "isValidFragment") and (
-                                method.get_descriptor() == "(Ljava/lang/String;)Z"):
-                            boolHas_isValidFragment = True
-                            method_isValidFragment = method
-                            break
-                    if boolHas_isValidFragment:
-                        register_analyzer = staticDVM.RegisterAnalyzerVMImmediateValue(
-                            method_isValidFragment.get_instructions())
-                        if register_analyzer.get_ins_return_boolean_value():
-                            list_Fragment_vulnerability_Method_OnlyReturnTrue_methods.append(method_isValidFragment)
+            for dalvik in self.dalvik:
+                for cls in dalvik.get_classes():
+                    if (cls.get_superclassname() == "Landroid/preference/PreferenceActivity;") or (
+                            cls.get_superclassname() == "Lcom/actionbarsherlock/app/SherlockPreferenceActivity;"):
+                        boolHas_isValidFragment = False
+                        method_isValidFragment = None
+                        for method in cls.get_methods():
+                            if (method.get_name() == "isValidFragment") and (
+                                    method.get_descriptor() == "(Ljava/lang/String;)Z"):
+                                boolHas_isValidFragment = True
+                                method_isValidFragment = method
+                                break
+                        if boolHas_isValidFragment:
+                            register_analyzer = staticDVM.RegisterAnalyzerVMImmediateValue(
+                                method_isValidFragment.get_instructions())
+                            if register_analyzer.get_ins_return_boolean_value():
+                                list_Fragment_vulnerability_Method_OnlyReturnTrue_methods.append(method_isValidFragment)
+                            else:
+                                if not register_analyzer.has_if_or_switch_instructions():  # do not have "if" or "switch" op in instructions of method
+                                    list_Fragment_vulnerability_Method_NoIfOrSwitch_methods.append(method_isValidFragment)
                         else:
-                            if not register_analyzer.has_if_or_switch_instructions():  # do not have "if" or "switch" op in instructions of method
-                                list_Fragment_vulnerability_Method_NoIfOrSwitch_methods.append(method_isValidFragment)
-                    else:
-                        list_Fragment_vulnerability_NonMethod_classes.append(cls.get_name())
+                            list_Fragment_vulnerability_NonMethod_classes.append(cls.get_name())
 
         list_Fragment_vulnerability_NonMethod_classes = self.filtering_engine.filter_list_of_classes(
             list_Fragment_vulnerability_NonMethod_classes)

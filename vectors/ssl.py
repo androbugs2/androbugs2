@@ -53,12 +53,14 @@ class Vector(VectorBase):
         # Second, find the called custom classes
         list_HOSTNAME_INNER_VERIFIER = []
 
-        methods_hostnameverifier = helper_functions. \
-            get_method_ins_by_implement_interface_and_method(self.dalvik,
-                                                             ["Ljavax/net/ssl/HostnameVerifier;"],
-                                                             TYPE_COMPARE_ANY,
-                                                             "verify",
-                                                             "(Ljava/lang/String; Ljavax/net/ssl/SSLSession;)Z")
+        methods_hostnameverifier = []
+        for dalvik in self.dalvik:
+            methods_hostnameverifier.extend(helper_functions. \
+                                            get_method_ins_by_implement_interface_and_method(dalvik,
+                                                                                             ["Ljavax/net/ssl/HostnameVerifier;"],
+                                                                                             TYPE_COMPARE_ANY,
+                                                                                             "verify",
+                                                                                             "(Ljava/lang/String; Ljavax/net/ssl/SSLSession;)Z"))
         for method in methods_hostnameverifier:
             register_analyzer = staticDVM.RegisterAnalyzerVMImmediateValue(method.get_instructions())
             if register_analyzer.get_ins_return_boolean_value():  # Has security problem
@@ -236,11 +238,17 @@ class Vector(VectorBase):
                                     "DEFAULT_SCHEME_NAME for HttpHost check: OK", ["SSL_Security"])
 
         # SSL Verification Fail (To check whether the code verifies the certificate)
-        methods_X509TrustManager_list = helper_functions.get_method_ins_by_implement_interface_and_method_desc_dict(self.dalvik, [
-            "Ljavax/net/ssl/X509TrustManager;"], TYPE_COMPARE_ANY, [
-                                                                                                                        "getAcceptedIssuers()[Ljava/security/cert/X509Certificate;",
-                                                                                                                        "checkClientTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V",
-                                                                                                                        "checkServerTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V"])
+        methods_X509TrustManager_list = helper_functions. \
+                get_method_ins_by_implement_interface_and_method_desc_dict(self.dalvik,
+                                                                           ["Ljavax/net/ssl/X509TrustManager;"],
+                                                                           TYPE_COMPARE_ANY,
+                                                                           [
+                                                                               "getAcceptedIssuers()[Ljava/security/cert/X509Certificate;",
+                                                                               "checkClientTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V",
+                                                                               "checkServerTrusted([Ljava/security/cert/X509Certificate; Ljava/lang/String;)V"
+                                                                           ]
+                                                                           )
+
 
         list_X509Certificate_Critical_class = []
         list_X509Certificate_Warning_class = []
@@ -274,15 +282,16 @@ class Vector(VectorBase):
 
             dict_X509Certificate_class_name_to_caller_mapping = {}
 
-            for method in self.dalvik.get_methods():
-                for i in method.get_instructions():  # method.get_instructions(): Instruction
-                    if i.get_op_value() == 0x22:  # 0x22 = "new-instance"
-                        if i.get_string() in list_X509Certificate_merge_list:
-                            referenced_class_name = i.get_string()
-                            if referenced_class_name not in dict_X509Certificate_class_name_to_caller_mapping:
-                                dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name] = []
+            for dalvik in self.dalvik:
+                for method in dalvik.get_methods():
+                    for i in method.get_instructions():  # method.get_instructions(): Instruction
+                        if i.get_op_value() == 0x22:  # 0x22 = "new-instance"
+                            if i.get_string() in list_X509Certificate_merge_list:
+                                referenced_class_name = i.get_string()
+                                if referenced_class_name not in dict_X509Certificate_class_name_to_caller_mapping:
+                                    dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name] = []
 
-                            dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name].append(method)
+                                dict_X509Certificate_class_name_to_caller_mapping[referenced_class_name].append(method)
 
             self.writer.startWriter("SSL_X509", log_level, "SSL Certificate Verification Checking",
                                log_partial_prefix_msg + """

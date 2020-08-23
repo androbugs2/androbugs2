@@ -1,7 +1,7 @@
 from vector_base import VectorBase
 from constants import *
 from androguard.core.bytecodes import dvm
-
+from timeit import default_timer as timer
 
 class Vector(VectorBase):
     description = "Checks if debug mode is enabled, " \
@@ -47,15 +47,16 @@ class Vector(VectorBase):
     # -check-if-your-android-application-is-running-in-debug-or-release-mode.aspx
     def check_detects_debuggable(self) -> None:
 
+        start = timer()
         matches = self._scan_for_debuggable_checks()
+        end = timer()
+        self.writer.writeInf_ForceNoPrint("time_hacker_debuggable_check", end-start)
 
         if matches:
             self.writer.startWriter("HACKER_DEBUGGABLE_CHECK", LEVEL_NOTICE,
                                     "Codes for Checking Android Debug Mode",
                                     "Detected code that checks whether debug mode is enabled in:",
                                     ["Debug", "Hacker"])
-            if self.analysis.is_class_present("Lcom/google/android/gms/common/GoogleSignatureVerifier;"):
-                self.writer.write("Lcom/google/android/gms/common/GoogleSignatureVerifier;")
 
             for method in matches:
                 self.writer.write(
@@ -86,11 +87,13 @@ class Vector(VectorBase):
                         iget [[v1]], v1, [[[Landroid/content/pm/ApplicationInfo;->flags:I]]]
                         and-int/lit8 v1, [[v1]], [0x2]
         """
-
         # Do a quick scan to detect if there are any Landroid/content/pm/ApplicationInfo;->flags fields present,
         # saving time if there are no such fields in the application
-        if not any([i for i in self.dalvik.get_all_fields()
-                    if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']]):
+        if not any([dalvik for dalvik in self.dalvik
+                    if any([i for i in dalvik.get_all_fields()
+                                if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']
+                            ])
+                   ]):
             return []
 
         # Loop over all methods and retrieve methods that contain ApplicationInfo;->flags fields and access its debug flag
@@ -103,16 +106,16 @@ class Vector(VectorBase):
 
     def _scan_method_instructions_for_application_info(self, instructions):
         """
-        returns if there any instructions access ApplicationInfo;->flags fields and subsequently access its debug flag
+        Returns if there any instructions that access ApplicationInfo;->flags fields and subsequently access its debug flag
         """
         return any([True
                     for instruction in instructions
                         if instruction.get_op_value() == self.OPCODES["iget"] and \
                             instruction.get_operands()[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I" and \
-                            self._does_instruction_access_debug_flag(instruction.get_operands()[0], next(instructions))
+                            self._does_next_instruction_access_debug_flag(instruction.get_operands()[0], next(instructions))
                     ])
 
-    def _does_instruction_access_debug_flag(self, flags_register, instruction):
+    def _does_next_instruction_access_debug_flag(self, flags_register, instruction):
         """
         Checks if the instruction accesses the debug flag in the register that contains ApplicationInfo;->flags
         """
@@ -120,6 +123,6 @@ class Vector(VectorBase):
         opcode = instruction.get_op_value()
         if opcode == self.OPCODES["and-int/lit8"] and \
                 operands[2] == (dvm.OPERAND_LITERAL, 2) and \
-                operands[0] == flags_register and operands[1] == flags_register:
+                operands[1] == flags_register:
             return True
         return False

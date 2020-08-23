@@ -28,20 +28,21 @@ def get_method_ins_by_superclass_and_method(vm, super_classes, method_name, meth
                 if (method.get_name() == method_name) and (method.get_descriptor() == method_descriptor):
                     yield method
 
-def get_method_ins_by_implement_interface_and_method_desc_dict(vm, implement_interface, compare_type,
+def get_method_ins_by_implement_interface_and_method_desc_dict(vms, implement_interface, compare_type,
                                                                method_name_and_descriptor_list):
     dict_result = {}
 
-    for cls in vm.get_classes():
-        if is_class_implements_interface(cls, implement_interface, compare_type):
-            class_name = cls.get_name()
-            if class_name not in dict_result:
-                dict_result[class_name] = []
+    for vm in vms:
+        for cls in vm.get_classes():
+            if is_class_implements_interface(cls, implement_interface, compare_type):
+                class_name = cls.get_name()
+                if class_name not in dict_result:
+                    dict_result[class_name] = []
 
-            for method in cls.get_methods():
-                name_and_desc = method.get_name() + method.get_descriptor()
-                if name_and_desc in method_name_and_descriptor_list:
-                    dict_result[class_name].append(method)
+                for method in cls.get_methods():
+                    name_and_desc = method.get_name() + method.get_descriptor()
+                    if name_and_desc in method_name_and_descriptor_list:
+                        dict_result[class_name].append(method)
 
     return dict_result
 

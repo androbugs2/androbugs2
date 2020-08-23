@@ -393,15 +393,21 @@ class Writer:
 
         stopwatch_total_elapsed_time = self.getInf("time_total")
         stopwatch_analyze_time = self.getInf("time_analyze")
+        stopwatch_hacker_debuggable = self.getInf("time_hacker_debuggable_check")
         if stopwatch_total_elapsed_time and stopwatch_analyze_time:
 
             if (REPORT_OUTPUT == "file"):
                 self.output_and_force_print_console(
                     "AndroBugs analyzing time: " + str(stopwatch_analyze_time) + " secs")
                 self.output_and_force_print_console(
+                    "HACKER_DEBUGGABLE_CHECK elapsed time: " + str(stopwatch_hacker_debuggable) + " secs")
+
+                self.output_and_force_print_console(
                     "Total elapsed time: " + str(stopwatch_total_elapsed_time) + " secs")
             else:
                 self.output("AndroBugs analyzing time: " + str(stopwatch_analyze_time) + " secs")
+                self.output(
+                    "HACKER_DEBUGGABLE_CHECK elapsed time: " + str(stopwatch_hacker_debuggable) + " secs")
                 self.output("Total elapsed time: " + str(stopwatch_total_elapsed_time) + " secs")
 
         if args.store_analysis_result_in_db:

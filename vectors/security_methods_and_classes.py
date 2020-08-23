@@ -20,13 +20,14 @@ class Vector(VectorBase):
 
             list_security_related_methods = []
 
-            for method in self.dalvik.get_methods():
-                if prog.match(method.get_name()) or prog_sec.match(method.get_name()):
-                    if self.filtering_engine.is_class_name_not_in_exclusion(method.get_class_name()):
-                        # Need to exclude "onConfigurationChanged (Landroid/content/res/Configuration;)V"
-                        if (method.get_name() != 'onConfigurationChanged') and (
-                                method.get_descriptor() != '(Landroid/content/res/Configuration;)V'):
-                            list_security_related_methods.append(method)
+            for dalvik in self.dalvik:
+                for method in dalvik.get_methods():
+                    if prog.match(method.get_name()) or prog_sec.match(method.get_name()):
+                        if self.filtering_engine.is_class_name_not_in_exclusion(method.get_class_name()):
+                            # Need to exclude "onConfigurationChanged (Landroid/content/res/Configuration;)V"
+                            if (method.get_name() != 'onConfigurationChanged') and (
+                                    method.get_descriptor() != '(Landroid/content/res/Configuration;)V'):
+                                list_security_related_methods.append(method)
 
             if list_security_related_methods:
                 self.writer.startWriter("Security_Methods", LEVEL_NOTICE, "Security Methods Checking",
@@ -40,10 +41,11 @@ class Vector(VectorBase):
         if self.args.extra == 2:  # The output may be too verbose, so make it an option
             list_security_related_classes = []
 
-            for current_class in self.dalvik.get_classes():
-                if prog.match(current_class.get_name()) or prog_sec.match(current_class.get_name()):
-                    if self.filtering_engine.is_class_name_not_in_exclusion(current_class.get_name()):
-                        list_security_related_classes.append(current_class)
+            for dalvik in self.dalvik:
+                for current_class in dalvik.get_classes():
+                    if prog.match(current_class.get_name()) or prog_sec.match(current_class.get_name()):
+                        if self.filtering_engine.is_class_name_not_in_exclusion(current_class.get_name()):
+                            list_security_related_classes.append(current_class)
 
             if list_security_related_classes:
                 self.writer.startWriter("Security_Classes", LEVEL_NOTICE, "Security Classes Checking",

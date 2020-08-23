@@ -61,10 +61,11 @@ class Vector(VectorBase):
 
         # Find "SQLite Encryption Extension (SEE) on Android"
         has_SSE_databases = False
-        for cls in self.dalvik.get_classes():
-            if cls.get_name() == "Lorg/sqlite/database/sqlite/SQLiteDatabase;":  # Don't do the exclusion checking on this one because it's not needed
-                has_SSE_databases = True
-                break
+        for dalvik in self.dalvik:
+            for cls in dalvik.get_classes():
+                if cls.get_name() == "Lorg/sqlite/database/sqlite/SQLiteDatabase;":  # Don't do the exclusion checking on this one because it's not needed
+                    has_SSE_databases = True
+                    break
 
         if has_SSE_databases:
             self.writer.startWriter("DB_SEE", LEVEL_NOTICE,
@@ -82,14 +83,15 @@ class Vector(VectorBase):
         isUsingSQLCipher = False
 
         regexp_sqlcipher_database_class = re.compile(".*/SQLiteDatabase;")
-        for method in self.dalvik.get_methods():
-            # checks if method is native
-            if 0x100 & method.get_access_flags():
-                class_name = method.get_class_name()
-                if regexp_sqlcipher_database_class.match(class_name):
-                    if (method.get_name() == "dbopen") or (
-                            method.get_name() == "dbclose"):  # Make it to 2 conditions to add efficiency
-                        isUsingSQLCipher = True  # This is for later use
+        for dalvik in self.dalvik:
+            for method in dalvik.get_methods():
+                # checks if method is native
+                if 0x100 & method.get_access_flags():
+                    class_name = method.get_class_name()
+                    if regexp_sqlcipher_database_class.match(class_name):
+                        if (method.get_name() == "dbopen") or (
+                                method.get_name() == "dbclose"):  # Make it to 2 conditions to add efficiency
+                            isUsingSQLCipher = True  # This is for later use
 
         if isUsingSQLCipher:
             self.writer.startWriter("DB_SQLCIPHER", LEVEL_NOTICE, "Android SQLite Databases Encryption (SQLCipher)",

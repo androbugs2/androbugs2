@@ -323,7 +323,7 @@ def __analyze(writer, args):
     for vector_class in loaded_vector_classes:
         if args.debug_vector is None or args.debug_vector in vector_class.Vector.tags:
             print("Running " + vector_class.__name__ + " analysis.")
-            vector_class.Vector(writer, a, d[0], dx, args, int_min_sdk, int_target_sdk).analyze()
+            vector_class.Vector(writer, a, d, dx, args, int_min_sdk, int_target_sdk).analyze()
 
     # End of Checking
 
@@ -361,8 +361,6 @@ def main():
         loaded_vector_classes: [vector_base.Vector]
         for vector_class in loaded_vector_classes:
             print(vector_class.Vector.tags, vector_class.Vector.description)
-            # for tag in vector_class.Vector.tags:
-            #     print(tag)
         return
     elif args.apk_file is None:
         parser.error("APK name is required")

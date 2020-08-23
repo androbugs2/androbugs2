@@ -23,9 +23,13 @@ class Vector(VectorBase):
         # Second, find which class and method extends it
         list_webview_client = []
         # Get a list of onReceivedSslError( ... ) methods that belong to a class extending Landroid/webkit/WebviewClient;
-        methods_webviewClient = helper_functions.get_method_ins_by_superclass_and_method(self.dalvik, ["Landroid/webkit/WebViewClient;"],
-                                                                        "onReceivedSslError",
-                                                                        "(Landroid/webkit/WebView; Landroid/webkit/SslErrorHandler; Landroid/net/http/SslError;)V")
+        methods_webviewClient = []
+        for dalvik in self.dalvik:
+            methods_webviewClient.extend(helper_functions. \
+                                         get_method_ins_by_superclass_and_method(dalvik,
+                                                                                 ["Landroid/webkit/WebViewClient;"],
+                                                                                 "onReceivedSslError",
+                                                                                 "(Landroid/webkit/WebView; Landroid/webkit/SslErrorHandler; Landroid/net/http/SslError;)V"))
         for method in methods_webviewClient:
             if helper_functions.is_kind_string_in_ins_method(method, "Landroid/webkit/SslErrorHandler;->proceed()V"):
                 list_webview_client.append(method)
