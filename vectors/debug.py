@@ -96,33 +96,25 @@ class Vector(VectorBase):
                    ]):
             return []
 
-        # Loop over all methods and retrieve methods that contain ApplicationInfo;->flags fields and access its debug flag
-        # List comprehensions are used for performance purposes
-        return [method_analysis.get_method()
-                for method_analysis in self.analysis.get_methods()
-                    if not method_analysis.is_external() and \
-                        self._scan_method_instructions_for_application_info(method_analysis.get_method().get_instructions())
-                ]
+        matches = []
 
-    def _scan_method_instructions_for_application_info(self, instructions):
-        """
-        Returns if there any instructions that access ApplicationInfo;->flags fields and subsequently access its debug flag
-        """
-        return any([True
-                    for instruction in instructions
-                        if instruction.get_op_value() == self.OPCODES["iget"] and \
-                            instruction.get_operands()[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I" and \
-                            self._does_next_instruction_access_debug_flag(instruction.get_operands()[0], next(instructions))
-                    ])
+        # Loop over all methods
+        for method_analysis in self.analysis.get_methods():
+            if method_analysis.is_external():
+                continue
+            method = method_analysis.get_method()
+            flags_variable = None
+            for instruction in method.get_instructions():
+                operands = instruction.get_operands()
+                opcode = instruction.get_op_value()
+                if flags_variable is None and opcode == self.OPCODES["iget"] \
+                      and operands[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I":
+                    flags_variable = operands[0]
+                    continue
+                if flags_variable and opcode == self.OPCODES["and-int/lit8"]:
+                    if operands[2] == (dvm.OPERAND_LITERAL, 2) \
+                            and operands[1] == flags_variable:
+                        matches.append(method)
+                        break
+        return matches
 
-    def _does_next_instruction_access_debug_flag(self, flags_register, instruction):
-        """
-        Checks if the instruction accesses the debug flag in the register that contains ApplicationInfo;->flags
-        """
-        operands = instruction.get_operands()
-        opcode = instruction.get_op_value()
-        if opcode == self.OPCODES["and-int/lit8"] and \
-                operands[2] == (dvm.OPERAND_LITERAL, 2) and \
-                operands[1] == flags_register:
-            return True
-        return False
