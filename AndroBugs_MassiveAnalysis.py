@@ -1,8 +1,5 @@
 import traceback
-from shlex import quote
-
 import argparse
-import platform
 import multiprocessing
 import os
 
@@ -37,11 +34,9 @@ def main():
         from pymongo import MongoClient
         from configparser import ConfigParser
 
-        if platform.system().lower() == "windows":
-            import sys
-            db_config_file = os.path.join(os.path.dirname(sys.executable), 'androbugs-db.cfg')
-        else:
-            db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
+        #if platform.system().lower() == "windows":
+
+        db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
         if not os.path.isfile(db_config_file):
             print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
@@ -111,12 +106,11 @@ class Analysis():
 
     def analyse(self, filename):
         main_cmd = "python androbugs.py"
-        if platform.system().lower() == "windows":
-            main_cmd = "androbugs.exe"
 
-        cmd = main_cmd + " -s -v -e " + str(self._args.extra) + " -f " + quote(os.path.join(self._input_dir,
-                                                                                      filename)) + " -o " + self._output_dir + \
-              " -m massive -b " + str(self._args.analyze_engine_build) + " -t " + str(self._args.analyze_tag)
+
+        cmd = main_cmd + " -s -v -e " + str(self._args.extra) + " -f \"" + (os.path.join(self._input_dir,
+                                                                                      filename)) + "\" -o \"" + (self._output_dir) + \
+              "\" -m massive -b " + str(self._args.analyze_engine_build) + " -t " + str(self._args.analyze_tag)
         try:
 
             p = os.popen(cmd)

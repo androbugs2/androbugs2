@@ -25,11 +25,9 @@ print("## AndroBugs Framework: Android APK Vulnerability Summary Reporter ##")
 print()
 
 if platform.system().lower() == "windows" :
-	import sys
-	db_config_file = os.path.join(os.path.dirname(sys.executable), 'androbugs-db.cfg')
 	print("[Notice] The output format is not good in Windows console")
-else :
-	db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
+
+db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
 if not os.path.isfile(db_config_file) :
 	print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))

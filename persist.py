@@ -8,10 +8,8 @@ import constants
 
 
 def __persist_db(writer, args):
-    if platform.system().lower() == "windows":
-        db_config_file = os.path.join(os.path.dirname(sys.executable), 'androbugs-db.cfg')
-    else:
-        db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
+
+    db_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'androbugs-db.cfg')
 
     if not os.path.isfile(db_config_file):
         print(("[ERROR] AndroBugs Framework DB config file not found: " + db_config_file))
